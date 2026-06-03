@@ -15,6 +15,7 @@ import KeyboardShortcutsModal from './components/KeyboardShortcutsModal.jsx'
 // Eagerly loaded (critical path — first paint)
 import TitleScreen           from './pages/TitleScreen.jsx'
 import GamePage              from './pages/GamePage.jsx'
+import ProtectedRoute        from './components/ProtectedRoute.jsx'
 
 // Lazily loaded
 const AuthGatePage        = lazy(() => import('./pages/AuthGatePage.jsx'))
@@ -53,36 +54,30 @@ function AppInner() {
     <>
       <Suspense fallback={<PageFallback />}>
         <Routes>
-          {/* ── Game flow ─────────────────────────────────────── */}
+          {/* ── Public (no auth needed) ───────────────────────── */}
           <Route path="/"                   element={<TitleScreen />} />
           <Route path="/auth"               element={<AuthGatePage />} />
-          <Route path="/setup"              element={<NameSetupScreen />} />
-          <Route path="/modes"              element={<ModeSelectPage />} />
-          <Route path="/play/:mode"         element={<GamePage />} />
-
-          {/* ── Multiplayer ───────────────────────────────────── */}
-          <Route path="/lobby"              element={<LobbyPage />} />
-          <Route path="/room/:roomId"       element={<RoomPage />} />
-          <Route path="/spectate"           element={<SpectatorPage />} />
-          <Route path="/spectate/:roomId"   element={<SpectatorPage />} />
-
-          {/* ── Engagement (via MoreDrawer) ───────────────────── */}
-          <Route path="/daily"              element={<DailyChallengePage />} />
-          <Route path="/leaderboard"        element={<LeaderboardPage />} />
-          <Route path="/leaderboard/:type"  element={<LeaderboardPage />} />
-          <Route path="/badges"             element={<BadgesPage />} />
-          <Route path="/theater"            element={<ReplayTheaterPage />} />
-          <Route path="/theater/:id"        element={<ReplayTheaterPage />} />
-
-          {/* ── More modes (via MoreDrawer) ───────────────────── */}
-          <Route path="/countdown"          element={<CountdownPage />} />
-          <Route path="/chain"              element={<NumberChainPage />} />
-          <Route path="/towers"             element={<NumberTowersPage />} />
-
-          {/* ── Account ──────────────────────────────────────── */}
           <Route path="/register"           element={<RegisterPage />} />
           <Route path="/login"              element={<LoginPage />} />
-          <Route path="/profile"            element={<ProfilePage />} />
+
+          {/* ── Protected (requires auth or guest mode) ───────── */}
+          <Route path="/setup"              element={<ProtectedRoute><NameSetupScreen /></ProtectedRoute>} />
+          <Route path="/modes"              element={<ProtectedRoute><ModeSelectPage /></ProtectedRoute>} />
+          <Route path="/play/:mode"         element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
+          <Route path="/lobby"              element={<ProtectedRoute><LobbyPage /></ProtectedRoute>} />
+          <Route path="/room/:roomId"       element={<ProtectedRoute><RoomPage /></ProtectedRoute>} />
+          <Route path="/spectate"           element={<ProtectedRoute><SpectatorPage /></ProtectedRoute>} />
+          <Route path="/spectate/:roomId"   element={<ProtectedRoute><SpectatorPage /></ProtectedRoute>} />
+          <Route path="/daily"              element={<ProtectedRoute><DailyChallengePage /></ProtectedRoute>} />
+          <Route path="/leaderboard"        element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
+          <Route path="/leaderboard/:type"  element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
+          <Route path="/badges"             element={<ProtectedRoute><BadgesPage /></ProtectedRoute>} />
+          <Route path="/theater"            element={<ProtectedRoute><ReplayTheaterPage /></ProtectedRoute>} />
+          <Route path="/theater/:id"        element={<ProtectedRoute><ReplayTheaterPage /></ProtectedRoute>} />
+          <Route path="/countdown"          element={<ProtectedRoute><CountdownPage /></ProtectedRoute>} />
+          <Route path="/chain"              element={<ProtectedRoute><NumberChainPage /></ProtectedRoute>} />
+          <Route path="/towers"             element={<ProtectedRoute><NumberTowersPage /></ProtectedRoute>} />
+          <Route path="/profile"            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/friends"            element={<FriendsPage />} />
           <Route path="/settings"           element={<SettingsPage />} />
           <Route path="/admin"              element={<AdminPage />} />
