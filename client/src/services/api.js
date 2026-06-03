@@ -1,7 +1,6 @@
 // In production use the Railway server URL, in dev use the Vite proxy
-const BASE = import.meta.env.VITE_SOCKET_URL
-  ? `${import.meta.env.VITE_SOCKET_URL}/api`
-  : '/api'
+const SERVER = (import.meta.env.VITE_SOCKET_URL || '').replace(/\/$/, '')
+const BASE = SERVER ? `${SERVER}/api` : '/api'
 let _token = null
 
 async function request(method, path, body) {
