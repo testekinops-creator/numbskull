@@ -125,14 +125,24 @@ export function registerGameHandlers(io, socket) {
       const room = await roomManager.get(roomId)
       if (!room || room.phase !== 'GAME_OVER') return ack?.({ ok: false, error: 'Invalid state' })
 
-      const opponentId = room.players.find(p => p.id !== playerId)?.id
       const myName     = room.players.find(p => p.id === playerId)?.name || 'Opponent'
+      const opponentId = room.players.find(p => p.id !== playerId)?.id
 
-      if (!opponentId) return ack?.({ ok: false, error: 'No opponent in room' })
+      // Make sure THIS socket is still in the room (survives reconnects)
+      socket.join(roomId)
 
-      // Notify the opponent that this player wants a rematch
-      const opponentSocket = _getSocketForPlayer(io, opponentId)
+      // Broadcast to the whole room — reliable; the client ignores its own id.
+      // (Direct socket lookup was flaky when a socket was stale/reconnecting.)
+      io.to(roomId).emit('game:rematch_incoming', {
+        fromPlayerId: playerId,
+        fromPlayerName: myName,
+        roomId,
+      })
+
+      // Belt-and-suspenders: also emit directly to the opponent socket if found
+      const opponentSocket = opponentId ? _getSocketForPlayer(io, opponentId) : null
       if (opponentSocket) {
+        opponentSocket.join(roomId)
         opponentSocket.emit('game:rematch_incoming', {
           fromPlayerId: playerId,
           fromPlayerName: myName,

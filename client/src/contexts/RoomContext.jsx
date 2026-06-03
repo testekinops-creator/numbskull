@@ -197,9 +197,11 @@ export function RoomProvider({ children }) {
     })
 
     socket.on('game:rematch_start',    room => dispatch({ type: 'ROOM_UPDATED', room }))
-    socket.on('game:rematch_incoming', ({ fromPlayerName }) =>
+    socket.on('game:rematch_incoming', ({ fromPlayerId, fromPlayerName }) => {
+      // Ignore my own request (broadcast goes to the whole room incl. sender)
+      if (fromPlayerId === playerId) return
       dispatch({ type: 'REMATCH_INCOMING', name: fromPlayerName })
-    )
+    })
     socket.on('game:rematch_declined', () => dispatch({ type: 'REMATCH_DECLINED' }))
     socket.on('game:turn_timeout',    ()   => clearInterval(timerRef.current))
 
