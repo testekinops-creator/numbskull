@@ -17,9 +17,20 @@ import { logger } from './utils/logger.js'
 const app = express()
 
 app.use(helmet())
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:3000',
+  'http://localhost:5173',
+].filter(Boolean)
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true)
+      // Also allow any vercel.app subdomain
+      if (origin.endsWith('.vercel.app')) return cb(null, true)
+      cb(new Error(`CORS: ${origin} not allowed`))
+    },
     credentials: true,
   })
 )
