@@ -1,0 +1,66 @@
+.tracker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.digits {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.digit {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  transition: background 0.2s, color 0.2s;
+  border: 1.5px solid transparent;
+}
+
+/* Unknown — neutral grey */
+.unknown {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  border-color: rgba(255,255,255,0.06);
+}
+
+/* Bull — cyan, confirmed correct position */
+.bull {
+  background: rgba(0, 245, 255, 0.15);
+  color: var(--color-juice);
+  border-color: rgba(0, 245, 255, 0.5);
+}
+
+/* Cow — orange, in secret but wrong spot */
+.cow {
+  background: rgba(255, 167, 38, 0.15);
+  color: #FFA726;
+  border-color: rgba(255, 167, 38, 0.45);
+}
+
+/* Miss — dark, crossed out */
+.miss {
+  background: var(--color-surface);
+  color: var(--color-surface-3);
+  border-color: rgba(255,255,255,0.04);
+  text-decoration: line-through;
+  opacity: 0.45;
+}
