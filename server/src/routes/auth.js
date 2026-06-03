@@ -77,10 +77,12 @@ authRouter.post('/logout', requireAuth, async (req, res) => {
 })
 
 // ── Me ─────────────────────────────────────────────────────────────────────
-authRouter.get('/me', requireAuth, (req, res) => {
-  const user = AuthService.getUser(req.userId)
-  if (!user) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found', status: 404 } })
-  res.json({ success: true, data: { user: AuthService.publicProfile(user) } })
+authRouter.get('/me', requireAuth, async (req, res, next) => {
+  try {
+    const user = await AuthService.getUser(req.userId)
+    if (!user) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found', status: 404 } })
+    res.json({ success: true, data: { user: AuthService.publicProfile(user) } })
+  } catch (err) { next(err) }
 })
 
 // ── Google OAuth stub ──────────────────────────────────────────────────────

@@ -47,23 +47,23 @@ export const SocialService = {
 
   areFriends(a, b) { return friendships.has(_friendKey(a, b)) },
 
-  getFriends(userId) {
+  async getFriends(userId) {
     const friends = []
-    for (const [key, data] of friendships) {
+    for (const [, data] of friendships) {
       if (data.a === userId || data.b === userId) {
         const otherId = data.a === userId ? data.b : data.a
-        const profile = AuthService.publicProfile(AuthService.getUser(otherId))
+        const profile = AuthService.publicProfile(await AuthService.getUser(otherId))
         if (profile) friends.push({ ...profile, friendSince: data.since })
       }
     }
     return friends
   },
 
-  getPendingRequests(userId) {
+  async getPendingRequests(userId) {
     const pending = []
     for (const [, req] of requests) {
       if (req.to === userId) {
-        const profile = AuthService.publicProfile(AuthService.getUser(req.from))
+        const profile = AuthService.publicProfile(await AuthService.getUser(req.from))
         if (profile) pending.push({ ...profile, sentAt: req.sentAt })
       }
     }

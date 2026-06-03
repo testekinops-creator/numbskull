@@ -33,18 +33,22 @@ adminRouter.get('/stats', (_req, res) => {
 })
 
 // ── Ban / unban ────────────────────────────────────────────────────────────
-adminRouter.post('/users/:id/ban', (req, res) => {
-  const user = AuthService.getUser(req.params.id)
-  if (!user) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found', status: 404 } })
-  AuthService.updateUser(req.params.id, { banned: true, bannedAt: new Date().toISOString() })
-  res.json({ success: true, data: { banned: true } })
+adminRouter.post('/users/:id/ban', async (req, res, next) => {
+  try {
+    const user = await AuthService.getUser(req.params.id)
+    if (!user) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found', status: 404 } })
+    await AuthService.updateUser(req.params.id, { banned: true, bannedAt: new Date() })
+    res.json({ success: true, data: { banned: true } })
+  } catch (err) { next(err) }
 })
 
-adminRouter.post('/users/:id/unban', (req, res) => {
-  const user = AuthService.getUser(req.params.id)
-  if (!user) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found', status: 404 } })
-  AuthService.updateUser(req.params.id, { banned: false, bannedAt: null })
-  res.json({ success: true, data: { banned: false } })
+adminRouter.post('/users/:id/unban', async (req, res, next) => {
+  try {
+    const user = await AuthService.getUser(req.params.id)
+    if (!user) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found', status: 404 } })
+    await AuthService.updateUser(req.params.id, { banned: false, bannedAt: null })
+    res.json({ success: true, data: { banned: false } })
+  } catch (err) { next(err) }
 })
 
 // ── Announcements ──────────────────────────────────────────────────────────
