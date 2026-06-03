@@ -11,6 +11,13 @@ const MUSICAL_NOTES = [
   523.25, // C5
 ]
 
+const SOUND_KEY = 'ns_sound_enabled'
+
+function isSoundEnabled() {
+  const v = localStorage.getItem(SOUND_KEY)
+  return v === null ? true : v === 'true'
+}
+
 function proximityToFrequency(proximity) {
   const idx = Math.round(proximity * (MUSICAL_NOTES.length - 1))
   return MUSICAL_NOTES[Math.max(0, Math.min(idx, MUSICAL_NOTES.length - 1))]
@@ -19,26 +26,27 @@ function proximityToFrequency(proximity) {
 export function useSound() {
   const ctxRef = useRef(null)
 
-  function getCtx() {
+  async function getCtx() {
     if (!ctxRef.current) {
       ctxRef.current = new (window.AudioContext || window.webkitAudioContext)()
     }
+    // Must await resume — it's async and audio won't play until resolved
     if (ctxRef.current.state === 'suspended') {
-      ctxRef.current.resume()
+      await ctxRef.current.resume()
     }
     return ctxRef.current
   }
 
-  const playTone = useCallback((proximity = 0) => {
+  const playTone = useCallback(async (proximity = 0) => {
+    if (!isSoundEnabled()) return
     try {
-      const ctx = getCtx()
+      const ctx = await getCtx()
       const freq = proximityToFrequency(proximity)
-      const osc = ctx.createOscillator()
+      const osc  = ctx.createOscillator()
       const gain = ctx.createGain()
 
       osc.type = proximity >= 0.9 ? 'triangle' : 'sine'
       osc.frequency.setValueAtTime(freq, ctx.currentTime)
-
       gain.gain.setValueAtTime(0.25, ctx.currentTime)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
 
@@ -47,17 +55,18 @@ export function useSound() {
       osc.start()
       osc.stop(ctx.currentTime + 0.4)
     } catch {
-      // Audio blocked by browser — silently ignore
+      // Blocked by browser policy — ignore
     }
   }, [])
 
-  const playWin = useCallback(() => {
+  const playWin = useCallback(async () => {
+    if (!isSoundEnabled()) return
     try {
-      const ctx = getCtx()
+      const ctx = await getCtx()
       const freqs = [523.25, 659.25, 783.99]
       freqs.forEach((freq, i) => {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
+        const osc   = ctx.createOscillator()
+        const gain  = ctx.createGain()
         const start = ctx.currentTime + i * 0.12
         osc.frequency.setValueAtTime(freq, start)
         osc.type = 'triangle'
