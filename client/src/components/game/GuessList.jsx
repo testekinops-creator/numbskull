@@ -17,25 +17,37 @@ export default function GuessList({ guesses, mode }) {
   )
 }
 
-/* ── Bulls & Cows row — colored digit tiles ──────────────────── */
+/* ── Bulls & Cows row ──────────────────────────────────────────
+   - Bull  → CYAN tile  (correct digit, correct position)
+   - Cow   → grey tile  (don't reveal which position)
+   - Miss  → grey tile  (same as cow, hidden)
+   - Message shows only the cow count
+──────────────────────────────────────────────────────────────── */
 function BCGuessRow({ entry }) {
-  const digits    = String(entry.value || entry.guess || '').split('')
+  const value   = String(entry.value ?? entry.guess ?? '')
+  const bulls   = entry.result?.bulls   ?? 0
+  const cows    = entry.result?.cows    ?? 0
+  const correct = entry.result?.correct
   const positions = entry.result?.positions || []
-  const bulls     = entry.result?.bulls ?? 0
-  const cows      = entry.result?.cows  ?? 0
-  const correct   = entry.result?.correct
+
+  function cowMessage() {
+    if (correct) return null
+    if (cows === 0) return null
+    return `${cows} correct digit${cows > 1 ? 's' : ''} wrong position`
+  }
+
+  const msg = cowMessage()
 
   return (
     <div className={styles.bcRow}>
-      {/* Digit tiles */}
+      {/* 4 digit tiles — only bulls get cyan, everything else is grey */}
       <div className={styles.tiles}>
-        {digits.map((d, i) => {
-          const state = positions[i] || 'miss'
+        {value.split('').map((d, i) => {
+          const isBull = positions[i] === 'bull'
           return (
             <span
               key={i}
-              className={`${styles.tile} ${styles[`tile_${state}`]}`}
-              aria-label={`${d} — ${state}`}
+              className={`${styles.tile} ${isBull ? styles.tileBull : styles.tileGrey}`}
             >
               {d}
             </span>
@@ -43,26 +55,19 @@ function BCGuessRow({ entry }) {
         })}
       </div>
 
-      {/* Summary */}
-      <div className={styles.bcSummary}>
-        {correct ? (
-          <span className={styles.correctTag}>✓ Correct!</span>
-        ) : (
-          <>
-            <span className={styles.bullCount}>
-              🐂 <strong>{bulls}</strong>
-            </span>
-            <span className={styles.cowCount}>
-              🐄 <strong>{cows}</strong>
-            </span>
-          </>
+      {/* Result text */}
+      <div className={styles.bcMeta}>
+        {correct && <span className={styles.correctText}>✓ Correct!</span>}
+        {!correct && msg && <span className={styles.cowMsg}>{msg}</span>}
+        {!correct && !msg && cows === 0 && (
+          <span className={styles.noMatch}>No matches</span>
         )}
       </div>
     </div>
   )
 }
 
-/* ── Guess The Number row ─────────────────────────────────────── */
+/* ── GTN row ─────────────────────────────────────────────────── */
 function GTNGuessRow({ entry }) {
   const value     = entry.value ?? entry.guess
   const direction = entry.result?.direction
@@ -71,11 +76,11 @@ function GTNGuessRow({ entry }) {
 
   return (
     <div className={styles.gtnRow}>
-      <span className={`${styles.gtnValue} ${styles[`prox${proximityClass(proximity)}`]}`}>
+      <span className={`${styles.guessValue} ${styles[`prox${proximityClass(proximity)}`]}`}>
         {value}
       </span>
       {correct ? (
-        <span className={styles.correctTag}>✓ Correct!</span>
+        <span className={styles.correctText}>✓ Correct!</span>
       ) : direction ? (
         <span className={styles.gtnHint}>
           {direction === 'higher' ? '↑ Go higher' : '↓ Go lower'}

@@ -7,7 +7,6 @@ import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import RematchPrompt from '../components/game/RematchPrompt.jsx'
-import BCDigitTracker from '../components/game/BCDigitTracker.jsx'
 import TurnTimer from '../components/game/TurnTimer.jsx'
 import { getSkullExpression } from '../utils/personality.js'
 import styles from './RoomPage.module.css'
@@ -265,9 +264,6 @@ export default function RoomPage() {
               </p>
             )}
 
-            {mode === 'BC' && (
-              <BCDigitTracker guesses={state.guesses.filter(g => g.guesser === playerId)} />
-            )}
             <GuessList guesses={state.guesses.filter(g => g.guesser === playerId)} mode={mode} />
           </>
         )}

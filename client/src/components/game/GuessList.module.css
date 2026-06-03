@@ -7,91 +7,59 @@
   overflow-y: auto;
 }
 
-.item {
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
+.item { border-radius: var(--radius-lg); overflow: hidden; }
 
-/* ── Bulls & Cows row ──────────────────────────────────────────── */
+/* ── B&C row ─────────────────────────────────────────────────── */
 .bcRow {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
   border: 1px solid rgba(255,255,255,0.05);
   border-radius: var(--radius-lg);
 }
 
-/* Digit tile grid */
 .tiles {
   display: flex;
   gap: var(--space-2);
-  flex-shrink: 0;
 }
 
 .tile {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
   font-family: var(--font-mono);
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   font-weight: var(--weight-black);
-  border: 2px solid transparent;
-  transition: background var(--duration-fast);
+  border: 1.5px solid transparent;
 }
 
-/* Miss — digit not in secret */
-.tile_miss {
-  background: var(--color-surface-2);
-  color: var(--color-text-muted);
-  border-color: rgba(255,255,255,0.06);
-}
-
-/* Bull — right digit, right position (cyan) */
-.tile_bull {
+/* Bull — cyan, correct position revealed */
+.tileBull {
   background: rgba(0, 245, 255, 0.15);
   color: var(--color-juice);
   border-color: rgba(0, 245, 255, 0.5);
-  box-shadow: 0 0 8px rgba(0, 245, 255, 0.2);
+  box-shadow: 0 0 8px rgba(0, 245, 255, 0.15);
 }
 
-/* Cow — right digit, wrong position (orange) */
-.tile_cow {
-  background: rgba(255, 167, 38, 0.15);
-  color: #FFA726;
-  border-color: rgba(255, 167, 38, 0.5);
-  box-shadow: 0 0 8px rgba(255, 167, 38, 0.15);
+/* Cow + Miss — same plain grey, no distinction */
+.tileGrey {
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  border-color: rgba(255,255,255,0.07);
 }
 
-/* B&C summary (bull/cow counts) */
-.bcSummary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-left: auto;
-  flex-shrink: 0;
-}
+.bcMeta { font-size: var(--text-sm); }
 
-.bullCount {
-  font-size: var(--text-sm);
-  color: var(--color-juice);
-}
+.cowMsg     { color: #FFA726; font-weight: var(--weight-semibold); }
+.noMatch    { color: var(--color-text-muted); }
+.correctText { color: var(--color-juice); font-weight: var(--weight-bold); }
 
-.cowCount {
-  font-size: var(--text-sm);
-  color: #FFA726;
-}
-
-.bullCount strong,
-.cowCount strong {
-  font-size: var(--text-base);
-}
-
-/* ── GTN row ───────────────────────────────────────────────────── */
+/* ── GTN row ─────────────────────────────────────────────────── */
 .gtnRow {
   display: flex;
   align-items: center;
@@ -102,11 +70,10 @@
   border-radius: var(--radius-lg);
 }
 
-.gtnValue {
+.guessValue {
   font-family: var(--font-mono);
   font-size: var(--text-xl);
   font-weight: var(--weight-bold);
-  font-variant-numeric: tabular-nums;
   min-width: 3rem;
 }
 
@@ -115,16 +82,4 @@
 .proxCool { color: var(--color-text-secondary); }
 .proxCold { color: var(--color-text-muted); }
 
-.gtnHint {
-  flex: 1;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
-/* Correct tag (both modes) */
-.correctTag {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--color-juice);
-  margin-left: auto;
-}
+.gtnHint { font-size: var(--text-sm); color: var(--color-text-secondary); flex: 1; }

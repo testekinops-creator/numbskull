@@ -9,7 +9,6 @@ import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getTierFromGames, getSkullExpression } from '../utils/personality.js'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
-import BCDigitTracker from '../components/game/BCDigitTracker.jsx'
 import styles from './GamePage.module.css'
 
 const MODE_LABELS = { GTN: 'Guess The Number', BC: 'Bulls & Cows' }
@@ -168,9 +167,6 @@ export default function GamePage() {
             </button>
           </form>
         )}
-
-        {/* Digit tracker for B&C — shows which digits are in/out of secret */}
-        {mode === 'BC' && <BCDigitTracker guesses={state.guesses} />}
 
         {/* Guess history */}
         <GuessList guesses={state.guesses} mode={mode} />
