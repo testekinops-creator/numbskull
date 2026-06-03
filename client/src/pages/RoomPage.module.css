@@ -204,12 +204,67 @@
   letter-spacing: 0.12em;
 }
 
+/* Per-digit secret (B&C) — for Feature 2 red highlighting */
+.mySecretDigits {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.secretDigit {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-black);
+  color: var(--color-juice);
+  width: 28px;
+  text-align: center;
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+/* Opponent has locked this digit (guessed it in the right position) */
+.secretDigitFound {
+  color: #FF3B5C;
+  text-shadow: 0 0 12px rgba(255, 59, 92, 0.6);
+}
+
 .mySecretHint {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   font-style: italic;
   border-top: 1px solid rgba(255,255,255,0.05);
   padding-top: var(--space-2);
+}
+
+/* ── Feature 1: opponent's latest guess ──────────────────── */
+.oppGuessBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 62, 138, 0.07);
+  border: 1px solid rgba(255, 62, 138, 0.2);
+  border-radius: var(--radius-xl);
+  animation: oppGuessPop 0.3s var(--ease-spring);
+}
+
+.oppGuessLabel {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.oppGuessValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-black);
+  color: var(--color-pink);
+  letter-spacing: 0.12em;
+}
+
+@keyframes oppGuessPop {
+  from { transform: scale(0.92); opacity: 0.4; }
+  to   { transform: scale(1); opacity: 1; }
 }
 
 /* ── Bulls & Cows legend ─────────────────────────────────── */

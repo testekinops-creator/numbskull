@@ -37,6 +37,22 @@ export default function RoomPage() {
   const opponent = room?.players?.find(p => p.id !== playerId)
   const isMyTurn = state.myTurn
 
+  // ── Opponent's guesses (broadcast to room) ───────────────────────────────
+  const opponentGuesses = state.guesses.filter(g => g.guesser !== playerId)
+  const opponentLastGuess = opponentGuesses[opponentGuesses.length - 1] || null
+
+  // Feature 2 (B&C): which positions of MY secret has the opponent guessed
+  // as a BULL (exact position). Accumulates — stays red once found.
+  const foundPositions = new Set()
+  if (mode === 'BC') {
+    for (const g of opponentGuesses) {
+      const pos = g.result?.positions || []
+      pos.forEach((p, i) => { if (p === 'bull') foundPositions.add(i) })
+    }
+  }
+
+  const mySecret = mySecretRef.current || state.room?.mySecret || ''
+
   useEffect(() => {
     if (!socket || !roomId) return
     socket.emit('room:reconnect', { roomId }, r => {
@@ -220,16 +236,41 @@ export default function RoomPage() {
             <TurnTimer active={isMyTurn} seconds={state.turnTimeLeft} />
 
             {/* ── Your secret (always visible) ── */}
-            {(mySecretRef.current || state.room?.mySecret) && (
+            {mySecret && (
               <div className={styles.mySecretBanner}>
                 <div className={styles.mySecretTop}>
                   <span className={styles.mySecretLabel}>🔒 Your secret {mode === 'GTN' ? 'number' : 'code'}</span>
-                  <span className={styles.mySecretValue}>
-                    {mySecretRef.current || state.room?.mySecret}
-                  </span>
+                  {mode === 'BC' ? (
+                    <span className={styles.mySecretDigits}>
+                      {mySecret.split('').map((d, i) => (
+                        <span
+                          key={i}
+                          className={`${styles.secretDigit} ${foundPositions.has(i) ? styles.secretDigitFound : ''}`}
+                        >
+                          {d}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className={styles.mySecretValue}>{mySecret}</span>
+                  )}
                 </div>
                 <span className={styles.mySecretHint}>
-                  👆 {opponent?.name || 'Opponent'} is trying to guess this — don't reveal it!
+                  {mode === 'BC' && foundPositions.size > 0
+                    ? `⚠️ ${opponent?.name || 'Opponent'} has locked ${foundPositions.size} of your digits (red)!`
+                    : `👆 ${opponent?.name || 'Opponent'} is trying to guess this — don't reveal it!`}
+                </span>
+              </div>
+            )}
+
+            {/* ── Feature 1: opponent's latest guess ── */}
+            {opponentLastGuess && (
+              <div className={styles.oppGuessBox}>
+                <span className={styles.oppGuessLabel}>
+                  {opponent?.name || 'Opponent'}'s last guess
+                </span>
+                <span className={styles.oppGuessValue}>
+                  {opponentLastGuess.guess}
                 </span>
               </div>
             )}
