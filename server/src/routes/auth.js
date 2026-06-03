@@ -16,8 +16,9 @@ const registerSchema = z.object({
   guestId:  z.string().optional(),
 })
 
+// Accept email address OR username in the email field
 const loginSchema = z.object({
-  email:    z.string().email(),
+  email:    z.string().min(1),
   password: z.string().min(1),
 })
 

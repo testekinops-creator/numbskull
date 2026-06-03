@@ -41,8 +41,8 @@ export default function LoginPage() {
 
         <form className={styles.form} onSubmit={handleSubmit}>
           <label className={styles.label}>
-            Email
-            <input className="input" type="email" value={form.email} onChange={set('email')} required autoComplete="email" placeholder="you@example.com" />
+            Email or Username
+            <input className="input" type="text" value={form.email} onChange={set('email')} required autoComplete="username" placeholder="you@example.com or your username" />
           </label>
           <label className={styles.label}>
             Password

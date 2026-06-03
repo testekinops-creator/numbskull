@@ -38,8 +38,18 @@ export const AuthService = {
   },
 
   async login({ email, password }) {
-    const userId = byEmail.get(email.toLowerCase())
-    const user   = userId ? users.get(userId) : null
+    // Support login with email OR username
+    let userId = byEmail.get(email.toLowerCase())
+    if (!userId) {
+      // Try matching by username (case-insensitive)
+      for (const u of users.values()) {
+        if (u.username?.toLowerCase() === email.toLowerCase()) {
+          userId = u.id
+          break
+        }
+      }
+    }
+    const user = userId ? users.get(userId) : null
 
     const lockKey = email.toLowerCase()
     const lock = lockouts.get(lockKey)

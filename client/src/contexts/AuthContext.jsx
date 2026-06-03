@@ -2,6 +2,8 @@ import { createContext, useContext, useReducer, useCallback, useEffect } from 'r
 import { api } from '../services/api.js'
 
 const AuthContext = createContext(null)
+const TOKEN_KEY = 'ns_access_token'
+const USER_KEY  = 'ns_user'
 
 const INITIAL = { user: null, accessToken: null, loading: true }
 
@@ -14,18 +16,63 @@ function reducer(state, action) {
   }
 }
 
+function saveAuth(token, user) {
+  localStorage.setItem(TOKEN_KEY, token)
+  localStorage.setItem(USER_KEY,  JSON.stringify(user))
+}
+
+function clearAuth() {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+}
+
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, INITIAL)
 
   useEffect(() => {
-    api.post('/auth/refresh', {})
-      .then(data => dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken }))
-      .catch(() => dispatch({ type: 'LOADED' }))
+    const token = localStorage.getItem(TOKEN_KEY)
+    const userRaw = localStorage.getItem(USER_KEY)
+
+    if (token && userRaw) {
+      try {
+        const user = JSON.parse(userRaw)
+        api.setToken(token)
+        // Verify token is still valid
+        api.get('/auth/me')
+          .then(data => {
+            dispatch({ type: 'LOGIN', user: data.user, accessToken: token })
+          })
+          .catch(() => {
+            // Token expired — try refresh
+            clearAuth()
+            api.post('/auth/refresh', {})
+              .then(data => {
+                api.setToken(data.accessToken)
+                saveAuth(data.accessToken, data.user)
+                dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
+              })
+              .catch(() => dispatch({ type: 'LOADED' }))
+          })
+      } catch {
+        clearAuth()
+        dispatch({ type: 'LOADED' })
+      }
+    } else {
+      // No local token — try cookie refresh (works on localhost)
+      api.post('/auth/refresh', {})
+        .then(data => {
+          api.setToken(data.accessToken)
+          saveAuth(data.accessToken, data.user)
+          dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
+        })
+        .catch(() => dispatch({ type: 'LOADED' }))
+    }
   }, [])
 
   const register = useCallback(async ({ email, username, password, guestId }) => {
     const data = await api.post('/auth/register', { email, username, password, guestId })
     api.setToken(data.accessToken)
+    saveAuth(data.accessToken, data.user)
     dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
     return data.user
   }, [])
@@ -33,6 +80,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async ({ email, password }) => {
     const data = await api.post('/auth/login', { email, password })
     api.setToken(data.accessToken)
+    saveAuth(data.accessToken, data.user)
     dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
     return data.user
   }, [])
@@ -40,6 +88,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     await api.post('/auth/logout', {}).catch(() => {})
     api.setToken(null)
+    clearAuth()
     dispatch({ type: 'LOGOUT' })
   }, [])
 
