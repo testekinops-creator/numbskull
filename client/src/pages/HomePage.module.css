@@ -1,0 +1,184 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-8) var(--space-4);
+  gap: var(--space-10);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.logoWrap {
+  margin-bottom: var(--space-2);
+}
+
+.wordmark {
+  font-family: var(--font-brand);
+  font-size: var(--text-5xl);
+  font-weight: var(--weight-black);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.accent {
+  color: var(--color-juice);
+  text-shadow: 0 0 20px var(--color-juice-glow);
+}
+
+.tagline {
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin-top: var(--space-1);
+}
+
+.modes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--panel-max-width);
+}
+
+.modeCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-spring),
+    background var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+.modeCard:hover:not(:disabled) {
+  background: var(--color-surface-2);
+  border-color: rgba(0, 245, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.modeCard:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.modeCard.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modeIcon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.modeInfo {
+  flex: 1;
+}
+
+.modeInfo h2 {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-1);
+}
+
+.modeInfo p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.modeBadge {
+  flex-shrink: 0;
+}
+
+.multiRow {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: var(--panel-max-width);
+}
+
+.multiBtn {
+  flex: 1;
+  border-radius: var(--radius-lg);
+}
+
+.settingsBtn {
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  padding: var(--space-2) var(--space-3);
+  min-width: 44px;
+}
+
+.engageRow {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: var(--panel-max-width);
+}
+
+.engageBtn {
+  flex: 1;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.profileRow {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: var(--panel-max-width);
+}
+
+.profileBtn {
+  flex: 1;
+  border-radius: var(--radius-lg);
+}
+
+.modesRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: var(--panel-max-width);
+}
+
+.modesLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  text-align: center;
+}
+
+.modesBtns {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.modeExtraBtn {
+  flex: 1;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xs);
+  padding: var(--space-2);
+}
+
+.stats {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

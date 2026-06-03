@@ -1,0 +1,31 @@
+.banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-surface-2);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  z-index: calc(var(--z-toast) + 1);
+  animation: slide-in-up var(--duration-slow) var(--ease-out) both;
+}
+
+.text {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  min-width: 200px;
+}
+
+.text strong { color: var(--color-text-primary); }
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}

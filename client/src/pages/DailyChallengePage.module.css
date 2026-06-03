@@ -1,0 +1,18 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-10);
+}
+.header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.skullArea { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.subtitle { font-size: var(--text-sm); color: var(--color-text-secondary); text-align: center; }
+.form { display: flex; flex-direction: column; gap: var(--space-3); }
+.error { color: var(--color-pink); font-size: var(--text-sm); text-align: center; }
+.guessList { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+.guessItem { padding: var(--space-2) var(--space-4); background: var(--color-surface); border-radius: var(--radius-md); }
+.guessVal { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.doneBanner { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; padding: var(--space-10) 0; }
+.hint { color: var(--color-text-secondary); font-style: italic; font-size: var(--text-sm); }
+.loading { display: flex; align-items: center; justify-content: center; min-height: 100dvh; color: var(--color-text-muted); }

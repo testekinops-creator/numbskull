@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GameMode {
+  GTN
+  BC
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+  adaptive
+}
+
+enum GameStatus {
+  in_progress
+  won
+  lost
+  abandoned
+}
+
+model User {
+  id           String   @id @default(uuid())
+  guestId      String?  @unique
+  username     String?  @unique
+  email        String?  @unique
+  passwordHash String?
+  role         String   @default("guest")
+  totalGames   Int      @default(0)
+  gtnWins      Int      @default(0)
+  bcWins       Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  games          Game[]
+  featureUnlocks FeatureUnlock[]
+  badges         UserBadge[]
+
+  @@map("users")
+}
+
+model Game {
+  id         String     @id @default(uuid())
+  userId     String
+  mode       GameMode
+  difficulty Difficulty
+  rangeMax   Int
+  status     GameStatus @default(in_progress)
+  score      Int        @default(0)
+  optimalMoves Int?
+  actualMoves  Int      @default(0)
+  startedAt  DateTime   @default(now())
+  endedAt    DateTime?
+
+  user   User    @relation(fields: [userId], references: [id])
+  rounds Round[]
+
+  @@map("games")
+}
+
+model Round {
+  id         String   @id @default(uuid())
+  gameId     String
+  roundNumber Int
+  secret     String
+  guessCount Int      @default(0)
+  won        Boolean  @default(false)
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+
+  game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  guesses Guess[]
+
+  @@map("rounds")
+}
+
+model Guess {
+  id          String   @id @default(uuid())
+  roundId     String
+  value       String
+  result      Json
+  responseMs  Int?
+  createdAt   DateTime @default(now())
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@map("guesses")
+}
+
+model FeatureUnlock {
+  id        String   @id @default(uuid())
+  userId    String
+  feature   String
+  unlockedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, feature])
+  @@map("feature_unlocks")
+}
+
+model Badge {
+  id          String @id @default(uuid())
+  slug        String @unique
+  name        String
+  description String
+  icon        String
+  condition   Json
+
+  users UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@id([userId, badgeId])
+  @@map("user_badges")
+}

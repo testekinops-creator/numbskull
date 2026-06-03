@@ -1,0 +1,332 @@
+/* ============================================================
+   NUMBSKULL GLOBAL STYLES
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Typography Resets --- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-brand);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-text-primary);
+}
+
+a {
+  color: var(--color-juice);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* --- Layout Utilities --- */
+.panel {
+  width: 100%;
+  max-width: var(--panel-max-width);
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  padding: var(--space-4);
+}
+
+/* --- Card --- */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: var(--space-6);
+}
+
+/* --- Buttons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-full);
+  font-family: var(--font-brand);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  transition: transform var(--duration-fast) var(--ease-spring),
+              background-color var(--duration-fast) var(--ease-default),
+              box-shadow var(--duration-fast) var(--ease-default);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active { transform: scale(0.95); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-md);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--color-primary-hover), #7268E0);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-juice {
+  background: var(--color-juice);
+  color: var(--color-bg);
+  font-weight: var(--weight-bold);
+  box-shadow: var(--shadow-juice);
+}
+.btn-juice:hover {
+  background: #33F7FF;
+  box-shadow: 0 0 24px var(--color-juice-glow), 0 0 48px var(--color-juice-glow);
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.07);
+  color: var(--color-text-secondary);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--color-text-primary);
+}
+
+.btn-lg {
+  padding: var(--space-4) var(--space-8);
+  font-size: var(--text-lg);
+}
+
+.btn-sm {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+/* --- Form Elements --- */
+.input {
+  width: 100%;
+  background: var(--color-surface-2);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--duration-fast) var(--ease-default);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--color-juice);
+  box-shadow: 0 0 0 3px var(--color-juice-glow);
+}
+.input::placeholder { color: var(--color-text-disabled); }
+
+/* --- Badge --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.badge-juice {
+  background: rgba(0,245,255,0.15);
+  color: var(--color-juice);
+  border: 1px solid rgba(0,245,255,0.3);
+}
+.badge-pink {
+  background: rgba(255,62,138,0.15);
+  color: var(--color-pink);
+  border: 1px solid rgba(255,62,138,0.3);
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+
+/* 1. Button tap (applied via JS) */
+@keyframes tap-scale {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(0.93); }
+  100% { transform: scale(1); }
+}
+
+/* 2. Wrong guess shake */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15%  { transform: translateX(-8px); }
+  30%  { transform: translateX(8px); }
+  45%  { transform: translateX(-6px); }
+  60%  { transform: translateX(6px); }
+  75%  { transform: translateX(-4px); }
+  90%  { transform: translateX(4px); }
+}
+
+/* 3. Correct guess pulse */
+@keyframes correct-pulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 var(--color-juice-glow); }
+  50%  { transform: scale(1.04); box-shadow: 0 0 0 16px transparent; }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
+}
+
+/* 4. Logo entrance */
+@keyframes logo-enter {
+  0%   { opacity: 0; transform: scale(0.7) rotate(-8deg); }
+  60%  { transform: scale(1.08) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* 5. Screen slide-in */
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 6. Progress bar fill */
+@keyframes progress-fill {
+  from { width: 0%; }
+  to   { width: var(--progress-width, 100%); }
+}
+
+/* 7. Number roll */
+@keyframes number-roll {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  60%  { transform: translateY(4px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* 8. Card flip */
+@keyframes card-flip {
+  0%   { transform: rotateY(0deg); }
+  50%  { transform: rotateY(90deg); }
+  100% { transform: rotateY(0deg); }
+}
+
+/* 9. Bounce land */
+@keyframes bounce-land {
+  0%   { transform: scale(0.3) translateY(-40px); opacity: 0; }
+  60%  { transform: scale(1.12); }
+  80%  { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 10. Glow pulse (skull idle) */
+@keyframes glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--color-juice-glow)); }
+  50%       { filter: drop-shadow(0 0 20px rgba(0,245,255,0.5)); }
+}
+
+/* 11. Backdrop blur fade-in */
+@keyframes backdrop-blur-in {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to   { opacity: 1; backdrop-filter: blur(12px); }
+}
+
+/* 12. Stagger reveal */
+@keyframes stagger-reveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 13. Slide in from left */
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* 14. Pressure fill (urgency) */
+@keyframes pressure-fill {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* --- Utility Animation Classes --- */
+.anim-shake       { animation: shake 0.5s var(--ease-default) both; }
+.anim-correct     { animation: correct-pulse 0.6s var(--ease-spring) both; }
+.anim-logo-enter  { animation: logo-enter 0.7s var(--ease-spring) both; }
+.anim-slide-up    { animation: slide-in-up 0.4s var(--ease-out) both; }
+.anim-bounce-land { animation: bounce-land 0.5s var(--ease-spring) both; }
+.anim-glow-pulse  { animation: glow-pulse 3s ease-in-out infinite; }
+.anim-number-roll { animation: number-roll 0.3s var(--ease-spring) both; }
+
+/* Stagger children */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+
+/* --- Accessibility --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-surface-3); border-radius: var(--radius-full); }
+
+/* --- Desktop atmospheric particles placeholder --- */
+@media (min-width: 1024px) {
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(83,74,183,0.18) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}

@@ -1,0 +1,51 @@
+.nudge {
+  position: fixed;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - var(--space-8));
+  max-width: var(--panel-max-width);
+  background: var(--color-surface-2);
+  border: 1px solid rgba(0, 245, 255, 0.25);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  box-shadow: var(--shadow-lg), 0 0 24px var(--color-juice-glow);
+  z-index: var(--z-toast);
+  animation: slide-in-up var(--duration-slow) var(--ease-spring) both;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.icon { font-size: 1.5rem; flex-shrink: 0; }
+
+.text {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.text strong { color: var(--color-text-primary); }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.dismiss {
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+  padding: var(--space-1);
+  transition: color var(--duration-fast);
+}
+.dismiss:hover { color: var(--color-text-primary); }

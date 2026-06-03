@@ -1,0 +1,127 @@
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 36px;
+  height: 64px;
+  min-width: 220px;
+
+  color: #0A0820;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: var(--font-brand);
+  font-weight: var(--weight-black);
+  font-size: var(--text-2xl);
+
+  background: var(--color-juice);
+  border: 2px solid rgba(0, 200, 210, 0.6);
+  border-radius: 50px;
+
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  /* force a proper paint layer so overflow:hidden clips transforms */
+  isolation: isolate;
+  transform: translateZ(0);
+
+  box-shadow:
+    0 0 24px var(--color-juice-glow),
+    0 0 48px rgba(0,245,255,0.1),
+    0 6px 20px rgba(0,0,0,0.35);
+
+  transition: box-shadow 0.5s ease;
+}
+
+.btn:hover {
+  box-shadow:
+    0 0 36px var(--color-juice-glow),
+    0 0 72px rgba(0,245,255,0.2),
+    0 8px 28px rgba(0,0,0,0.45);
+}
+
+.active,
+.btn:active {
+  transform: scale(0.9);
+  transition: all 100ms ease;
+}
+
+/* ── Skull icon ──────────────────────────────────────────── */
+.icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  z-index: 2;
+  flex-shrink: 0;
+  position: relative;
+
+  /* Premium idle: float up + subtle glow + tiny tilt */
+  animation: skullIdle 3s ease-in-out infinite;
+  will-change: transform, filter;
+  transition: animation 0.3s;
+}
+
+/* Pause idle animation on hover so the fly-right takes over cleanly */
+.btn:hover .icon {
+  animation: none;
+  transform: translateX(120px) scale(2);
+  font-size: 2rem;
+  transition: transform 0.5s ease, font-size 0.3s ease;
+}
+
+@keyframes skullIdle {
+  0%   {
+    transform: translateY(0px)   rotate(0deg);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+  25%  {
+    transform: translateY(-3px)  rotate(-4deg);
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25))
+            drop-shadow(0 0 6px rgba(0,245,255,0.5));
+  }
+  50%  {
+    transform: translateY(-5px)  rotate(0deg);
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.2))
+            drop-shadow(0 0 10px rgba(0,245,255,0.7));
+  }
+  75%  {
+    transform: translateY(-3px)  rotate(4deg);
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25))
+            drop-shadow(0 0 6px rgba(0,245,255,0.5));
+  }
+  100% {
+    transform: translateY(0px)   rotate(0deg);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+}
+
+/* ── "PLAY" text — slides out to the right on hover ───────── */
+.play {
+  transition: all 0.5s ease;
+  transition-delay: 300ms;
+  z-index: 2;
+}
+
+.btn:hover .play {
+  transform: translateX(200%);
+  transition-delay: 300ms;
+}
+
+/* ── "now!" text — hidden off-left, slides in on hover ─────── */
+.now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  transform: translateX(-110%);
+  transition: all 0.5s ease;
+  z-index: 2;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-black);
+  letter-spacing: 0.1em;
+  color: #0A0820;
+}
+
+.btn:hover .now {
+  transform: translateX(-18%);
+  transition-delay: 300ms;
+}

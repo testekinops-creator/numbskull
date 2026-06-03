@@ -1,0 +1,29 @@
+.page { display: flex; flex-direction: column; gap: var(--space-5); padding-top: var(--space-6); padding-bottom: var(--space-10); }
+.header { display: flex; align-items: center; gap: var(--space-3); }
+.movesLeft { margin-left: auto; font-size: var(--text-sm); color: var(--color-text-muted); font-family: var(--font-mono); }
+.targets { display: flex; align-items: center; justify-content: center; gap: var(--space-4); }
+.targetBox { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); background: var(--color-surface); border-radius: var(--radius-xl); padding: var(--space-4) var(--space-6); }
+.tLabel { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; }
+.tVal { font-family: var(--font-mono); font-size: var(--text-3xl); font-weight: var(--weight-black); }
+.juice { color: var(--color-juice); }
+.arrow { font-size: var(--text-2xl); color: var(--color-text-muted); }
+.current { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.currentLabel { font-size: var(--text-sm); color: var(--color-text-muted); }
+.currentVal { font-family: var(--font-mono); font-size: var(--text-5xl); font-weight: var(--weight-black); transition: color var(--duration-normal); }
+.match { color: var(--color-juice); text-shadow: 0 0 20px var(--color-juice-glow); }
+.moveList { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); max-height: 160px; overflow-y: auto; }
+.moveItem { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--color-surface); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: var(--text-sm); }
+.moveBefore { color: var(--color-text-muted); min-width: 3rem; }
+.moveOp { color: var(--color-juice); min-width: 5rem; }
+.moveAfter { font-weight: var(--weight-bold); }
+.form { display: flex; flex-direction: column; gap: var(--space-3); }
+.opRow { display: flex; gap: var(--space-2); }
+.opBtn { flex: 1; padding: var(--space-3); border-radius: var(--radius-lg); font-family: var(--font-mono); font-size: var(--text-xl); font-weight: var(--weight-bold); background: var(--color-surface); color: var(--color-text-secondary); transition: background var(--duration-fast), color var(--duration-fast); }
+.opBtn:hover { background: var(--color-surface-2); color: var(--color-text-primary); }
+.opActive { background: var(--color-primary); color: var(--color-text-primary); }
+.error { color: var(--color-pink); font-size: var(--text-sm); text-align: center; }
+.result { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
+.win { font-size: var(--text-2xl); color: var(--color-juice); }
+.lose { font-size: var(--text-2xl); color: var(--color-text-secondary); }
+.finalVal { font-size: var(--text-sm); color: var(--color-text-muted); font-family: var(--font-mono); }
+.resultActions { display: flex; gap: var(--space-3); }

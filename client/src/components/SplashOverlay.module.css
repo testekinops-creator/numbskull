@@ -1,0 +1,60 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.4s ease-out;
+}
+
+.exit {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+/* Skull drops in from above */
+.skull {
+  opacity: 0;
+  transform: translateY(-60px) scale(0.6);
+}
+
+.skullEnter {
+  animation: skullDrop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+
+@keyframes skullDrop {
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Wordmark fades up */
+.wordmark {
+  font-family: var(--font-brand);
+  font-size: 2.8rem;
+  font-weight: var(--weight-black);
+  letter-spacing: -0.03em;
+  opacity: 0;
+}
+
+.wordmarkEnter {
+  animation: wordFade 0.5s ease-out 0.6s both;
+}
+
+@keyframes wordFade {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.numb  { color: var(--color-text-primary); }
+.skull2 {
+  color: var(--color-juice);
+  text-shadow: 0 0 24px var(--color-juice-glow);
+}

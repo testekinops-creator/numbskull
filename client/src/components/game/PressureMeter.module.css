@@ -1,0 +1,27 @@
+.meter {
+  width: 100%;
+  height: 4px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  width: var(--progress-width, 100%);
+  border-radius: var(--radius-full);
+  transition: background-color var(--duration-slow) var(--ease-default);
+  background: var(--color-text-muted);
+}
+
+.mild   .fill { background: var(--color-warning); }
+.high   .fill { background: var(--color-pink); }
+.critical .fill {
+  background: var(--color-pink);
+  animation: urgency-flash 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes urgency-flash {
+  from { opacity: 0.6; }
+  to   { opacity: 1; }
+}

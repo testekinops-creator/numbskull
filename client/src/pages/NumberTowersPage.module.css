@@ -1,0 +1,24 @@
+.page { display: flex; flex-direction: column; gap: var(--space-5); padding-top: var(--space-6); padding-bottom: var(--space-10); }
+.header { display: flex; align-items: center; gap: var(--space-3); }
+.discards { margin-left: auto; font-size: var(--text-sm); color: var(--color-text-muted); }
+.rule { font-size: var(--text-sm); color: var(--color-text-secondary); text-align: center; font-style: italic; }
+.towerWrap { display: flex; flex-direction: column; gap: var(--space-2); }
+.slot { width: 100%; padding: var(--space-4); border-radius: var(--radius-xl); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: var(--text-2xl); font-weight: var(--weight-black); transition: transform var(--duration-fast) var(--ease-spring), background var(--duration-fast); cursor: pointer; }
+.empty { background: var(--color-surface); border: 2px dashed rgba(255,255,255,0.1); color: var(--color-text-muted); }
+.empty:hover:not(:disabled) { background: var(--color-surface-2); border-color: var(--color-juice); transform: scale(1.02); }
+.filled { background: var(--color-primary); color: var(--color-text-primary); cursor: default; }
+.disabled { cursor: not-allowed; }
+.slotHint { font-size: var(--text-sm); font-weight: var(--weight-normal); font-family: var(--font-body); }
+.slotVal { font-size: var(--text-3xl); }
+.currentCard { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); background: rgba(0,245,255,0.06); border: 1px solid rgba(0,245,255,0.2); border-radius: var(--radius-xl); padding: var(--space-5); }
+.currentLabel { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); }
+.currentVal { font-family: var(--font-mono); font-size: var(--text-5xl); font-weight: var(--weight-black); color: var(--color-juice); }
+.error { color: var(--color-pink); font-size: var(--text-sm); text-align: center; }
+.result { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
+.win { font-size: var(--text-xl); color: var(--color-juice); }
+.lose { font-size: var(--text-xl); color: var(--color-text-secondary); }
+.finalTower { display: flex; gap: var(--space-2); }
+.finalSlot { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--weight-bold); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); }
+.ok { background: var(--color-primary); }
+.missing { background: var(--color-surface-2); color: var(--color-text-muted); }
+.resultActions { display: flex; gap: var(--space-3); }

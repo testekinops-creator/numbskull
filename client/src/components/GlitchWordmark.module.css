@@ -1,0 +1,26 @@
+.wordmark {
+  font-family: var(--font-brand);
+  font-weight: var(--weight-black);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  user-select: none;
+  cursor: default;
+  /* Single inline flow — no gap between spans */
+  white-space: nowrap;
+}
+
+.lg  { font-size: clamp(2.8rem, 12vw, 4.2rem); }
+.xl  { font-size: clamp(3.2rem, 14vw, 5rem); }
+.sm  { font-size: var(--text-3xl); }
+
+/* Both spans are pure inline — no block, no min-width = no gap */
+.numb {
+  display: inline;
+  color: #EEEDFE;
+}
+
+.skull {
+  display: inline;
+  color: var(--color-juice);
+  text-shadow: 0 0 20px var(--color-juice-glow);
+}

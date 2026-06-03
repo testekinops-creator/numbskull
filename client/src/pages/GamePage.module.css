@@ -1,0 +1,82 @@
+.gamePage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-10);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.attempt {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.skullArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 160px;
+}
+
+.roastMsg {
+  font-style: italic;
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-size: var(--text-sm);
+  max-width: 320px;
+  line-height: var(--leading-snug);
+}
+
+.tierBadge {
+  margin-top: var(--space-1);
+}
+
+.inputArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fieldError {
+  color: var(--color-pink);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.bcLegend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.bcItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.bcItem span:first-child { font-size: 1.2rem; width: 26px; text-align: center; }
+.bcItem strong           { color: var(--color-text-primary); }
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+}

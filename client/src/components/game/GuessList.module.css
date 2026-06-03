@@ -1,0 +1,130 @@
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.item {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* ── Bulls & Cows row ──────────────────────────────────────────── */
+.bcRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius-lg);
+}
+
+/* Digit tile grid */
+.tiles {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.tile {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-black);
+  border: 2px solid transparent;
+  transition: background var(--duration-fast);
+}
+
+/* Miss — digit not in secret */
+.tile_miss {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  border-color: rgba(255,255,255,0.06);
+}
+
+/* Bull — right digit, right position (cyan) */
+.tile_bull {
+  background: rgba(0, 245, 255, 0.15);
+  color: var(--color-juice);
+  border-color: rgba(0, 245, 255, 0.5);
+  box-shadow: 0 0 8px rgba(0, 245, 255, 0.2);
+}
+
+/* Cow — right digit, wrong position (orange) */
+.tile_cow {
+  background: rgba(255, 167, 38, 0.15);
+  color: #FFA726;
+  border-color: rgba(255, 167, 38, 0.5);
+  box-shadow: 0 0 8px rgba(255, 167, 38, 0.15);
+}
+
+/* B&C summary (bull/cow counts) */
+.bcSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.bullCount {
+  font-size: var(--text-sm);
+  color: var(--color-juice);
+}
+
+.cowCount {
+  font-size: var(--text-sm);
+  color: #FFA726;
+}
+
+.bullCount strong,
+.cowCount strong {
+  font-size: var(--text-base);
+}
+
+/* ── GTN row ───────────────────────────────────────────────────── */
+.gtnRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius-lg);
+}
+
+.gtnValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+}
+
+.proxHot  { color: var(--color-juice); }
+.proxWarm { color: var(--color-warning); }
+.proxCool { color: var(--color-text-secondary); }
+.proxCold { color: var(--color-text-muted); }
+
+.gtnHint {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Correct tag (both modes) */
+.correctTag {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-juice);
+  margin-left: auto;
+}

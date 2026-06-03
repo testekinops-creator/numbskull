@@ -1,0 +1,11 @@
+.page { display: flex; flex-direction: column; gap: var(--space-6); padding-top: var(--space-6); padding-bottom: var(--space-10); }
+.header { display: flex; align-items: center; gap: var(--space-3); }
+.title { flex: 1; font-size: var(--text-2xl); }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+.badge { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-3); background: var(--color-surface); border-radius: var(--radius-xl); border: 1px solid rgba(255,255,255,0.06); text-align: center; transition: transform var(--duration-fast) var(--ease-spring); }
+.unlocked { border-color: rgba(0,245,255,0.2); background: rgba(0,245,255,0.04); }
+.unlocked:hover { transform: translateY(-2px); }
+.locked { opacity: 0.4; filter: grayscale(1); }
+.badgeIcon { font-size: 2.5rem; line-height: 1; }
+.badgeName { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.badgeDesc { font-size: var(--text-xs); color: var(--color-text-muted); line-height: 1.4; }
