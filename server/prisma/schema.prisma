@@ -32,10 +32,14 @@ model User {
   username     String?  @unique
   email        String?  @unique
   passwordHash String?
-  role         String   @default("guest")
+  role         String   @default("user")
   totalGames   Int      @default(0)
   gtnWins      Int      @default(0)
   bcWins       Int      @default(0)
+  failedLogins Int      @default(0)
+  banned       Boolean  @default(false)
+  bannedAt     DateTime?
+  deleted      Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
