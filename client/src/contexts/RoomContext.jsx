@@ -20,6 +20,10 @@ const INITIAL = {
   rematchStatus:        'idle',
   rematchRequesterName: null,  // name of who sent the request
   roomClosedByOpponent: false,
+  // Chat + emoji
+  chatMessages:         [],    // { id, fromPlayerId, fromName, text, ts, mine }
+  unreadChat:          0,
+  lastEmoji:            null,  // { id, emoji, mine } — drives the burst overlay
 }
 
 function reducer(state, action) {
@@ -116,6 +120,24 @@ function reducer(state, action) {
     case 'REMATCH_DECLINED':
       return { ...state, rematchStatus: 'declined', myTurn: false }
 
+    // ── Chat ──────────────────────────────────────────────────────────────
+    case 'CHAT_MESSAGE': {
+      const msg = action.message
+      const msgs = [...state.chatMessages, msg].slice(-50)
+      return {
+        ...state,
+        chatMessages: msgs,
+        unreadChat: msg.mine ? state.unreadChat : state.unreadChat + 1,
+      }
+    }
+
+    case 'CHAT_CLEAR_UNREAD':
+      return { ...state, unreadChat: 0 }
+
+    // ── Emoji burst ───────────────────────────────────────────────────────
+    case 'EMOJI_BURST':
+      return { ...state, lastEmoji: action.payload }
+
     // Only mark as closed if the closed room is the one we're currently in
     case 'ROOM_CLOSED_CHECK':
       if (!action.closedRoomId || state.room?.id === action.closedRoomId) {
@@ -205,6 +227,21 @@ export function RoomProvider({ children }) {
     socket.on('game:rematch_declined', () => dispatch({ type: 'REMATCH_DECLINED' }))
     socket.on('game:turn_timeout',    ()   => clearInterval(timerRef.current))
 
+    // ── Chat + emoji ──────────────────────────────────────────────────────
+    socket.on('chat:message', ({ fromPlayerId, fromName, text, ts }) => {
+      dispatch({
+        type: 'CHAT_MESSAGE',
+        message: { id: `${ts}_${fromPlayerId}`, fromPlayerId, fromName, text, ts, mine: fromPlayerId === playerId },
+      })
+    })
+
+    socket.on('chat:emoji', ({ fromPlayerId, emoji, ts }) => {
+      dispatch({
+        type: 'EMOJI_BURST',
+        payload: { id: `${ts}_${Math.random().toString(36).slice(2)}`, emoji, mine: fromPlayerId === playerId },
+      })
+    })
+
     return () => {
       socket.off('room:updated')
       socket.off('room:closed')   // same event name, handler is updated
@@ -218,6 +255,8 @@ export function RoomProvider({ children }) {
       socket.off('game:rematch_incoming')
       socket.off('game:rematch_declined')
       socket.off('game:turn_timeout')
+      socket.off('chat:message')
+      socket.off('chat:emoji')
       clearInterval(timerRef.current)
     }
   }, [socket, playerId])
@@ -290,10 +329,26 @@ export function RoomProvider({ children }) {
     socket?.emit('room:spectate', { roomId })
   }, [socket])
 
+  // ── Chat + emoji actions ──────────────────────────────────────────────
+  const sendChat = useCallback((roomId, text) => {
+    const clean = (text || '').trim()
+    if (!clean) return
+    socket?.emit('chat:message', { roomId, text: clean })
+  }, [socket])
+
+  const sendEmoji = useCallback((roomId, emoji) => {
+    socket?.emit('chat:emoji', { roomId, emoji })
+  }, [socket])
+
+  const clearUnreadChat = useCallback(() => {
+    dispatch({ type: 'CHAT_CLEAR_UNREAD' })
+  }, [])
+
   return (
     <RoomContext.Provider value={{
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, spectate,
+      sendChat, sendEmoji, clearUnreadChat,
     }}>
       {children}
     </RoomContext.Provider>

@@ -1,0 +1,39 @@
+.layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: var(--z-toast);
+}
+
+.floater {
+  position: absolute;
+  bottom: 12%;
+  font-size: 2.6rem;
+  will-change: transform, opacity;
+  animation: floatUp var(--duration, 2.6s) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.3) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    transform: translateY(-8vh) translateX(0) scale(var(--scale, 1)) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform:
+      translateY(-78vh)
+      translateX(var(--drift, 0px))
+      scale(var(--scale, 1))
+      rotate(var(--rotate, 0deg));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floater { animation-duration: 1s; }
+}

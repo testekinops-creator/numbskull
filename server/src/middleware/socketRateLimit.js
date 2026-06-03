@@ -4,6 +4,7 @@ const EVENT_LIMITS = {
   'room:join':         { max: 10, windowMs: 60_000 },
   'room:quickmatch':   { max: 5,  windowMs: 30_000 },
   'chat:message':      { max: 20, windowMs: 10_000 },
+  'chat:emoji':        { max: 40, windowMs: 10_000 },
 }
 
 const counters = new Map()

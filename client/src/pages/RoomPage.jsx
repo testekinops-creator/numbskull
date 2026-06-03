@@ -10,14 +10,22 @@ import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import RematchPrompt from '../components/game/RematchPrompt.jsx'
 import TurnTimer from '../components/game/TurnTimer.jsx'
+import EmojiBurst from '../components/game/EmojiBurst.jsx'
+import ChatPanel from '../components/game/ChatPanel.jsx'
 import { getSkullExpression } from '../utils/personality.js'
 import styles from './RoomPage.module.css'
+
+const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
 
 export default function RoomPage() {
   const { roomId } = useParams()
   const navigate = useNavigate()
-  const { state, setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom } = useRoom()
+  const {
+    state, setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom,
+    sendChat, sendEmoji, clearUnreadChat,
+  } = useRoom()
   const { playerId } = usePlayer()
+  const [chatOpen, setChatOpen] = useState(false)
   const { socket } = useSocket()
   const { isRegistered, updateUser } = useAuth()
 
@@ -124,6 +132,11 @@ export default function RoomPage() {
     setGuessError('')
     setGuess('')
     submitGuess(roomId, mode === 'GTN' ? parseInt(val, 10) : val)
+  }
+
+  function openChat() {
+    setChatOpen(true)
+    clearUnreadChat()
   }
 
   const expression = getSkullExpression(state.lastGuessResult, phase === 'GAME_OVER' ? 'GAME_OVER' : 'PLAYING')
@@ -350,6 +363,39 @@ export default function RoomPage() {
           </>
         )}
       </div>
+
+      {/* ── Emoji burst overlay (full screen) ── */}
+      <EmojiBurst trigger={state.lastEmoji} />
+
+      {/* ── Chat / emoji bar — shown once an opponent is in the room ── */}
+      {opponent && (
+        <div className={styles.chatBar}>
+          <div className={styles.emojiRow}>
+            {QUICK_EMOJIS.map(e => (
+              <button
+                key={e}
+                className={styles.emojiBtn}
+                onClick={() => sendEmoji(roomId, e)}
+                aria-label={`Send ${e}`}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+          <button className={styles.chatToggle} onClick={openChat} aria-label="Open chat">
+            💬
+            {state.unreadChat > 0 && <span className={styles.unreadDot}>{state.unreadChat}</span>}
+          </button>
+        </div>
+      )}
+
+      {/* ── Chat panel (bottom sheet) ── */}
+      <ChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        messages={state.chatMessages}
+        onSend={(text) => sendChat(roomId, text)}
+      />
     </div>
   )
 }

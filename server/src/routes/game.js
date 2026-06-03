@@ -6,8 +6,14 @@ import { getActiveEvent, applyEventModifier } from '../game/SeasonalEvents.js'
 import { createError } from '../middleware/errorHandler.js'
 import { optionalAuth } from '../middleware/auth.js'
 import { AuthService } from '../services/AuthService.js'
+import { generateRoast } from '../game/RoastGenerator.js'
 
 export const gameRouter = Router()
+
+// ── AI-style roast generator (for in-game chat) ────────────────────────────
+gameRouter.get('/roast', (_req, res) => {
+  res.json({ success: true, data: { roast: generateRoast() } })
+})
 
 // ── Record a finished game for the logged-in user ──────────────────────────
 const recordSchema = z.object({
