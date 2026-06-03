@@ -2,8 +2,9 @@ import { createContext, useContext, useReducer, useCallback, useEffect } from 'r
 import { api } from '../services/api.js'
 
 const AuthContext = createContext(null)
-const TOKEN_KEY = 'ns_access_token'
-const USER_KEY  = 'ns_user'
+const TOKEN_KEY   = 'ns_access_token'
+const REFRESH_KEY = 'ns_refresh_token'
+const USER_KEY    = 'ns_user'
 
 const INITIAL = { user: null, accessToken: null, loading: true }
 
@@ -16,53 +17,62 @@ function reducer(state, action) {
   }
 }
 
-function saveAuth(token, user) {
-  localStorage.setItem(TOKEN_KEY, token)
-  localStorage.setItem(USER_KEY,  JSON.stringify(user))
+function saveAuth(accessToken, refreshToken, user) {
+  localStorage.setItem(TOKEN_KEY,   accessToken)
+  localStorage.setItem(USER_KEY,    JSON.stringify(user))
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken)
 }
 
 function clearAuth() {
   localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_KEY)
   localStorage.removeItem(USER_KEY)
+}
+
+async function tryRefreshWithStoredToken() {
+  const storedRefresh = localStorage.getItem(REFRESH_KEY)
+  if (!storedRefresh) throw new Error('No refresh token')
+  const data = await api.post('/auth/refresh', { refreshToken: storedRefresh })
+  return data
 }
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, INITIAL)
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    const userRaw = localStorage.getItem(USER_KEY)
+    const token    = localStorage.getItem(TOKEN_KEY)
+    const userRaw  = localStorage.getItem(USER_KEY)
 
     if (token && userRaw) {
       try {
-        const user = JSON.parse(userRaw)
         api.setToken(token)
-        // Verify token is still valid
+        // Verify access token is still valid
         api.get('/auth/me')
           .then(data => {
             dispatch({ type: 'LOGIN', user: data.user, accessToken: token })
           })
-          .catch(() => {
-            // Token expired — try refresh
-            clearAuth()
-            api.post('/auth/refresh', {})
-              .then(data => {
-                api.setToken(data.accessToken)
-                saveAuth(data.accessToken, data.user)
-                dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
-              })
-              .catch(() => dispatch({ type: 'LOADED' }))
+          .catch(async () => {
+            // Access token expired — use stored refresh token
+            try {
+              const data = await tryRefreshWithStoredToken()
+              api.setToken(data.accessToken)
+              saveAuth(data.accessToken, data.refreshToken, data.user)
+              dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
+            } catch {
+              clearAuth()
+              dispatch({ type: 'LOADED' })
+            }
           })
       } catch {
         clearAuth()
         dispatch({ type: 'LOADED' })
       }
     } else {
-      // No local token — try cookie refresh (works on localhost)
+      // No stored token — try cookie-based refresh (works on localhost)
       api.post('/auth/refresh', {})
         .then(data => {
           api.setToken(data.accessToken)
-          saveAuth(data.accessToken, data.user)
+          saveAuth(data.accessToken, data.refreshToken, data.user)
           dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
         })
         .catch(() => dispatch({ type: 'LOADED' }))
@@ -72,7 +82,7 @@ export function AuthProvider({ children }) {
   const register = useCallback(async ({ email, username, password, guestId }) => {
     const data = await api.post('/auth/register', { email, username, password, guestId })
     api.setToken(data.accessToken)
-    saveAuth(data.accessToken, data.user)
+    saveAuth(data.accessToken, data.refreshToken, data.user)
     dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
     return data.user
   }, [])
@@ -80,7 +90,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async ({ email, password }) => {
     const data = await api.post('/auth/login', { email, password })
     api.setToken(data.accessToken)
-    saveAuth(data.accessToken, data.user)
+    saveAuth(data.accessToken, data.refreshToken, data.user)
     dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
     return data.user
   }, [])

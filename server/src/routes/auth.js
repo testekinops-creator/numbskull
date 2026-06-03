@@ -34,7 +34,7 @@ authRouter.post('/register', authLimiter, async (req, res, next) => {
     const body = registerSchema.parse(req.body)
     const result = await AuthService.register(body)
     _setRefreshCookie(res, result.refreshToken)
-    res.status(201).json({ success: true, data: { accessToken: result.accessToken, user: result.user } })
+    res.status(201).json({ success: true, data: { accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user } })
   } catch (err) {
     if (err.name === 'ZodError') return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: err.errors[0]?.message || 'Invalid input', status: 400 } })
     next(err)
@@ -47,7 +47,7 @@ authRouter.post('/login', authLimiter, async (req, res, next) => {
     const { email, password } = loginSchema.parse(req.body)
     const result = await AuthService.login({ email, password })
     _setRefreshCookie(res, result.refreshToken)
-    res.json({ success: true, data: { accessToken: result.accessToken, user: result.user } })
+    res.json({ success: true, data: { accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user } })
   } catch (err) {
     if (err.name === 'ZodError') return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input', status: 400 } })
     next(err)
@@ -61,7 +61,8 @@ authRouter.post('/refresh', async (req, res, next) => {
     if (!token) return res.status(401).json({ success: false, error: { code: 'NO_TOKEN', message: 'No refresh token', status: 401 } })
     const result = await AuthService.refresh(token)
     _setRefreshCookie(res, result.refreshToken)
-    res.json({ success: true, data: { accessToken: result.accessToken, user: result.user } })
+    // Also send refreshToken in body for cross-origin clients (localStorage)
+    res.json({ success: true, data: { accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user } })
   } catch (err) {
     next(err)
   }
