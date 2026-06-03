@@ -10,10 +10,11 @@ const INITIAL = { user: null, accessToken: null, loading: true }
 
 function reducer(state, action) {
   switch (action.type) {
-    case 'LOGIN':  return { ...state, user: action.user, accessToken: action.accessToken, loading: false }
-    case 'LOGOUT': return { ...INITIAL, loading: false }
-    case 'LOADED': return { ...state, loading: false }
-    default:       return state
+    case 'LOGIN':       return { ...state, user: action.user, accessToken: action.accessToken, loading: false }
+    case 'UPDATE_USER': return { ...state, user: action.user }
+    case 'LOGOUT':      return { ...INITIAL, loading: false }
+    case 'LOADED':      return { ...state, loading: false }
+    default:            return state
   }
 }
 
@@ -102,10 +103,29 @@ export function AuthProvider({ children }) {
     dispatch({ type: 'LOGOUT' })
   }, [])
 
+  // Update the cached user (e.g. after recording a game) + persist
+  const updateUser = useCallback((user) => {
+    if (!user) return
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (token) saveAuth(token, localStorage.getItem(REFRESH_KEY), user)
+    dispatch({ type: 'UPDATE_USER', user })
+  }, [])
+
+  // Pull fresh user data from the server
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await api.get('/auth/me')
+      updateUser(data.user)
+      return data.user
+    } catch {
+      return null
+    }
+  }, [updateUser])
+
   const isRegistered = !!state.user
 
   return (
-    <AuthContext.Provider value={{ ...state, isRegistered, register, login, logout }}>
+    <AuthContext.Provider value={{ ...state, isRegistered, register, login, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -4,8 +4,34 @@ import { engineFactory, VALID_MODES } from '../game/engineFactory.js'
 import { getRoastMessage } from '../game/personality.js'
 import { getActiveEvent, applyEventModifier } from '../game/SeasonalEvents.js'
 import { createError } from '../middleware/errorHandler.js'
+import { optionalAuth } from '../middleware/auth.js'
+import { AuthService } from '../services/AuthService.js'
 
 export const gameRouter = Router()
+
+// ── Record a finished game for the logged-in user ──────────────────────────
+const recordSchema = z.object({
+  mode: z.string(),
+  won:  z.boolean(),
+})
+
+gameRouter.post('/record', optionalAuth, async (req, res, next) => {
+  try {
+    const { mode, won } = recordSchema.parse(req.body)
+    // Guests have no DB record — silently skip
+    if (!req.userId) return res.json({ success: true, data: { recorded: false } })
+
+    const user = await AuthService.getUser(req.userId)
+    if (!user) return res.json({ success: true, data: { recorded: false } })
+
+    const patch = { totalGames: user.totalGames + 1 }
+    if (won && mode === 'GTN') patch.gtnWins = user.gtnWins + 1
+    if (won && mode === 'BC')  patch.bcWins  = user.bcWins  + 1
+
+    const updated = await AuthService.updateUser(req.userId, patch)
+    res.json({ success: true, data: { recorded: true, user: AuthService.publicProfile(updated) } })
+  } catch (err) { next(err) }
+})
 
 const startSchema = z.object({
   mode:       z.enum(VALID_MODES),

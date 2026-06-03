@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGame } from '../contexts/GameContext.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
+import { api } from '../services/api.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import PressureMeter from '../components/game/PressureMeter.jsx'
 import GuessList from '../components/game/GuessList.jsx'
@@ -17,6 +19,7 @@ export default function GamePage() {
   const { mode } = useParams()
   const navigate = useNavigate()
   const { state, startGame, submitGuess, bcUnlocked } = useGame()
+  const { isRegistered, updateUser } = useAuth()
   const { playTone } = useSound()
   const { buzz } = useHaptic()
 
@@ -25,6 +28,7 @@ export default function GamePage() {
   const [shaking, setShaking] = useState(false)
   const [tutorialDone, setTutorialDone] = useState(false)
   const inputRef = useRef(null)
+  const recordedRef = useRef(false)  // guard so each game records only once
 
   const validMode = mode === 'GTN' || mode === 'BC'
   const locked = mode === 'BC' && !bcUnlocked
@@ -35,8 +39,21 @@ export default function GamePage() {
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (state.phase === 'PLAYING') inputRef.current?.focus()
+    if (state.phase === 'PLAYING') {
+      inputRef.current?.focus()
+      recordedRef.current = false   // new game started — allow recording again
+    }
   }, [state.phase])
+
+  // Record the finished game to the logged-in user's account (once per game)
+  useEffect(() => {
+    if (state.phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
+      recordedRef.current = true
+      api.post('/game/record', { mode, won: !!state.won })
+        .then(d => { if (d.user) updateUser(d.user) })
+        .catch(() => {})
+    }
+  }, [state.phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const r = state.lastResult

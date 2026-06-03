@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
@@ -8,8 +8,13 @@ import styles from './ProfilePage.module.css'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const { user, isRegistered, logout } = useAuth()
+  const { user, isRegistered, logout, refreshUser } = useAuth()
   const { totalGames, gtnWins, playerName } = usePlayer()
+
+  // Pull live stats from the DB whenever the profile opens
+  useEffect(() => {
+    if (isRegistered) refreshUser()
+  }, [isRegistered, refreshUser])
 
   const displayName = user?.username || playerName
   const games = user?.totalGames ?? totalGames

@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useRoom } from '../contexts/RoomContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useSocket } from '../contexts/SocketContext.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
+import { api } from '../services/api.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
@@ -17,6 +19,7 @@ export default function RoomPage() {
   const { state, setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom } = useRoom()
   const { playerId } = usePlayer()
   const { socket } = useSocket()
+  const { isRegistered, updateUser } = useAuth()
 
   const [secret, setSecret] = useState('')
   const [guess, setGuess] = useState('')
@@ -25,6 +28,7 @@ export default function RoomPage() {
   const inputRef = useRef(null)
   // Keep the secret visible during gameplay after Ready is clicked
   const mySecretRef = useRef('')
+  const recordedRef = useRef(false)  // record each multiplayer game once
 
   const room = state.room
   const mode = room?.mode || 'GTN'
@@ -57,6 +61,17 @@ export default function RoomPage() {
   useEffect(() => {
     if (isMyTurn && phase === 'PLAYING') inputRef.current?.focus()
   }, [isMyTurn, phase])
+
+  // Record the multiplayer result to the logged-in user's account (once)
+  useEffect(() => {
+    if (phase === 'PLAYING') recordedRef.current = false
+    if (phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
+      recordedRef.current = true
+      api.post('/game/record', { mode, won: !!state.won })
+        .then(d => { if (d.user) updateUser(d.user) })
+        .catch(() => {})
+    }
+  }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleReady(e) {
     e.preventDefault()
