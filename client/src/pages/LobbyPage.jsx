@@ -35,8 +35,11 @@ export default function LobbyPage() {
     }
   }, [state.matchmaking, state.room?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [topTab, setTopTab] = useState('ai')      // ai | multi
+  // Sudoku is multiplayer-only and lets the host pick puzzle difficulty.
+  const isSudoku = mode === 'SUDOKU'
+  const [topTab, setTopTab] = useState(isSudoku ? 'multi' : 'ai')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
+  const [difficulty, setDifficulty] = useState('medium')
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
   const [error, setError] = useState('')
@@ -48,7 +51,7 @@ export default function LobbyPage() {
 
   async function handleQuickMatch() {
     setBusy(true); setError('')
-    const res = await quickMatch(mode)
+    const res = await quickMatch(mode, difficulty)
     setBusy(false)
     if (!res?.ok) { setError(res?.error || 'Failed'); return }
     if (res.matched) navigate(`/room/${res.room.id}`)
@@ -56,7 +59,7 @@ export default function LobbyPage() {
 
   async function handleCreate() {
     setBusy(true); setError('')
-    const res = await createRoom({ mode, isPublic: true })
+    const res = await createRoom({ mode, isPublic: true, difficulty })
     setBusy(false)
     if (!res?.ok) { setError(res?.error || 'Failed'); return }
     navigate(`/room/${res.room.id}`)
@@ -104,38 +107,57 @@ export default function LobbyPage() {
           </div>
         </div>
 
-        {/* Top tabs: AI vs Multiplayer */}
-        <div className={styles.topTabs}>
-          <button
-            className={`${styles.topTab} ${topTab === 'ai' ? styles.topTabActive : ''}`}
-            onClick={() => setTopTab('ai')}
-          >
-            🤖 vs AI
-          </button>
-          <button
-            className={`${styles.topTab} ${topTab === 'multi' ? styles.topTabActive : ''}`}
-            onClick={() => setTopTab('multi')}
-          >
-            ⚡ Multiplayer
-          </button>
-        </div>
-
-        {/* ── AI tab ── */}
-        {topTab === 'ai' && (
-          <div className={`${styles.tabContent} ${styles.aiPanel} anim-slide-up`}>
-            <p className={styles.hint}>
-              {mode === 'XOX'
-                ? 'Take on the Numbskull AI at Tic-Tac-Toe. Pick X or O and try not to embarrass yourself.'
-                : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
-            </p>
-            <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={playVsAI}>
-              🤖 Play vs Computer
+        {/* Top tabs: AI vs Multiplayer — Sudoku is multiplayer-only, no AI tab */}
+        {!isSudoku && (
+          <div className={styles.topTabs}>
+            <button
+              className={`${styles.topTab} ${topTab === 'ai' ? styles.topTabActive : ''}`}
+              onClick={() => setTopTab('ai')}
+            >
+              {mode === 'MATH' ? '🧠 Solo' : '🤖 vs AI'}
+            </button>
+            <button
+              className={`${styles.topTab} ${topTab === 'multi' ? styles.topTabActive : ''}`}
+              onClick={() => setTopTab('multi')}
+            >
+              ⚡ Multiplayer
             </button>
           </div>
         )}
 
-        {/* ── Multiplayer tab ── */}
-        {topTab === 'multi' && (
+        {/* ── Difficulty selector (Sudoku — host picks puzzle complexity) ── */}
+        {isSudoku && (
+          <div className={styles.tabs}>
+            {[['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([id, label]) => (
+              <button
+                key={id}
+                className={`${styles.tab} ${difficulty === id ? styles.activeTab : ''}`}
+                onClick={() => setDifficulty(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── AI tab ── */}
+        {!isSudoku && topTab === 'ai' && (
+          <div className={`${styles.tabContent} ${styles.aiPanel} anim-slide-up`}>
+            <p className={styles.hint}>
+              {mode === 'XOX'
+                ? 'Take on the Numbskull AI at Tic-Tac-Toe. Pick X or O and try not to embarrass yourself.'
+                : mode === 'MATH'
+                ? '20 rapid-fire questions, just you against the clock. Sharpen your mental maths — no AI, pure practice.'
+                : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
+            </p>
+            <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={playVsAI}>
+              {mode === 'MATH' ? '🧠 Start Solo Practice' : '🤖 Play vs Computer'}
+            </button>
+          </div>
+        )}
+
+        {/* ── Multiplayer tab ── (always shown for Sudoku) */}
+        {(isSudoku || topTab === 'multi') && (
           <>
             <div className={styles.tabs}>
               {[['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']].map(([id, label]) => (

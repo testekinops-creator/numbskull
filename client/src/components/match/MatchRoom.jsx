@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../../contexts/RoomContext.jsx'
 import { usePlayer } from '../../contexts/PlayerContext.jsx'
@@ -12,8 +12,11 @@ import TurnTimer from '../game/TurnTimer.jsx'
 import EmojiBurst from '../game/EmojiBurst.jsx'
 import ChatPanel from '../game/ChatPanel.jsx'
 import XoxBoard from './XoxBoard.jsx'
+import MathBattle from './MathBattle.jsx'
+import SudokuBoard from './SudokuBoard.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
+import { getModeRoast } from '../../utils/roasts.js'
 import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
@@ -23,7 +26,8 @@ const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
   const {
-    state, matchReady, xoxMove, matchForfeit,
+    state, matchReady, xoxMove, matchForfeit, mathAnswer,
+    sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -34,6 +38,9 @@ export default function MatchRoom({ roomId, mode }) {
   const { buzz } = useHaptic()
 
   const [chatOpen, setChatOpen] = useState(false)
+  const [mathChoice, setMathChoice] = useState(null)
+  const [copied, setCopied] = useState(false)
+  const [resultRevealed, setResultRevealed] = useState(false)
 
   const room = state.room
   const phase = room?.phase || 'IDLE'
@@ -126,6 +133,28 @@ export default function MatchRoom({ roomId, mode }) {
 
   function openChat() { setChatOpen(true); clearUnreadChat() }
 
+  function copyCode() {
+    navigator.clipboard?.writeText(room.code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
+
+  // XOX: let the finished board (with its winning line) sit for a beat before
+  // showing the game-over card. Other modes reveal immediately.
+  useEffect(() => {
+    if (phase !== 'GAME_OVER') { setResultRevealed(false); return }
+    if (mode !== 'XOX') { setResultRevealed(true); return }
+    const t = setTimeout(() => setResultRevealed(true), 1800)
+    return () => clearTimeout(t)
+  }, [phase, mode])
+
+  const resultText = state.draw ? '🤝 Draw!' : state.won ? '🎉 You win!' : '💀 You lose'
+  const overRoast = useMemo(
+    () => (phase === 'GAME_OVER' ? getModeRoast(mode, state.draw ? 'draw' : state.won ? 'win' : 'lose') : null),
+    [phase, mode, state.won, state.draw],
+  )
+
   function handleCell(i) {
     if (!state.myTurn || !match) return
     if (match.board?.[i] !== null) return
@@ -133,7 +162,33 @@ export default function MatchRoom({ roomId, mode }) {
     xoxMove(roomId, i)
   }
 
+  // Reset my picked option whenever a new Math question arrives.
+  useEffect(() => { setMathChoice(null) }, [match?.question?.index])
+
+  // Sound feedback when a Math question resolves.
+  useEffect(() => {
+    const lr = match?.lastResolved
+    if (!lr) return
+    if (lr.byPlayerId === playerId) { lr.correct ? playWin() : playLose() }
+    else { playTone(0.3) }
+  }, [match?.lastResolved]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleMathAnswer(choice) {
+    if (!match || match.resolved) return
+    unlock()
+    setMathChoice(choice)
+    mathAnswer(roomId, match.question.index, choice)
+  }
+
   const mySymbol = match?.symbols?.[playerId]
+  const mathReveal = match?.lastResolved
+    ? {
+        answer:  match.lastResolved.answer,
+        byMe:    match.lastResolved.byPlayerId === playerId,
+        correct: match.lastResolved.correct, // answerer's correctness (server-authoritative)
+        timeout: match.lastResolved.timeout,
+      }
+    : null
 
   if (!room) {
     return (
@@ -177,8 +232,18 @@ export default function MatchRoom({ roomId, mode }) {
             <p className={roomStyles.codeLabel}>Room Code</p>
             <div className={roomStyles.codeRow}>
               <span className={roomStyles.codeValue}>{room.code}</span>
+              <button
+                className={roomStyles.copyBtn}
+                onClick={copyCode}
+                title="Copy room code"
+                aria-label="Copy room code"
+              >
+                {copied ? '✓' : '⎘'}
+              </button>
             </div>
-            <p className={roomStyles.codeHint}>Share this code with a friend to invite them</p>
+            <p className={roomStyles.codeHint}>
+              {copied ? '✓ Copied to clipboard!' : 'Share this code with a friend to invite them'}
+            </p>
           </div>
         )}
 
@@ -220,32 +285,74 @@ export default function MatchRoom({ roomId, mode }) {
         {/* PLAYING */}
         {phase === 'PLAYING' && match && (
           <div className={styles.playArea}>
-            <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} />
-            <p className={styles.turnLabel}>
-              {state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'} is playing…`}
-            </p>
             {mode === 'XOX' && (
-              <XoxBoard
-                board={match.board}
-                onCell={handleCell}
-                disabled={!state.myTurn}
+              <>
+                <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} />
+                <p className={styles.turnLabel}>
+                  {state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'} is playing…`}
+                </p>
+                <XoxBoard board={match.board} onCell={handleCell} disabled={!state.myTurn} />
+              </>
+            )}
+            {mode === 'MATH' && match.question && (
+              <MathBattle
+                question={match.question}
+                myScore={match.scores?.[playerId] ?? 0}
+                oppScore={opponent ? (match.scores?.[opponent.id] ?? 0) : 0}
+                oppName={opponent?.name || 'Opponent'}
+                onAnswer={handleMathAnswer}
+                locked={match.resolved}
+                myChoice={mathChoice}
+                reveal={mathReveal}
+                durationMs={15000}
               />
+            )}
+            {mode === 'SUDOKU' && match.grid && (
+              <>
+                <div className={styles.sudokuHud}>
+                  <span className={styles.hudScore}>You <b>{match.scores?.[playerId] ?? 0}</b></span>
+                  <span className={styles.hudMid}>✅ {match.correctCount}/{match.fillTarget} · ❌ {match.wrongCount}</span>
+                  <span className={styles.hudScore}>{opponent?.name || 'Opp'} <b>{opponent ? (match.scores?.[opponent.id] ?? 0) : 0}</b></span>
+                </div>
+                <SudokuBoard
+                  match={match}
+                  playerId={playerId}
+                  opponentId={opponent?.id}
+                  onLock={(i) => sudokuLock(roomId, i)}
+                  onUnlock={(i) => sudokuUnlock(roomId, i)}
+                  onFill={(i, v) => { unlock(); sudokuFill(roomId, i, v) }}
+                  onClear={(i) => sudokuClear(roomId, i)}
+                />
+              </>
             )}
           </div>
         )}
 
-        {/* GAME OVER */}
-        {phase === 'GAME_OVER' && (
+        {/* GAME OVER — XOX shows the finished board + result banner first */}
+        {phase === 'GAME_OVER' && mode === 'XOX' && !resultRevealed && match?.board && (
+          <div className={styles.playArea}>
+            <div className={`${styles.resultBanner} anim-bounce-land`}>{resultText}</div>
+            <XoxBoard board={match.board} disabled />
+          </div>
+        )}
+
+        {phase === 'GAME_OVER' && (mode !== 'XOX' || resultRevealed) && (
           <>
             <GameOverCard
               won={state.won}
               draw={state.draw}
               mode={mode}
+              roast={overRoast}
               scores={room?.players}
               multiplayer
               onPlayAgain={null}
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
+            {mode === 'SUDOKU' && match && (
+              <p className={styles.sudokuEndStats}>
+                ✅ {match.correctCount}/{match.fillTarget} cells correct · ❌ {match.wrongCount} wrong attempts
+              </p>
+            )}
             <RematchPrompt
               rematchStatus={state.rematchStatus}
               requesterName={state.rematchRequesterName}

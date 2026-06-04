@@ -187,6 +187,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  flex-wrap: wrap;          /* digits drop to a new line instead of overflowing */
 }
 
 .mySecretLabel {
@@ -209,16 +210,24 @@
 .mySecretDigits {
   display: flex;
   gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .secretDigit {
   font-family: var(--font-mono);
-  font-size: var(--text-2xl);
+  font-size: clamp(1.2rem, 6vw, var(--text-2xl));
   font-weight: var(--weight-black);
   color: var(--color-juice);
-  width: 28px;
+  width: clamp(20px, 6.5vw, 28px);
   text-align: center;
   transition: color 0.3s, text-shadow 0.3s;
+}
+
+/* Mobile: shrink the single-value (GTN) secret so it never overflows */
+@media (max-width: 420px) {
+  .mySecretValue { font-size: var(--text-xl); letter-spacing: 0.06em; word-break: break-all; }
 }
 
 /* Opponent has locked this digit (guessed it in the right position) */

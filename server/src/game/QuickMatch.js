@@ -6,7 +6,7 @@ export class QuickMatchQueue {
     this._queue = []
   }
 
-  async enqueue(playerId, playerName, mode = 'GTN') {
+  async enqueue(playerId, playerName, mode = 'GTN', difficulty = 'medium') {
     const existing = this._queue.find(e => e.playerId === playerId)
     if (existing) return { matched: false, roomId: null, waiting: true }
 
@@ -17,6 +17,8 @@ export class QuickMatchQueue {
         hostId: opponent.playerId,
         hostName: opponent.playerName,
         mode,
+        // Use the waiting player's chosen difficulty (they "hosted" the match)
+        difficulty: opponent.difficulty || difficulty,
         isPublic: false,
       })
       await roomManager.update(room.id, r => {
@@ -27,7 +29,7 @@ export class QuickMatchQueue {
       return { matched: true, roomId: room.id, room: await roomManager.get(room.id) }
     }
 
-    this._queue.push({ playerId, playerName, mode, enqueuedAt: Date.now() })
+    this._queue.push({ playerId, playerName, mode, difficulty, enqueuedAt: Date.now() })
     return { matched: false, roomId: null, waiting: true }
   }
 

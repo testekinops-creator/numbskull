@@ -15,16 +15,22 @@ export default function GuessList({ guesses, mode }) {
   if (rows.length === 0) return null
 
   return (
-    <ul className={styles.list} aria-label="Guess history">
-      {rows.map(({ entry, idx }) => (
-        <li key={idx} className={styles.item}>
-          {mode === 'BC'
-            ? <BCGuessRow entry={entry} />
-            : <GTNGuessRow entry={entry} />
-          }
-        </li>
-      ))}
-    </ul>
+    <div className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <span className={styles.panelTitle}>Guess History</span>
+        <span className={styles.count}>{rows.length}</span>
+      </div>
+      <ul className={styles.list} aria-label="Guess history">
+        {rows.map(({ entry, idx }) => (
+          <li key={idx} className={styles.item}>
+            {mode === 'BC'
+              ? <BCGuessRow entry={entry} />
+              : <GTNGuessRow entry={entry} />
+            }
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

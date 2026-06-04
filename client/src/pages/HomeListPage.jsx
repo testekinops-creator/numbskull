@@ -30,6 +30,20 @@ const GAMES = [
     desc: 'Three in a row. Beat the AI or a friend — classic XOX.',
     accent: 'var(--color-juice)',
   },
+  {
+    mode: 'MATH',
+    icon: '🧮',
+    name: 'Math Battle',
+    desc: '20 questions, first to buzz wins the point. Fast hands, faster math.',
+    accent: 'var(--color-pink)',
+  },
+  {
+    mode: 'SUDOKU',
+    icon: '🔢',
+    name: 'Sudoku Duel',
+    desc: 'Co-op the same grid in real time. Right cells score, wrong ones cost.',
+    accent: 'var(--color-juice)',
+  },
 ]
 
 export default function HomeListPage() {

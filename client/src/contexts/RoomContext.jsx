@@ -33,6 +33,15 @@ const INITIAL = {
   opponentConnLost:     false,
 }
 
+// Math Battle scores arrive as [{ id, score }]; we store them as a map keyed
+// by playerId. Falls back to the existing map if no array is provided.
+function arrToScoreMap(arr, fallback) {
+  if (!Array.isArray(arr)) return fallback || {}
+  const m = {}
+  for (const s of arr) m[s.id] = s.score
+  return m
+}
+
 function reducer(state, action) {
   switch (action.type) {
 
@@ -161,6 +170,72 @@ function reducer(state, action) {
         won:      action.draw ? null : (action.winnerId ? action.winnerId === action.playerId : null),
         winnerId: action.winnerId || null,
       }
+    }
+
+    // Math Battle: a new question is served to both players
+    case 'MATH_QUESTION': {
+      const p = action.payload
+      return {
+        ...state,
+        match: {
+          ...(state.match || {}),
+          kind:     'MATH',
+          index:    p.index,
+          total:    p.total,
+          question: { index: p.index, prompt: p.prompt, options: p.options, total: p.total },
+          scores:   arrToScoreMap(p.scores, state.match?.scores),
+          resolved: false,
+          lastResolved: null,
+        },
+      }
+    }
+
+    // Math Battle: the current question was answered (or timed out) and locked
+    case 'MATH_RESOLVED': {
+      const p = action.payload
+      return {
+        ...state,
+        match: {
+          ...(state.match || {}),
+          scores:   arrToScoreMap(p.scores, state.match?.scores),
+          resolved: true,
+          lastResolved: {
+            index: p.index, byPlayerId: p.byPlayerId, correct: p.correct,
+            answer: p.answer, timeout: !!p.timeout,
+          },
+        },
+      }
+    }
+
+    // Sudoku: one cell changed (filled correct/wrong, or cleared)
+    case 'SUDOKU_UPDATE': {
+      const p = action.payload
+      if (!state.match) return state
+      const grid       = [...(state.match.grid || [])];       grid[p.index] = p.value
+      const status     = [...(state.match.status || [])];     status[p.index] = p.status
+      const wrongOwner = [...(state.match.wrongOwner || [])]; wrongOwner[p.index] = p.wrongOwner
+      const editLock = { ...(state.match.editLock || {}) }; delete editLock[p.index]
+      return {
+        ...state,
+        match: {
+          ...state.match,
+          grid, status, wrongOwner, editLock,
+          scores:       arrToScoreMap(p.scores, state.match.scores),
+          correctCount: p.correctCount,
+          wrongCount:   p.wrongCount,
+        },
+      }
+    }
+
+    case 'SUDOKU_LOCK': {
+      if (!state.match) return state
+      return { ...state, match: { ...state.match, editLock: { ...(state.match.editLock || {}), [action.index]: action.by } } }
+    }
+
+    case 'SUDOKU_UNLOCK': {
+      if (!state.match) return state
+      const editLock = { ...(state.match.editLock || {}) }; delete editLock[action.index]
+      return { ...state, match: { ...state.match, editLock } }
     }
 
     // I clicked Play Again → waiting for opponent's response
@@ -318,6 +393,24 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'MATCH_STATE', patch: { board, turnId }, playerId })
     })
 
+    socket.on('math:question', (payload = {}) => {
+      dispatch({ type: 'MATH_QUESTION', payload, playerId })
+    })
+
+    socket.on('math:resolved', (payload = {}) => {
+      dispatch({ type: 'MATH_RESOLVED', payload, playerId })
+    })
+
+    socket.on('sudoku:update', (payload = {}) => {
+      dispatch({ type: 'SUDOKU_UPDATE', payload, playerId })
+    })
+    socket.on('sudoku:lock', ({ index, by } = {}) => {
+      dispatch({ type: 'SUDOKU_LOCK', index, by })
+    })
+    socket.on('sudoku:unlock', ({ index } = {}) => {
+      dispatch({ type: 'SUDOKU_UNLOCK', index })
+    })
+
     socket.on('match:turn', ({ turnId } = {}) => {
       clearInterval(timerRef.current)
       dispatch({ type: 'TURN_CHANGE', playerId: turnId, myId: playerId })
@@ -385,6 +478,11 @@ export function RoomProvider({ children }) {
       socket.off('game:forfeit')
       socket.off('match:start')
       socket.off('xox:update')
+      socket.off('math:question')
+      socket.off('math:resolved')
+      socket.off('sudoku:update')
+      socket.off('sudoku:lock')
+      socket.off('sudoku:unlock')
       socket.off('match:turn')
       socket.off('match:over')
       socket.off('match:timeout')
@@ -420,10 +518,10 @@ export function RoomProvider({ children }) {
     }))
   }, [socket])
 
-  const quickMatch = useCallback(async (mode) => {
+  const quickMatch = useCallback(async (mode, difficulty) => {
     if (!socket) return
     dispatch({ type: 'MATCHMAKING', value: true })
-    return new Promise(res => socket.emit('room:quickmatch', { mode }, r => {
+    return new Promise(res => socket.emit('room:quickmatch', { mode, difficulty }, r => {
       if (!r.ok || r.matched) dispatch({ type: 'MATCHMAKING', value: false })
       if (r.ok && r.matched) dispatch({ type: 'ROOM_UPDATED', room: r.room })
       else if (!r.ok) dispatch({ type: 'ERROR', error: r.error })
@@ -466,6 +564,15 @@ export function RoomProvider({ children }) {
   const xoxMove = useCallback((roomId, cell) => {
     socket?.emit('xox:move', { roomId, cell })
   }, [socket])
+
+  const mathAnswer = useCallback((roomId, index, choice) => {
+    socket?.emit('math:answer', { roomId, index, choice })
+  }, [socket])
+
+  const sudokuLock   = useCallback((roomId, index)        => socket?.emit('sudoku:lock',   { roomId, index }),        [socket])
+  const sudokuUnlock = useCallback((roomId, index)        => socket?.emit('sudoku:unlock', { roomId, index }),        [socket])
+  const sudokuFill   = useCallback((roomId, index, value) => socket?.emit('sudoku:fill',   { roomId, index, value }), [socket])
+  const sudokuClear  = useCallback((roomId, index)        => socket?.emit('sudoku:clear',  { roomId, index }),        [socket])
 
   const matchForfeit = useCallback((roomId) => {
     socket?.emit('match:forfeit', { roomId })
@@ -523,7 +630,8 @@ export function RoomProvider({ children }) {
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
-      matchReady, xoxMove, matchForfeit,
+      matchReady, xoxMove, matchForfeit, mathAnswer,
+      sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     }}>
       {children}
     </RoomContext.Provider>

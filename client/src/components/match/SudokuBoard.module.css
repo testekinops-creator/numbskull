@@ -1,0 +1,133 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  align-items: center;
+  width: 100%;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  /* Cap by BOTH width and height so the square board always fits on screen.
+     The cells define the height (each is square), so no row gets clipped. */
+  width: min(92vw, 70vh, 340px);
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: var(--color-surface, #1b1b2e);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  box-sizing: border-box;  /* border included in the 1fr track → every cell aligns */
+  aspect-ratio: 1 / 1;     /* square cells → grid auto-sizes to fit all 9 rows */
+  /* Each internal line is drawn ONCE: a cell owns only its top + left edge.
+     The grid's own border draws the outer right/bottom frame. */
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+  background: transparent;
+  color: var(--color-juice, #00f5ff);
+  font-size: clamp(0.8rem, 3.6vw, 1.4rem);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease;
+}
+
+.cell:not(:disabled):hover { background: rgba(255, 255, 255, 0.06); }
+.cell:disabled { cursor: default; }
+
+/* Outer frame is the grid border — first row/col don't redraw their edge */
+.firstCol { border-left: none; }
+.firstRow { border-top: none; }
+
+/* 3×3 box separators — thicken the single internal line at cols/rows 3 & 6 */
+.boxV { border-left: 2px solid rgba(255, 255, 255, 0.32); }
+.boxH { border-top:  2px solid rgba(255, 255, 255, 0.32); }
+
+.given {
+  color: var(--color-text, #fff);
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.correct {
+  color: var(--color-success, #00e676);
+  background: color-mix(in srgb, var(--color-success, #00e676) 14%, transparent);
+}
+
+.wrong {
+  color: #fff;
+  background: color-mix(in srgb, var(--color-pink, #ff3e8a) 40%, transparent);
+  animation: shake 0.3s ease;
+}
+
+/* Selection = a strong background fill only (no outline/box-shadow), so it can
+   never be mistaken for — or stack with — a grid line. */
+.selected {
+  background: color-mix(in srgb, var(--color-juice, #00f5ff) 34%, var(--color-surface, #1b1b2e));
+}
+
+.oppLock {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--color-pink, #ff3e8a) 14%, transparent),
+    color-mix(in srgb, var(--color-pink, #ff3e8a) 14%, transparent) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+/* Number pad */
+.pad {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  width: min(92vw, 70vh, 340px);
+  max-width: 100%;
+}
+
+.num, .clear {
+  height: 46px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: var(--color-surface, #1b1b2e);
+  color: var(--color-text, #fff);
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.15s ease;
+}
+
+.num:not(:disabled):hover { border-color: var(--color-juice, #00f5ff); transform: translateY(-1px); }
+.num:disabled, .clear:disabled { opacity: 0.4; cursor: default; }
+
+.clear {
+  grid-column: span 5;
+  font-size: 1rem;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: var(--color-pink, #ff3e8a);
+  text-align: center;
+  margin: 0;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell, .num, .wrong { animation: none; transition: none; }
+}

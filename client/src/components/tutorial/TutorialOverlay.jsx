@@ -53,6 +53,40 @@ const STEPS = {
       emoji: "🏆",
     },
   ],
+  MATH: [
+    {
+      title: "Math Battle",
+      body: "20 questions. You and your rival see the same one at the same time. First to lock in an answer takes the question.",
+      emoji: "🧮",
+    },
+    {
+      title: "Right AND fast",
+      body: "Correct = +1 for you. Wrong = −1 for you AND +1 for your rival. So a careless buzz literally hands them the lead — don't just mash buttons.",
+      emoji: "⚡",
+    },
+    {
+      title: "Highest score wins",
+      body: "After 20 questions, the higher score wins. Tie? It's a draw. Now stop reading and start adding.",
+      emoji: "🏆",
+    },
+  ],
+  SUDOKU: [
+    {
+      title: "Sudoku Duel",
+      body: "You and your rival fill the SAME grid in real time. Tap an empty cell, then a number. Correct = +1, wrong = −1 and the cell turns red.",
+      emoji: "🔢",
+    },
+    {
+      title: "Share the grid",
+      body: "Only one of you can edit a cell at a time. And if you put a wrong number in, you can't fix it — your partner has to. Choose carefully.",
+      emoji: "🤝",
+    },
+    {
+      title: "Finish the puzzle",
+      body: "The board completes when every cell is correct. Highest score wins, tie is a draw. Speed helps, but a wrong stab hurts.",
+      emoji: "🏆",
+    },
+  ],
 }
 
 const STORAGE_KEY = 'ns_tutorial_done'

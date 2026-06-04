@@ -9,6 +9,7 @@ import XoxBoard from '../components/match/XoxBoard.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
+import { getModeRoast } from '../utils/roasts.js'
 import styles from './XoxAiPage.module.css'
 
 const DIFFICULTIES = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']]
@@ -29,6 +30,7 @@ export default function XoxAiPage() {
   const [over, setOver]             = useState(false)
   const [won, setWon]               = useState(false)
   const [draw, setDraw]             = useState(false)
+  const [result, setResult]         = useState(null)  // 'win' | 'lose' | 'draw' (board reveal)
   const [roast, setRoast]           = useState(null)
   const [busy, setBusy]             = useState(false)
   const [tutorialDone, setTutorialDone] = useState(false)
@@ -46,7 +48,7 @@ export default function XoxAiPage() {
       setBoard(data.board)
       setTurn(data.turn)
       setLastCell(null)
-      setOver(false); setWon(false); setDraw(false); setRoast(null)
+      setOver(false); setWon(false); setDraw(false); setResult(null); setRoast(null)
       recordedRef.current = false
       setPhase('PLAYING')
     } catch { /* surfaced via inline state if needed */ }
@@ -67,10 +69,14 @@ export default function XoxAiPage() {
 
       if (data.over) {
         setOver(true)
-        if (data.draw) { setDraw(true); playLose(); buzz('wrong') }
-        else if (data.winner === data.playerSymbol) { setWon(true); playWin(); buzz('correct') }
-        else { playLose(); buzz('wrong') }
-        setPhase('GAME_OVER')
+        let r
+        if (data.draw) { setDraw(true); r = 'draw'; playLose(); buzz('wrong') }
+        else if (data.winner === data.playerSymbol) { setWon(true); r = 'win'; playWin(); buzz('correct') }
+        else { r = 'lose'; playLose(); buzz('wrong') }
+        setResult(r)
+        setRoast(getModeRoast('XOX', r))   // mode-specific roast for the card
+        // Let the finished board (winning line pulsing) sit before the card.
+        setTimeout(() => setPhase('GAME_OVER'), 1800)
       } else {
         playTone(0.5)
       }
@@ -154,8 +160,12 @@ export default function XoxAiPage() {
               </span>
               <span className={`badge ${symbol === 'X' ? 'badge-juice' : 'badge-pink'}`}>You are {symbol}</span>
             </div>
-            {roast && <p className={`${styles.roast} anim-slide-up`} key={roast}>"{roast}"</p>}
-            <XoxBoard board={board} onCell={handleCell} disabled={!myTurn || busy} lastCell={lastCell} />
+            {result
+              ? <div className={`${styles.resultBanner} anim-bounce-land`}>
+                  {result === 'draw' ? '🤝 Draw!' : result === 'win' ? '🎉 You win!' : '💀 You lose'}
+                </div>
+              : roast && <p className={`${styles.roast} anim-slide-up`} key={roast}>"{roast}"</p>}
+            <XoxBoard board={board} onCell={handleCell} disabled={!myTurn || busy || !!result} lastCell={lastCell} />
           </div>
         )}
 
@@ -165,6 +175,7 @@ export default function XoxAiPage() {
             won={won}
             draw={draw}
             mode="XOX"
+            roast={roast}
             onPlayAgain={() => setPhase('SETUP')}
             onHome={() => navigate('/home')}
           />

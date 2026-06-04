@@ -96,13 +96,17 @@ gameRouter.post('/start', (req, res, next) => {
     const opts     = applyEventModifier(baseOpts, event)
     const engine   = engineFactory(mode, opts)
     const sessionId = uid()
-    sessions.set(sessionId, { engine, mode, event: event?.id || null })
+    const session  = { engine, mode, event: event?.id || null }
+    // Math Battle tracks progression + per-side scores on the session.
+    if (mode === 'MATH') { session.mathIndex = 0; session.mathScores = { player: 0, ai: 0 } }
+    sessions.set(sessionId, session)
     setTimeout(() => sessions.delete(sessionId), 30 * 60 * 1000)
 
     // XOX: if the human chose O, the AI (X) opens immediately so the board
     // already reflects the first move when the client renders.
     let state = engine.getState ? engine.getState() : {}
-    if (mode === 'XOX') state = engine.aiOpeningMove()
+    if (mode === 'XOX')  state = engine.aiOpeningMove()
+    if (mode === 'MATH') state = { ...state, scores: { player: 0, ai: 0 } }
 
     res.json({ success: true, data: { sessionId, mode, range: engine.range, event: event?.id || null, ...state } })
   } catch (err) { next(err) }
@@ -157,6 +161,61 @@ gameRouter.post('/guess', (req, res, next) => {
     if (result.correct || result.over) sessions.delete(sessionId)
 
     res.json({ success: true, data: { ...result, roast: roast?.message || null } })
+  } catch (err) { next(err) }
+})
+
+// ── Math Battle answer (single-player AI race) ─────────────────────────────
+// `by` is 'player' (the human picked an option) or 'ai' (the AI buzzed first).
+// The first answer for the current index locks the question; later answers for
+// an already-advanced index are reported as stale and scored to nobody.
+const mathAnswerSchema = z.object({
+  sessionId:  z.string(),
+  index:      z.number().int().min(0),
+  by:         z.enum(['player', 'ai']),
+  choice:     z.union([z.number().int(), z.string()]).optional(),
+  totalGames: z.number().int().min(0).default(0),
+})
+
+gameRouter.post('/math/answer', (req, res, next) => {
+  try {
+    const { sessionId, index, by, choice, totalGames } = mathAnswerSchema.parse(req.body)
+    const session = sessions.get(sessionId)
+    if (!session || session.mode !== 'MATH') throw createError('Session not found', 404, 'SESSION_NOT_FOUND')
+    const { engine } = session
+
+    // The question already advanced — this answer lost the race.
+    if (index !== session.mathIndex) {
+      return res.json({ success: true, data: { stale: true, index: session.mathIndex, scores: { ...session.mathScores } } })
+    }
+
+    const answer = engine.questions[index]?.answer
+    let correct = null, aiCorrect = null
+    // Scoring: correct = +1 to the answerer. Wrong = −1 to the answerer AND
+    // +1 to the opponent (a failed buzz hands the point to the other side).
+    if (by === 'ai') {
+      aiCorrect = engine.aiAnswersCorrectly()
+      if (aiCorrect) session.mathScores.ai += 1
+      else { session.mathScores.ai -= 1; session.mathScores.player += 1 }
+    } else {
+      correct = engine.check(index, choice).correct
+      if (correct) session.mathScores.player += 1
+      else { session.mathScores.player -= 1; session.mathScores.ai += 1 }
+    }
+
+    session.mathIndex++
+    const over = session.mathIndex >= engine.total
+    const next = over ? null : engine.publicQuestion(session.mathIndex)
+
+    const data = { by, correct, aiCorrect, answer, scores: { ...session.mathScores }, next, over, index }
+    if (over) {
+      const { player, ai } = session.mathScores
+      data.draw = player === ai
+      data.won  = !data.draw && player > ai
+      const roast = getRoastMessage(data.won ? 'correct' : 'lose', totalGames)
+      data.roast = roast?.message || null
+      sessions.delete(sessionId)
+    }
+    res.json({ success: true, data })
   } catch (err) { next(err) }
 })
 

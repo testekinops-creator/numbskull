@@ -8,9 +8,55 @@ import { roomManager } from '../game/RoomManager.js'
 import { cancelRoomGrace } from './roomHandlers.js'
 import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
+import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
+import { SudokuEngine } from '../game/engines/SudokuEngine.js'
 import { logger } from '../utils/logger.js'
 
 export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU'])
+
+// Per-question timers for Math Battle (separate from the 30s XOX TurnTimer).
+const mathTimers = new Map()
+const MATH_QUESTION_MS = 15_000
+const MATH_REVEAL_MS = 1200
+function _clearMathTimer(roomId) {
+  const t = mathTimers.get(roomId)
+  if (t) { clearTimeout(t); mathTimers.delete(roomId) }
+}
+
+// Sudoku timing: a transient edit lock auto-releases after 3s (so a cell never
+// stays stuck for the other player), and a wrong cell can be cleared by either
+// player after a short cooldown (safety valve).
+const SUDOKU_LOCK_TTL = 3_000
+const SUDOKU_WRONG_COOLDOWN = 8_000
+const sudokuLockTimers = new Map()  // `${roomId}:${index}` -> timeout
+
+function _clearSudokuLockTimer(roomId, index) {
+  const key = `${roomId}:${index}`
+  const t = sudokuLockTimers.get(key)
+  if (t) { clearTimeout(t); sudokuLockTimers.delete(key) }
+}
+
+function _clearRoomSudokuLockTimers(roomId) {
+  for (const key of [...sudokuLockTimers.keys()]) {
+    if (key.startsWith(`${roomId}:`)) { clearTimeout(sudokuLockTimers.get(key)); sudokuLockTimers.delete(key) }
+  }
+}
+
+function _scheduleSudokuLockRelease(io, roomId, index, ownerId) {
+  _clearSudokuLockTimer(roomId, index)
+  const key = `${roomId}:${index}`
+  const t = setTimeout(async () => {
+    sudokuLockTimers.delete(key)
+    const room = await roomManager.get(roomId)
+    if (!room || room.mode !== 'SUDOKU') return
+    const lock = room.match?.editLock?.[index]
+    if (lock && lock.by === ownerId) {
+      await roomManager.update(roomId, r => { delete r.match.editLock[index] })
+      io.to(roomId).emit('sudoku:unlock', { index })
+    }
+  }, SUDOKU_LOCK_TTL)
+  sudokuLockTimers.set(key, t)
+}
 
 export function registerMatchHandlers(io, socket) {
   const auth = socket.handshake.auth
@@ -97,6 +143,179 @@ export function registerMatchHandlers(io, socket) {
     }
   })
 
+  // ── Math Battle answer ────────────────────────────────────────────────────
+  socket.on('math:answer', async ({ roomId, index, choice } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'MATH' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      const m = room.match
+      if (!m || m.resolved || index !== m.index) {
+        return ack?.({ ok: false, error: 'Already resolved' })
+      }
+
+      // First valid answer for this index locks it. The roomManager mutex
+      // serialises near-simultaneous answers; we re-check inside the lock.
+      let didResolve = false, correct = false, answer = null
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        if (mm.resolved || index !== mm.index) return
+        const res = mm.engine.check(index, choice)
+        correct = res.correct
+        answer  = res.answer
+        // correct = +1 to answerer; wrong = −1 to answerer AND +1 to opponent.
+        const oppId = r.players.find(p => p.id !== playerId)?.id
+        if (correct) {
+          mm.scores[playerId] = (mm.scores[playerId] || 0) + 1
+        } else {
+          mm.scores[playerId] = (mm.scores[playerId] || 0) - 1
+          if (oppId) mm.scores[oppId] = (mm.scores[oppId] || 0) + 1
+        }
+        mm.resolved = true
+        didResolve = true
+      })
+      if (!didResolve) return ack?.({ ok: false, error: 'Already resolved' })
+
+      _clearMathTimer(roomId)
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('math:resolved', {
+        index, byPlayerId: playerId, correct, answer,
+        scores: updated.players.map(p => ({ id: p.id, score: updated.match.scores[p.id] || 0 })),
+      })
+      ack?.({ ok: true })
+      _advanceMath(io, roomId)
+    } catch (err) {
+      logger.error({ err }, 'math:answer error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── Sudoku: claim a transient edit lock on a cell ─────────────────────────
+  socket.on('sudoku:lock', async ({ roomId, index } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SUDOKU' || room.phase !== 'PLAYING') return ack?.({ ok: false })
+      const m = room.match
+      if (!_sudokuEditable(m, index)) return ack?.({ ok: false, error: 'Cell not editable' })
+
+      const now = Date.now()
+      const existing = m.editLock[index]
+      if (existing && existing.by !== playerId && (now - existing.ts) < SUDOKU_LOCK_TTL) {
+        return ack?.({ ok: false, error: 'Cell is being edited' })
+      }
+      await roomManager.update(roomId, r => { r.match.editLock[index] = { by: playerId, ts: now } })
+      io.to(roomId).emit('sudoku:lock', { index, by: playerId })
+      _scheduleSudokuLockRelease(io, roomId, index, playerId)  // auto-unlock after 3s
+      ack?.({ ok: true })
+    } catch (err) { ack?.({ ok: false, error: err.message }) }
+  })
+
+  // ── Sudoku: release my edit lock ──────────────────────────────────────────
+  socket.on('sudoku:unlock', async ({ roomId, index } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SUDOKU') return ack?.({ ok: false })
+      if (room.match.editLock[index]?.by === playerId) {
+        _clearSudokuLockTimer(roomId, index)
+        await roomManager.update(roomId, r => { delete r.match.editLock[index] })
+        io.to(roomId).emit('sudoku:unlock', { index })
+      }
+      ack?.({ ok: true })
+    } catch (err) { ack?.({ ok: false, error: err.message }) }
+  })
+
+  // ── Sudoku: fill a cell ───────────────────────────────────────────────────
+  socket.on('sudoku:fill', async ({ roomId, index, value } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SUDOKU' || room.phase !== 'PLAYING') return ack?.({ ok: false })
+      const m = room.match
+      const val = Number(value)
+      if (!Number.isInteger(val) || val < 1 || val > 9) return ack?.({ ok: false, error: 'Bad value' })
+      if (!_sudokuEditable(m, index)) return ack?.({ ok: false, error: 'Cell not editable' })
+
+      // A player may not fix their OWN wrong cell — only the opponent can.
+      if (m.status[index] === 'wrong' && m.wrongOwner[index] === playerId) {
+        return ack?.({ ok: false, error: 'Your partner must fix this one' })
+      }
+      // Cell currently being edited by the other player.
+      const now = Date.now()
+      const lock = m.editLock[index]
+      if (lock && lock.by !== playerId && (now - lock.ts) < SUDOKU_LOCK_TTL) {
+        return ack?.({ ok: false, error: 'Cell is being edited' })
+      }
+
+      const correct = m.engine.isCorrect(index, val)
+      let over = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        const wasWrong = mm.status[index] === 'wrong'
+        mm.grid[index] = val
+        delete mm.editLock[index]
+        if (correct) {
+          mm.status[index] = 'correct'
+          mm.scores[playerId] = (mm.scores[playerId] || 0) + 1
+          mm.correctCount++
+          mm.wrongOwner[index] = null
+          mm.wrongTs[index] = null
+          if (mm.correctCount >= mm.fillTarget) over = true
+        } else {
+          mm.status[index] = 'wrong'
+          mm.scores[playerId] = (mm.scores[playerId] || 0) - 1
+          if (!wasWrong) mm.wrongCount++   // count each new wrong attempt
+          mm.wrongOwner[index] = playerId
+          mm.wrongTs[index] = now
+        }
+      })
+
+      _clearSudokuLockTimer(roomId, index)
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('sudoku:update', _sudokuCellUpdate(updated, index, playerId))
+      ack?.({ ok: true, correct })
+
+      if (over) {
+        const [a, b] = updated.players
+        const sa = updated.match.scores[a.id] || 0
+        const sb = updated.match.scores[b.id] || 0
+        const draw = sa === sb
+        const winnerId = draw ? null : (sa > sb ? a.id : b.id)
+        await _endMatch(io, roomId, { winnerId, draw })
+      }
+    } catch (err) {
+      logger.error({ err }, 'sudoku:fill error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── Sudoku: clear a wrong cell (cross-fix + safety cooldown) ──────────────
+  socket.on('sudoku:clear', async ({ roomId, index } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SUDOKU' || room.phase !== 'PLAYING') return ack?.({ ok: false })
+      const m = room.match
+      if (m.status[index] !== 'wrong') return ack?.({ ok: false, error: 'Nothing to clear' })
+
+      const now = Date.now()
+      const mayClear = m.wrongOwner[index] !== playerId   // the other player can always fix
+        || (now - (m.wrongTs[index] || 0)) >= SUDOKU_WRONG_COOLDOWN  // safety after cooldown
+      if (!mayClear) return ack?.({ ok: false, error: 'Wait for your partner (or a few seconds)' })
+
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        mm.grid[index] = 0
+        mm.status[index] = 'empty'
+        mm.wrongOwner[index] = null
+        mm.wrongTs[index] = null
+        delete mm.editLock[index]
+      })
+      _clearSudokuLockTimer(roomId, index)
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('sudoku:update', _sudokuCellUpdate(updated, index, playerId))
+      ack?.({ ok: true })
+    } catch (err) { ack?.({ ok: false, error: err.message }) }
+  })
+
   // ── Forfeit (explicit "I give up") ────────────────────────────────────────
   socket.on('match:forfeit', async ({ roomId } = {}, ack) => {
     try {
@@ -132,7 +351,48 @@ async function _startMatch(io, roomId) {
       }
     })
   }
-  // (MATH / SUDOKU init added in their phases.)
+  if (room.mode === 'MATH') {
+    const [a, b] = room.players
+    const engine = new MathBattleEngine({ difficulty: room.difficulty || 'medium', count: 20 })
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:     'MATH',
+        engine,                       // server-side only; never serialised
+        index:    0,
+        total:    engine.total,
+        scores:   { [a.id]: 0, [b.id]: 0 },
+        resolved: false,
+        question: engine.publicQuestion(0),
+      }
+    })
+  }
+  if (room.mode === 'SUDOKU') {
+    const [a, b] = room.players
+    const engine = new SudokuEngine({ difficulty: room.difficulty || 'medium' })
+    const given  = engine.puzzle.map(v => v !== 0)
+    const status = engine.puzzle.map(v => (v !== 0 ? 'given' : 'empty'))
+    const fillTarget = given.filter(g => !g).length
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:       'SUDOKU',
+        engine,                              // server-only (holds the solution)
+        grid:       [...engine.puzzle],
+        given,
+        status,
+        wrongOwner: Array(81).fill(null),
+        wrongTs:    Array(81).fill(null),
+        editLock:   {},                      // index -> { by, ts }
+        scores:     { [a.id]: 0, [b.id]: 0 },
+        correctCount: 0,
+        wrongCount:   0,
+        fillTarget,
+      }
+    })
+  }
 
   const updated = await roomManager.get(roomId)
   for (const p of updated.players) {
@@ -140,7 +400,60 @@ async function _startMatch(io, roomId) {
     s?.emit('match:start', _matchView(updated, p.id))
   }
 
-  if (updated.mode === 'XOX') _startMoveTimer(io, roomId, updated.match.turnId)
+  if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
+  if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
+}
+
+// Advance Math Battle to the next question (after a brief reveal pause), or end.
+async function _advanceMath(io, roomId) {
+  _clearMathTimer(roomId)
+  await new Promise(res => setTimeout(res, MATH_REVEAL_MS))
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'MATH' || room.phase !== 'PLAYING') return
+
+  let over = false
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    mm.index++
+    mm.resolved = false
+    if (mm.index >= mm.total) over = true
+    else mm.question = mm.engine.publicQuestion(mm.index)
+  })
+
+  const updated = await roomManager.get(roomId)
+  if (over) {
+    const [a, b] = updated.players
+    const sa = updated.match.scores[a.id] || 0
+    const sb = updated.match.scores[b.id] || 0
+    const draw = sa === sb
+    const winnerId = draw ? null : (sa > sb ? a.id : b.id)
+    await _endMatch(io, roomId, { winnerId, draw })
+  } else {
+    io.to(roomId).emit('math:question', {
+      ...updated.match.question,
+      scores: updated.players.map(p => ({ id: p.id, score: updated.match.scores[p.id] || 0 })),
+    })
+    _startQuestionTimer(io, roomId)
+  }
+}
+
+// If nobody answers within the window, advance with no score for anyone.
+function _startQuestionTimer(io, roomId) {
+  _clearMathTimer(roomId)
+  const t = setTimeout(async () => {
+    const room = await roomManager.get(roomId)
+    if (!room || room.mode !== 'MATH' || room.phase !== 'PLAYING') return
+    const m = room.match
+    if (!m || m.resolved) return
+    const answer = m.engine.questions[m.index]?.answer
+    await roomManager.update(roomId, r => { r.match.resolved = true })
+    io.to(roomId).emit('math:resolved', {
+      index: m.index, byPlayerId: null, correct: false, answer, timeout: true,
+      scores: room.players.map(p => ({ id: p.id, score: m.scores[p.id] || 0 })),
+    })
+    _advanceMath(io, roomId)
+  }, MATH_QUESTION_MS)
+  mathTimers.set(roomId, t)
 }
 
 // ── Match end ─────────────────────────────────────────────────────────────────
@@ -150,6 +463,8 @@ export async function endMatch(io, roomId, { winnerId = null, draw = false } = {
 
 async function _endMatch(io, roomId, { winnerId = null, draw = false }) {
   clearTimer(roomId)
+  _clearMathTimer(roomId)
+  _clearRoomSudokuLockTimers(roomId)
   cancelRoomGrace(roomId) // game finished → don't let a late disconnect override it
   await roomManager.update(roomId, r => {
     r.phase = 'GAME_OVER'
@@ -202,7 +517,57 @@ function _publicMatch(match) {
       draw: match.draw,
     }
   }
+  if (match.kind === 'MATH') {
+    // Strip the engine (and its answers) — clients only ever see the question.
+    return {
+      kind:     'MATH',
+      index:    match.index,
+      total:    match.total,
+      scores:   match.scores,
+      question: match.question,
+      resolved: match.resolved,
+    }
+  }
+  if (match.kind === 'SUDOKU') {
+    // Strip the engine/solution. editLock is flattened to { index: ownerId }.
+    const editLock = {}
+    for (const [idx, l] of Object.entries(match.editLock || {})) editLock[idx] = l.by
+    return {
+      kind:         'SUDOKU',
+      grid:         match.grid,
+      given:        match.given,
+      status:       match.status,
+      wrongOwner:   match.wrongOwner,
+      editLock,
+      scores:       match.scores,
+      correctCount: match.correctCount,
+      wrongCount:   match.wrongCount,
+      fillTarget:   match.fillTarget,
+    }
+  }
   return match
+}
+
+// ── Sudoku helpers ─────────────────────────────────────────────────────────
+function _sudokuEditable(m, index) {
+  if (!m || !Number.isInteger(index) || index < 0 || index > 80) return false
+  if (m.given[index]) return false
+  if (m.status[index] === 'correct') return false
+  return true
+}
+
+function _sudokuCellUpdate(room, index, by) {
+  const m = room.match
+  return {
+    index,
+    value:        m.grid[index],
+    status:       m.status[index],
+    wrongOwner:   m.wrongOwner[index],
+    by,
+    scores:       room.players.map(p => ({ id: p.id, score: m.scores[p.id] || 0 })),
+    correctCount: m.correctCount,
+    wrongCount:   m.wrongCount,
+  }
 }
 
 function _roomSummary(room) {

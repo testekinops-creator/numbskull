@@ -51,9 +51,9 @@ export function registerRoomHandlers(io, socket) {
   })
 
   // ── Quick match ───────────────────────────────────────────────────────────
-  socket.on('room:quickmatch', async ({ mode = 'GTN' } = {}, ack) => {
+  socket.on('room:quickmatch', async ({ mode = 'GTN', difficulty = 'medium' } = {}, ack) => {
     try {
-      const result = await quickMatch.enqueue(playerId, playerName, mode)
+      const result = await quickMatch.enqueue(playerId, playerName, mode, difficulty)
       if (result.matched) {
         const room = result.room
 

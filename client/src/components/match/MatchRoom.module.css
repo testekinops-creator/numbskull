@@ -11,3 +11,40 @@
   text-align: center;
   margin: 0;
 }
+
+.sudokuHud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  width: 100%;
+  max-width: 360px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary, #c4c4d4);
+}
+
+.hudScore b {
+  color: var(--color-juice, #00f5ff);
+  font-size: 1.1rem;
+  margin-left: 4px;
+}
+
+.hudMid {
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #9a9ab0);
+}
+
+.sudokuEndStats {
+  text-align: center;
+  color: var(--color-text-secondary, #c4c4d4);
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+
+.resultBanner {
+  font-size: 1.6rem;
+  font-weight: 800;
+  text-align: center;
+  margin: 0;
+  letter-spacing: 0.02em;
+}

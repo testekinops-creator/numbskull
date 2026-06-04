@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import styles from './GameOverCard.module.css'
 import SkullMascot from '../skull/SkullMascot.jsx'
 
-export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores }) {
+export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores, roast }) {
   const efficiency = optimalMoves && attempts
     ? Math.round((optimalMoves / attempts) * 100)
     : null
@@ -45,6 +45,13 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
           </>
         )}
       </div>
+
+      {/* Mode-specific roast */}
+      {roast && (
+        <p style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)', textAlign: 'center', margin: '2px auto 4px', maxWidth: '34ch' }}>
+          &ldquo;{roast}&rdquo;
+        </p>
+      )}
 
       {/* Stats row — centered */}
       <div className={styles.statsRow}>
