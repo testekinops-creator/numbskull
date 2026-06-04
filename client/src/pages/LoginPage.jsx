@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       await login(form)
       localStorage.setItem('ns_name_set', '1')
-      navigate('/lobby')
+      navigate('/home')
     } catch (err) {
       setError(err.code === 'ACCOUNT_LOCKED' ? 'Account locked after too many attempts. Try in 15 minutes.' : 'Invalid email or password.')
     } finally {

@@ -101,7 +101,7 @@ export function registerRoomHandlers(io, socket) {
 
   // ── Leave room ────────────────────────────────────────────────────────────
   socket.on('room:leave', async ({ roomId } = {}, ack) => {
-    await _handleLeave(io, socket, playerId, roomId)
+    await _handleLeave(io, socket, playerId, playerName, roomId, 'left')
     ack?.({ ok: true })
   })
 
@@ -113,6 +113,9 @@ export function registerRoomHandlers(io, socket) {
 
   // ── Reconnect ─────────────────────────────────────────────────────────────
   socket.on('room:reconnect', async ({ roomId } = {}, ack) => {
+    // Cancel any pending disconnect-close grace timer for this player
+    _cancelDisconnectClose(playerId, roomId)
+
     const room = await roomManager.get(roomId)
     if (!room) return ack?.({ ok: false, error: 'Room expired' })
     const inRoom = room.players.find(p => p.id === playerId)
@@ -122,42 +125,67 @@ export function registerRoomHandlers(io, socket) {
     ack?.({ ok: true, room: sanitize(room, playerId) })
   })
 
-  socket.on('disconnect', async () => {
-    for (const roomId of socket.rooms) {
-      if (roomId === socket.id) continue
-      const room = await roomManager.get(roomId)
-      if (!room) continue
-      const isPlayer = room.players.find(p => p.id === playerId)
-      if (isPlayer) {
-        io.to(roomId).emit('player:disconnected', { playerId })
-      }
+  // Use 'disconnecting' — socket.rooms is still populated here
+  socket.on('disconnecting', () => {
+    for (const r of socket.rooms) {
+      if (r === socket.id) continue
+      _scheduleDisconnectClose(io, playerId, playerName, r)
     }
+  })
+
+  socket.on('disconnect', () => {
     quickMatch.dequeue(playerId)
   })
 }
 
-async function _handleLeave(io, socket, playerId, roomId) {
+// ── Disconnect grace timers (survive page refresh) ───────────────────────────
+const disconnectTimers = new Map()  // `${playerId}:${roomId}` -> timeout
+const DISCONNECT_GRACE_MS = 10_000
+
+function _scheduleDisconnectClose(io, playerId, playerName, roomId) {
+  const key = `${playerId}:${roomId}`
+  if (disconnectTimers.has(key)) clearTimeout(disconnectTimers.get(key))
+  const t = setTimeout(async () => {
+    disconnectTimers.delete(key)
+    const room = await roomManager.get(roomId)
+    if (!room) return
+    const leaver = room.players.find(p => p.id === playerId)
+    if (!leaver) return  // already removed
+    await _closeRoomNotifying(io, room, roomId, leaver.name || playerName, 'disconnected')
+  }, DISCONNECT_GRACE_MS)
+  disconnectTimers.set(key, t)
+}
+
+function _cancelDisconnectClose(playerId, roomId) {
+  const key = `${playerId}:${roomId}`
+  if (disconnectTimers.has(key)) {
+    clearTimeout(disconnectTimers.get(key))
+    disconnectTimers.delete(key)
+  }
+}
+
+// Explicit leave (Leave / Home button)
+async function _handleLeave(io, socket, playerId, playerName, roomId, reason = 'left') {
   const room = await roomManager.get(roomId)
   if (!room) return
-  const isPlayer = room.players.find(p => p.id === playerId)
-  if (isPlayer && (room.phase === 'PLAYING' || room.phase === 'SETUP')) {
-    io.to(roomId).emit('game:forfeit', { forfeitPlayerId: playerId })
-  }
-  socket.leave(roomId)
+  const leaver = room.players.find(p => p.id === playerId)
+  socket.leave?.(roomId)
+  await _closeRoomNotifying(io, room, roomId, leaver?.name || playerName, reason)
+}
+
+// Notify any remaining player, then close the room for everyone
+async function _closeRoomNotifying(io, room, roomId, leaverName, reason) {
   clearTimer(roomId)
-  if (room.hostId === playerId || room.players.length <= 1) {
-    await roomManager.delete(roomId)
-    io.to(roomId).emit('room:closed', { roomId })
-  } else {
-    await roomManager.update(roomId, r => {
-      r.players = r.players.filter(p => p.id !== playerId)
-      r.spectators = r.spectators.filter(id => id !== playerId)
-      r.phase = 'LOBBY'
-      r.round = null
-    })
-    const updated = await roomManager.get(roomId)
-    io.to(roomId).emit('room:updated', sanitize(updated, null))
+  const stillExists = await roomManager.get(roomId)
+  if (!stillExists) return  // already closed
+
+  // If another real player is still here, tell them their opponent left
+  const hasOpponent = room.players && room.players.length > 1
+  if (hasOpponent) {
+    io.to(roomId).emit('game:opponent_left', { leaverName, reason })
   }
+  await roomManager.delete(roomId)
+  io.to(roomId).emit('room:closed', { roomId })
 }
 
 function _findSocket(io, targetPlayerId) {

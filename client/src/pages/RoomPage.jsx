@@ -61,23 +61,31 @@ export default function RoomPage() {
 
   const mySecret = mySecretRef.current || state.room?.mySecret || ''
 
+  // Track that we actually entered a room, so a stale-flag can't fire on mount
+  const enteredRoomRef = useRef(false)
+  useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
+
   useEffect(() => {
     if (!socket || !roomId) return
     socket.emit('room:reconnect', { roomId }, r => {
-      if (!r.ok) navigate('/')
+      if (!r.ok) navigate('/home')
     })
   }, [socket, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Only navigate home if the flag flips WHILE we have a room loaded
-  // (guards against stale flag from previous session navigating immediately on mount)
+  // Room closed (opponent left / declined) → show message briefly, then go home.
+  // Uses enteredRoomRef instead of `room` so it still fires after room is cleared.
   useEffect(() => {
-    if (state.roomClosedByOpponent && room) navigate('/')
-  }, [state.roomClosedByOpponent, navigate, room])
+    if (state.roomClosedByOpponent && enteredRoomRef.current) {
+      const delay = state.opponentLeftMessage ? 1800 : 0
+      const t = setTimeout(() => navigate('/home'), delay)
+      return () => clearTimeout(t)
+    }
+  }, [state.roomClosedByOpponent, state.opponentLeftMessage, navigate])
 
-  // When my request was declined, auto-navigate home after showing message
+  // When my rematch request was declined → show message, then home
   useEffect(() => {
     if (state.rematchStatus === 'declined') {
-      const t = setTimeout(() => { leaveRoom(roomId); navigate('/') }, 2500)
+      const t = setTimeout(() => { leaveRoom(roomId); navigate('/home') }, 2200)
       return () => clearTimeout(t)
     }
   }, [state.rematchStatus, navigate, leaveRoom, roomId])
@@ -157,7 +165,7 @@ export default function RoomPage() {
       <div className={`panel ${styles.roomPage}`}>
         {/* Header */}
         <div className={styles.header}>
-          <button className="btn btn-ghost btn-sm" onClick={() => { leaveRoom(roomId); navigate('/') }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => { leaveRoom(roomId); navigate('/home') }}>
             ✕ Leave
           </button>
           <span className={`badge badge-juice`}>{mode === 'GTN' ? 'Guess The Number' : 'Bulls & Cows'}</span>
@@ -347,7 +355,7 @@ export default function RoomPage() {
               scores={room?.players}
               multiplayer
               onPlayAgain={null}   /* handled by RematchPrompt below */
-              onHome={() => { leaveRoom(roomId); navigate('/') }}
+              onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
 
             {/* Rematch prompt — 4 states */}
@@ -357,12 +365,23 @@ export default function RoomPage() {
               myName={me?.name}
               onPlayAgain={() => requestRematch(roomId)}
               onAccept={() => acceptRematch(roomId)}
-              onDecline={() => { declineRematch(roomId); navigate('/') }}
-              onHome={() => { leaveRoom(roomId); navigate('/') }}
+              onDecline={() => { declineRematch(roomId); navigate('/home') }}
+              onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
           </>
         )}
       </div>
+
+      {/* ── Opponent-left overlay ── */}
+      {state.opponentLeftMessage && (
+        <div className={styles.leftOverlay} role="alert">
+          <div className={`${styles.leftCard} anim-bounce-land`}>
+            <SkullMascot expression="grudging" size={72} />
+            <h2 className={styles.leftTitle}>{state.opponentLeftMessage}</h2>
+            <p className={styles.leftSub}>Taking you back home…</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Emoji burst overlay (full screen) ── */}
       <EmojiBurst trigger={state.lastEmoji} />

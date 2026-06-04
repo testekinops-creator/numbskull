@@ -19,12 +19,12 @@ export default function NameSetupScreen() {
     setName(trimmed)
     localStorage.setItem(NAME_KEY, '1')
     setReady(true)
-    setTimeout(() => navigate('/lobby'), 180)
+    setTimeout(() => navigate('/home'), 180)
   }
 
   function handleSkip() {
     localStorage.setItem(NAME_KEY, '1')
-    navigate('/lobby')
+    navigate('/home')
   }
 
   return (

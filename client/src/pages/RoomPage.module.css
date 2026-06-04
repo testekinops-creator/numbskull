@@ -319,6 +319,34 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Opponent-left overlay ───────────────────────────────────── */
+.leftOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 32, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: var(--space-6);
+}
+.leftCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  background: linear-gradient(160deg, #211C50, #16143A);
+  border: 1px solid rgba(255,62,138,0.3);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  max-width: 340px;
+}
+.leftTitle { font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--color-text-primary); }
+.leftSub   { font-size: var(--text-sm); color: var(--color-text-muted); }
+
 /* ── Chat / emoji bar (fixed bottom) ─────────────────────────── */
 .chatBar {
   position: fixed;

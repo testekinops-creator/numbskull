@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useRoom } from '../contexts/RoomContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -7,6 +7,7 @@ import styles from './LobbyPage.module.css'
 
 export default function LobbyPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { state, createRoom, joinRoom, quickMatch, cancelQuickMatch } = useRoom()
   const { playerName, setName } = usePlayer()
   const { user, isRegistered } = useAuth()
@@ -22,7 +23,8 @@ export default function LobbyPage() {
     }
   }, [state.matchmaking, state.room?.id])
 
-  const [mode, setMode] = useState('GTN')
+  // Mode can be preselected from the home games list (navigate state)
+  const [mode, setMode] = useState(location.state?.mode === 'BC' ? 'BC' : 'GTN')
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
   const [tab, setTab] = useState('quick') // quick | create | join
@@ -64,7 +66,7 @@ export default function LobbyPage() {
     <div className={styles.lobbyScreen}>
       <div className={styles.lobby}>
         <div className={styles.header}>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
           <h1 className={styles.title}>Multiplayer</h1>
         </div>
 

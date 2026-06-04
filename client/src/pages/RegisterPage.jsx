@@ -22,7 +22,7 @@ export default function RegisterPage() {
     try {
       await register({ ...form, guestId: playerId })
       localStorage.setItem('ns_name_set', '1')
-      navigate('/lobby')
+      navigate('/home')
     } catch (err) {
       setError(err.message || 'Registration failed')
     } finally {

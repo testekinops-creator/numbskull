@@ -24,6 +24,8 @@ const INITIAL = {
   chatMessages:         [],    // { id, fromPlayerId, fromName, text, ts, mine }
   unreadChat:          0,
   lastEmoji:            null,  // { id, emoji, mine } — drives the burst overlay
+  // Opponent left / room closed — drives redirect + message
+  opponentLeftMessage:  null,
 }
 
 function reducer(state, action) {
@@ -138,16 +140,19 @@ function reducer(state, action) {
     case 'EMOJI_BURST':
       return { ...state, lastEmoji: action.payload }
 
-    // Only mark as closed if the closed room is the one we're currently in
+    // Only mark as closed if the closed room is the one we're currently in.
+    // NOTE: keep `room` intact — nulling it broke the redirect guard before.
     case 'ROOM_CLOSED_CHECK':
       if (!action.closedRoomId || state.room?.id === action.closedRoomId) {
-        return { ...state, roomClosedByOpponent: true, room: null }
+        return { ...state, roomClosedByOpponent: true }
       }
-      // Different room closed (stale event from old session) — ignore
-      return state
+      return state  // different room (stale event) — ignore
 
     case 'ROOM_CLOSED_BY_OPPONENT':
-      return { ...state, roomClosedByOpponent: true, room: null }
+      return { ...state, roomClosedByOpponent: true }
+
+    case 'OPPONENT_LEFT':
+      return { ...state, opponentLeftMessage: action.message, roomClosedByOpponent: true }
 
     case 'MATCHMAKING':
       return { ...state, matchmaking: action.value }
@@ -227,6 +232,16 @@ export function RoomProvider({ children }) {
     socket.on('game:rematch_declined', () => dispatch({ type: 'REMATCH_DECLINED' }))
     socket.on('game:turn_timeout',    ()   => clearInterval(timerRef.current))
 
+    // Opponent left / disconnected — show a message then redirect
+    socket.on('game:opponent_left', ({ leaverName, reason } = {}) => {
+      clearInterval(timerRef.current)
+      const who = leaverName || 'Your opponent'
+      const msg = reason === 'disconnected'
+        ? `${who} disconnected.`
+        : `${who} left the game.`
+      dispatch({ type: 'OPPONENT_LEFT', message: msg })
+    })
+
     // ── Chat + emoji ──────────────────────────────────────────────────────
     socket.on('chat:message', ({ fromPlayerId, fromName, text, ts }) => {
       dispatch({
@@ -257,6 +272,7 @@ export function RoomProvider({ children }) {
       socket.off('game:turn_timeout')
       socket.off('chat:message')
       socket.off('chat:emoji')
+      socket.off('game:opponent_left')
       clearInterval(timerRef.current)
     }
   }, [socket, playerId])

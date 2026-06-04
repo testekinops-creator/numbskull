@@ -19,6 +19,7 @@ import ProtectedRoute        from './components/ProtectedRoute.jsx'
 
 // Lazily loaded
 const AuthGatePage        = lazy(() => import('./pages/AuthGatePage.jsx'))
+const HomeListPage        = lazy(() => import('./pages/HomeListPage.jsx'))
 const NameSetupScreen     = lazy(() => import('./pages/NameSetupScreen.jsx'))
 const ModeSelectPage      = lazy(() => import('./pages/ModeSelectPage.jsx'))
 const LobbyPage           = lazy(() => import('./pages/LobbyPage.jsx'))
@@ -61,6 +62,7 @@ function AppInner() {
           <Route path="/login"              element={<LoginPage />} />
 
           {/* ── Protected (requires auth or guest mode) ───────── */}
+          <Route path="/home"               element={<ProtectedRoute><HomeListPage /></ProtectedRoute>} />
           <Route path="/setup"              element={<ProtectedRoute><NameSetupScreen /></ProtectedRoute>} />
           <Route path="/modes"              element={<ProtectedRoute><ModeSelectPage /></ProtectedRoute>} />
           <Route path="/play/:mode"         element={<ProtectedRoute><GamePage /></ProtectedRoute>} />

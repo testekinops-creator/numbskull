@@ -27,14 +27,14 @@ export default function TitleScreen() {
   function handlePlay() {
     setPlayPressed(true)
 
-    // Only skip auth gate for registered (logged-in) users
-    if (isRegistered) {
+    // Registered or guest → go to the games home list
+    if (isRegistered || isGuestMode()) {
       const hasSetName = localStorage.getItem(NAME_KEY)
-      setTimeout(() => navigate(hasSetName ? '/lobby' : '/setup'), 120)
+      setTimeout(() => navigate(hasSetName ? '/home' : '/setup'), 120)
       return
     }
 
-    // Everyone else (guest or fresh) → auth gate every time PLAY is clicked
+    // Not authenticated → auth gate
     setTimeout(() => navigate('/auth'), 120)
   }
 
