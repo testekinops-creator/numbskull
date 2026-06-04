@@ -21,7 +21,7 @@ export default function RoomPage() {
   const { roomId } = useParams()
   const navigate = useNavigate()
   const {
-    state, setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom,
+    state, setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom,
     sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
   } = useRoom()
   const { playerId } = usePlayer()
@@ -65,6 +65,10 @@ export default function RoomPage() {
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
 
+  // Clear room state when leaving the room page — prevents a stale room from
+  // bouncing the user back in from the lobby's auto-navigate.
+  useEffect(() => () => clearRoom(), []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Reconnect + restore on mount AND on every socket (re)connect.
   // Covers: page refresh, network drop, network switch, app resume.
   useEffect(() => {
@@ -106,6 +110,15 @@ export default function RoomPage() {
   useEffect(() => {
     if (isMyTurn && phase === 'PLAYING') inputRef.current?.focus()
   }, [isMyTurn, phase])
+
+  // Debounce the "you're offline" banner so it doesn't flash on the initial
+  // connect or a sub-second blip.
+  const [showOffline, setShowOffline] = useState(false)
+  useEffect(() => {
+    if (connected) { setShowOffline(false); return }
+    const t = setTimeout(() => setShowOffline(true), 1200)
+    return () => clearTimeout(t)
+  }, [connected])
 
   // Record the result ONLY on the real PLAYING → GAME_OVER transition.
   // (Reconnecting straight into GAME_OVER must NOT re-record — prevents
@@ -180,8 +193,8 @@ export default function RoomPage() {
 
   return (
     <div className="screen">
-      {/* You are offline (your own socket dropped) */}
-      {!connected && (
+      {/* You are offline (your own socket dropped) — debounced */}
+      {showOffline && (
         <div className={`${styles.connBanner} ${styles.connOffline}`}>
           📡 You’re offline — reconnecting…
         </div>

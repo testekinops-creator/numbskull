@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useRoom } from '../contexts/RoomContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
@@ -8,20 +8,27 @@ import styles from './LobbyPage.module.css'
 export default function LobbyPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { state, createRoom, joinRoom, quickMatch, cancelQuickMatch } = useRoom()
+  const { state, createRoom, joinRoom, quickMatch, cancelQuickMatch, clearRoom } = useRoom()
   const { playerName, setName } = usePlayer()
   const { user, isRegistered } = useAuth()
 
   // Always show the authenticated username if logged in
   const displayName = isRegistered && user?.username ? user.username : playerName
 
-  // When Player A (the waiter) gets paired via room:quickmatch_found,
-  // state.room is set and matchmaking is cleared — navigate them to the room
+  // Clear any stale room left over from a previous game on entering the lobby,
+  // so the auto-navigate below can't bounce us back into a dead room.
+  useEffect(() => { clearRoom() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only auto-navigate when WE started matchmaking and then got paired.
+  const startedMatchmakingRef = useRef(false)
   useEffect(() => {
-    if (!state.matchmaking && state.room?.id && state.room.phase === 'SETUP') {
+    if (state.matchmaking) startedMatchmakingRef.current = true
+    if (startedMatchmakingRef.current && !state.matchmaking &&
+        state.room?.id && state.room.phase === 'SETUP') {
+      startedMatchmakingRef.current = false
       navigate(`/room/${state.room.id}`)
     }
-  }, [state.matchmaking, state.room?.id])
+  }, [state.matchmaking, state.room?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mode can be preselected from the home games list (navigate state)
   const [mode, setMode] = useState(location.state?.mode === 'BC' ? 'BC' : 'GTN')

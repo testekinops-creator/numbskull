@@ -392,6 +392,12 @@ export function RoomProvider({ children }) {
     dispatch({ type: 'RESET' })
   }, [socket])
 
+  // Clear local room state WITHOUT telling the server (room already closed,
+  // or we're just leaving the page). Prevents a stale room from lingering.
+  const clearRoom = useCallback(() => {
+    dispatch({ type: 'RESET' })
+  }, [])
+
   const spectate = useCallback((roomId) => {
     socket?.emit('room:spectate', { roomId })
   }, [socket])
@@ -414,7 +420,7 @@ export function RoomProvider({ children }) {
   return (
     <RoomContext.Provider value={{
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
-      setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, spectate,
+      setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
     }}>
       {children}
