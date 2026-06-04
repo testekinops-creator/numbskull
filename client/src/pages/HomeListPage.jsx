@@ -20,7 +20,7 @@ const GAMES = [
     mode: 'BC',
     icon: '🐂',
     name: 'Bulls & Cows',
-    desc: 'Break the 4-digit code. Bulls hit, cows tease.',
+    desc: 'Break the 6-digit code. Bulls hit, cows tease.',
     accent: 'var(--color-pink)',
   },
 ]

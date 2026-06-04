@@ -1,11 +1,19 @@
+// Bulls & Cows — 6 digits, DUPLICATES ALLOWED.
+// Scoring uses the standard Mastermind-with-duplicates algorithm:
+//   bulls = digits in the exact right position
+//   cows  = additional digit matches (right digit, wrong position),
+//           counted via min frequency of each digit across the non-bull slots
+const CODE_LENGTH = 6
+
 export class BullsCowsEngine {
   constructor({ difficulty = 'medium' } = {}) {
     this.difficulty = difficulty
+    this.length = CODE_LENGTH
     this.secret = this._pickSecret()
     this.guesses = []
     this.over = false
     this.won = false
-    this.maxGuesses = 10
+    this.maxGuesses = 12
     this.range = null
   }
 
@@ -14,17 +22,15 @@ export class BullsCowsEngine {
 
     const guess = String(rawGuess).trim()
 
-    if (!/^\d{4}$/.test(guess)) {
-      return { valid: false, error: 'Guess must be exactly 4 digits (0-9)' }
-    }
-    if (new Set(guess).size !== 4) {
-      return { valid: false, error: 'Digits must all be different' }
+    // 6 digits, duplicates allowed → only a length/charset check
+    if (!new RegExp(`^\\d{${CODE_LENGTH}}$`).test(guess)) {
+      return { valid: false, error: `Guess must be exactly ${CODE_LENGTH} digits (0-9)` }
     }
 
     const { bulls, cows, positions } = this._score(guess, this.secret)
     this.guesses.push({ guess, bulls, cows, positions })
 
-    if (bulls === 4) {
+    if (bulls === CODE_LENGTH) {
       this.over = true
       this.won = true
       return {
@@ -58,30 +64,39 @@ export class BullsCowsEngine {
   }
 
   _score(guess, secret) {
+    const n = secret.length
     let bulls = 0
-    let cows  = 0
-    // positions[i] = 'bull' | 'cow' | 'miss'
-    const positions = Array(4).fill('miss')
+    // positions[i] = 'bull' | 'miss' (cows are NOT revealed per-position)
+    const positions = Array(n).fill('miss')
 
-    for (let i = 0; i < 4; i++) {
+    // Frequency maps of the NON-bull positions
+    const secretFreq = {}
+    const guessFreq  = {}
+
+    for (let i = 0; i < n; i++) {
       if (guess[i] === secret[i]) {
         bulls++
         positions[i] = 'bull'
-      } else if (secret.includes(guess[i])) {
-        cows++
-        positions[i] = 'cow'
+      } else {
+        secretFreq[secret[i]] = (secretFreq[secret[i]] || 0) + 1
+        guessFreq[guess[i]]   = (guessFreq[guess[i]]   || 0) + 1
       }
     }
+
+    // cows = sum over each digit of min(times in guess, times in secret)
+    let cows = 0
+    for (const d in guessFreq) {
+      if (secretFreq[d]) cows += Math.min(guessFreq[d], secretFreq[d])
+    }
+
     return { bulls, cows, positions }
   }
 
   _pickSecret() {
-    const digits = Array.from({ length: 10 }, (_, i) => String(i))
-    for (let i = digits.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [digits[i], digits[j]] = [digits[j], digits[i]]
-    }
-    return digits.slice(0, 4).join('')
+    // 6 random digits 0-9, duplicates allowed
+    let s = ''
+    for (let i = 0; i < CODE_LENGTH; i++) s += Math.floor(Math.random() * 10)
+    return s
   }
 
   _endState() {

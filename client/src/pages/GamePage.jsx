@@ -18,7 +18,7 @@ const MODE_LABELS = { GTN: 'Guess The Number', BC: 'Bulls & Cows' }
 export default function GamePage() {
   const { mode } = useParams()
   const navigate = useNavigate()
-  const { state, startGame, submitGuess, bcUnlocked } = useGame()
+  const { state, startGame, submitGuess } = useGame()
   const { isRegistered, updateUser } = useAuth()
   const { playTone } = useSound()
   const { buzz } = useHaptic()
@@ -31,11 +31,10 @@ export default function GamePage() {
   const recordedRef = useRef(false)  // guard so each game records only once
 
   const validMode = mode === 'GTN' || mode === 'BC'
-  const locked = mode === 'BC' && !bcUnlocked
 
   useEffect(() => {
-    if (!validMode || locked) { navigate('/'); return }
-    startGame({ mode, difficulty: 'medium', range: 100 })
+    if (!validMode) { navigate('/home'); return }
+    startGame({ mode, difficulty: 'medium', range: 1000 })
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -82,13 +81,8 @@ export default function GamePage() {
         return
       }
     } else {
-      if (!/^\d{4}$/.test(val)) {
-        setInputError('Enter exactly 4 digits')
-        triggerShake()
-        return
-      }
-      if (new Set(val).size !== 4) {
-        setInputError('All digits must be different')
+      if (!/^\d{6}$/.test(val)) {
+        setInputError('Enter exactly 6 digits')
         triggerShake()
         return
       }
@@ -110,7 +104,7 @@ export default function GamePage() {
 
   const placeholder = mode === 'GTN'
     ? `1 – ${state.range}`
-    : '4 unique digits'
+    : '6 digits'
 
   if (state.phase === 'IDLE') {
     return (
@@ -126,7 +120,7 @@ export default function GamePage() {
       <div className={`panel ${styles.gamePage}`}>
         {/* Header */}
         <div className={styles.header}>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>
             ← Back
           </button>
           <span className={`badge badge-juice`}>{MODE_LABELS[mode]}</span>
@@ -170,8 +164,8 @@ export default function GamePage() {
               className={`input ${shaking ? 'anim-shake' : ''}`}
               type={mode === 'GTN' ? 'number' : 'text'}
               inputMode="numeric"
-              pattern={mode === 'GTN' ? '[0-9]*' : '[0-9]{4}'}
-              maxLength={mode === 'GTN' ? 4 : 4}
+              pattern={mode === 'GTN' ? '[0-9]*' : '[0-9]{6}'}
+              maxLength={mode === 'GTN' ? 4 : 6}
               value={inputValue}
               onChange={e => { setInputValue(e.target.value); setInputError('') }}
               placeholder={placeholder}
@@ -197,7 +191,7 @@ export default function GamePage() {
             optimalMoves={state.lastResult?.optimalMoves}
             mode={mode}
             onPlayAgain={() => startGame({ mode, difficulty: 'medium', range: state.range })}
-            onHome={() => navigate('/')}
+            onHome={() => navigate('/home')}
           />
         )}
       </div>

@@ -81,6 +81,39 @@
   border-radius: var(--radius-lg);
 }
 
+/* Top-level AI / Multiplayer tabs */
+.topTabs {
+  display: flex;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border-radius: var(--radius-full);
+  padding: var(--space-1);
+}
+.topTab {
+  flex: 1;
+  height: 44px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+.topTab:hover { color: var(--color-text-primary); }
+.topTabActive {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  color: var(--color-text-primary);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+.aiPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+}
+
 .tabs {
   display: flex;
   gap: var(--space-1);

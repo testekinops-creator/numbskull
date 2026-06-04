@@ -30,17 +30,9 @@ function BCGuessRow({ entry }) {
   const correct = entry.result?.correct
   const positions = entry.result?.positions || []
 
-  function cowMessage() {
-    if (correct) return null
-    if (cows === 0) return null
-    return `${cows} correct digit${cows > 1 ? 's' : ''} wrong position`
-  }
-
-  const msg = cowMessage()
-
   return (
     <div className={styles.bcRow}>
-      {/* 4 digit tiles — only bulls get cyan, everything else is grey */}
+      {/* digit tiles — only bulls get cyan, everything else is grey */}
       <div className={styles.tiles}>
         {value.split('').map((d, i) => {
           const isBull = positions[i] === 'bull'
@@ -55,11 +47,13 @@ function BCGuessRow({ entry }) {
         })}
       </div>
 
-      {/* Result text */}
+      {/* Result text — never reveal how many cows there are */}
       <div className={styles.bcMeta}>
         {correct && <span className={styles.correctText}>✓ Correct!</span>}
-        {!correct && msg && <span className={styles.cowMsg}>{msg}</span>}
-        {!correct && !msg && cows === 0 && (
+        {!correct && cows > 0 && (
+          <span className={styles.cowMsg}>Guessed digits are in wrong position</span>
+        )}
+        {!correct && cows === 0 && bulls === 0 && (
           <span className={styles.noMatch}>No matches</span>
         )}
       </div>

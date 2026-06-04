@@ -5,7 +5,7 @@ const STEPS = {
   GTN: [
     {
       title: "Guess The Number",
-      body: "I'm thinking of a number between 1 and 100. Can you guess it? (Probably not.)",
+      body: "I'm thinking of a number between 1 and 1000. Can you guess it? (Probably not.)",
       emoji: "🎯",
     },
     {
@@ -15,24 +15,24 @@ const STEPS = {
     },
     {
       title: "Less is more",
-      body: "The optimal strategy takes at most 7 guesses. How many will you waste? I'm counting.",
+      body: "The optimal strategy takes at most 10 guesses. How many will you waste? I'm counting.",
       emoji: "🧮",
     },
   ],
   BC: [
     {
       title: "Bulls & Cows",
-      body: "I've chosen a 4-digit code with all different digits. Your job is to crack it. Good luck. You'll need it.",
+      body: "I've chosen a 6-digit code — digits can repeat. Your job is to crack it. Good luck. You'll need it.",
       emoji: "🐂",
     },
     {
       title: "Bulls & Cows scoring",
-      body: "🐂 Bull = right digit, right position. 🐄 Cow = right digit, wrong position. 4 bulls = you win.",
+      body: "🐂 Bull = right digit, right position (it gets highlighted). 🐄 Cow = a digit is in the code but in the wrong spot. 6 bulls = you win.",
       emoji: "📊",
     },
     {
-      title: "You have 10 guesses",
-      body: "Ten. That's it. Use them wisely. Or don't. I'll be here either way.",
+      title: "Crack the code",
+      body: "Repeats are allowed, so think carefully. I'll only tell you which digits are locked in — not where the rest belong.",
       emoji: "🔢",
     },
   ],

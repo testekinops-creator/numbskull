@@ -90,9 +90,9 @@ describe('GuessTheNumberEngine', () => {
     expect(result.optimalMoves).toBe(7) // ceil(log2(101)) = 7
   })
 
-  it('defaults to range 100 for unknown range', () => {
+  it('defaults to range 1000 for unknown range', () => {
     const engine = new GuessTheNumberEngine({ range: 999 })
-    expect(engine.range).toBe(100)
+    expect(engine.range).toBe(1000)
   })
 
   it('accepts range 500', () => {

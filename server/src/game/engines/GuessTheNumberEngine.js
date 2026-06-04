@@ -1,7 +1,7 @@
 import { computeOptimalMoves } from '../utils/optimal.js'
 
 const RANGES = { 100: 100, 500: 500, 1000: 1000 }
-const DEFAULT_RANGE = 100
+const DEFAULT_RANGE = 1000
 
 export class GuessTheNumberEngine {
   constructor({ difficulty = 'medium', range } = {}) {

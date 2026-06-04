@@ -5,6 +5,9 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import styles from './LobbyPage.module.css'
 
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂' }
+
 export default function LobbyPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -12,11 +15,12 @@ export default function LobbyPage() {
   const { playerName, setName } = usePlayer()
   const { user, isRegistered } = useAuth()
 
-  // Always show the authenticated username if logged in
   const displayName = isRegistered && user?.username ? user.username : playerName
 
-  // Clear any stale room left over from a previous game on entering the lobby,
-  // so the auto-navigate below can't bounce us back into a dead room.
+  // Mode is fixed — chosen on the Home games list. No in-page toggle.
+  const mode = location.state?.mode === 'BC' ? 'BC' : 'GTN'
+
+  // Clear any stale room so the auto-navigate can't bounce us into a dead room.
   useEffect(() => { clearRoom() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only auto-navigate when WE started matchmaking and then got paired.
@@ -30,13 +34,16 @@ export default function LobbyPage() {
     }
   }, [state.matchmaking, state.room?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mode can be preselected from the home games list (navigate state)
-  const [mode, setMode] = useState(location.state?.mode === 'BC' ? 'BC' : 'GTN')
+  const [topTab, setTopTab] = useState('ai')      // ai | multi
+  const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
-  const [tab, setTab] = useState('quick') // quick | create | join
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  function playVsAI() {
+    navigate(`/play/${mode}`)
+  }
 
   async function handleQuickMatch() {
     setBusy(true); setError('')
@@ -44,7 +51,6 @@ export default function LobbyPage() {
     setBusy(false)
     if (!res?.ok) { setError(res?.error || 'Failed'); return }
     if (res.matched) navigate(`/room/${res.room.id}`)
-    // else waiting — UI shows matchmaking spinner
   }
 
   async function handleCreate() {
@@ -65,16 +71,16 @@ export default function LobbyPage() {
     navigate(`/room/${res.room.id}`)
   }
 
-  function handleNameSave() {
-    setName(nameEdit)
-  }
+  function handleNameSave() { setName(nameEdit) }
 
   return (
     <div className={styles.lobbyScreen}>
       <div className={styles.lobby}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <h1 className={styles.title}>Multiplayer</h1>
+          <h1 className={styles.title}>
+            {MODE_ICONS[mode]} {MODE_NAMES[mode]}
+          </h1>
         </div>
 
         {/* Player name */}
@@ -82,10 +88,8 @@ export default function LobbyPage() {
           <span className={styles.nameLabel}>Playing as</span>
           <div className={styles.nameInput}>
             {isRegistered ? (
-              // Registered users: name is their username, not editable here
               <span className={styles.nameDisplay}>{displayName}</span>
             ) : (
-              // Guests: can still edit their display name
               <input
                 className={`input ${styles.nameField}`}
                 value={nameEdit}
@@ -99,79 +103,97 @@ export default function LobbyPage() {
           </div>
         </div>
 
-        {/* Mode selector */}
-        <div className={styles.modeToggle}>
-          {['GTN', 'BC'].map(m => (
-            <button
-              key={m}
-              className={`btn ${mode === m ? 'btn-juice' : 'btn-ghost'} ${styles.modeBtn}`}
-              onClick={() => setMode(m)}
-            >
-              {m === 'GTN' ? '🎯 GTN' : '🐂 B&C'}
-            </button>
-          ))}
+        {/* Top tabs: AI vs Multiplayer */}
+        <div className={styles.topTabs}>
+          <button
+            className={`${styles.topTab} ${topTab === 'ai' ? styles.topTabActive : ''}`}
+            onClick={() => setTopTab('ai')}
+          >
+            🤖 vs AI
+          </button>
+          <button
+            className={`${styles.topTab} ${topTab === 'multi' ? styles.topTabActive : ''}`}
+            onClick={() => setTopTab('multi')}
+          >
+            ⚡ Multiplayer
+          </button>
         </div>
 
-        {/* Tabs */}
-        <div className={styles.tabs}>
-          {[['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']].map(([id, label]) => (
-            <button
-              key={id}
-              className={`${styles.tab} ${tab === id ? styles.activeTab : ''}`}
-              onClick={() => setTab(id)}
-            >
-              {label}
+        {/* ── AI tab ── */}
+        {topTab === 'ai' && (
+          <div className={`${styles.tabContent} ${styles.aiPanel} anim-slide-up`}>
+            <p className={styles.hint}>
+              Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.
+            </p>
+            <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={playVsAI}>
+              🤖 Play vs Computer
             </button>
-          ))}
-        </div>
+          </div>
+        )}
 
-        {/* Tab content */}
-        <div className={`${styles.tabContent} anim-slide-up`}>
-          {tab === 'quick' && (
-            <div className={styles.quickPanel}>
-              {state.matchmaking ? (
-                <>
-                  <div className={styles.spinner} aria-label="Finding opponent" />
-                  <p className={styles.waitText}>Looking for an opponent…</p>
-                  <button className="btn btn-ghost" onClick={cancelQuickMatch}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <p className={styles.hint}>Get matched with a random opponent instantly.</p>
-                  <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
-                    Find Match
+        {/* ── Multiplayer tab ── */}
+        {topTab === 'multi' && (
+          <>
+            <div className={styles.tabs}>
+              {[['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']].map(([id, label]) => (
+                <button
+                  key={id}
+                  className={`${styles.tab} ${mpTab === id ? styles.activeTab : ''}`}
+                  onClick={() => setMpTab(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className={`${styles.tabContent} anim-slide-up`}>
+              {mpTab === 'quick' && (
+                <div className={styles.quickPanel}>
+                  {state.matchmaking ? (
+                    <>
+                      <div className={styles.spinner} aria-label="Finding opponent" />
+                      <p className={styles.waitText}>Looking for an opponent…</p>
+                      <button className="btn btn-ghost" onClick={cancelQuickMatch}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className={styles.hint}>Get matched with a random opponent instantly.</p>
+                      <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
+                        Find Match
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {mpTab === 'create' && (
+                <div className={styles.createPanel}>
+                  <p className={styles.hint}>Create a private room and share the code with a friend.</p>
+                  <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleCreate} disabled={busy}>
+                    Create Room
                   </button>
-                </>
+                </div>
+              )}
+
+              {mpTab === 'join' && (
+                <form className={styles.joinPanel} onSubmit={handleJoin}>
+                  <input
+                    className="input"
+                    placeholder="Room code (e.g. ABC123)"
+                    value={joinCode}
+                    onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                    maxLength={6}
+                    autoCapitalize="characters"
+                    aria-label="Room code"
+                  />
+                  <button type="submit" className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={busy || !joinCode.trim()}>
+                    Join Room
+                  </button>
+                </form>
               )}
             </div>
-          )}
-
-          {tab === 'create' && (
-            <div className={styles.createPanel}>
-              <p className={styles.hint}>Create a private room and share the code with a friend.</p>
-              <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleCreate} disabled={busy}>
-                Create Room
-              </button>
-            </div>
-          )}
-
-          {tab === 'join' && (
-            <form className={styles.joinPanel} onSubmit={handleJoin}>
-              <input
-                className="input"
-                placeholder="Room code (e.g. ABC123)"
-                value={joinCode}
-                onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                maxLength={6}
-                autoCapitalize="characters"
-                aria-label="Room code"
-              />
-              <button type="submit" className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={busy || !joinCode.trim()}>
-                Join Room
-              </button>
-            </form>
-          )}
-        </div>
+          </>
+        )}
 
         {error && <p className={styles.error}>{error}</p>}
       </div>

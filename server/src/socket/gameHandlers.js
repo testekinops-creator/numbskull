@@ -23,14 +23,14 @@ export function registerGameHandlers(io, socket) {
       // Validate the manually-entered secret for both GTN and BC
       if (room.mode === 'GTN') {
         const n = parseInt(secret, 10)
-        const range = room.range || 100
-        if (!secret || isNaN(n) || n < 1 || n > range) {
-          return ack?.({ ok: false, error: `Secret must be a number between 1 and ${range}` })
+        if (!secret || isNaN(n) || n < 1 || n > 1000) {
+          return ack?.({ ok: false, error: 'Secret must be a number between 1 and 1000' })
         }
       }
       if (room.mode === 'BC') {
-        if (!/^\d{4}$/.test(String(secret)) || new Set(String(secret)).size !== 4) {
-          return ack?.({ ok: false, error: 'Invalid secret: must be 4 unique digits' })
+        // 6 digits, duplicates allowed
+        if (!/^\d{6}$/.test(String(secret))) {
+          return ack?.({ ok: false, error: 'Invalid secret: must be 6 digits (0-9)' })
         }
       }
 
@@ -80,22 +80,22 @@ export function registerGameHandlers(io, socket) {
       if (room.mode === 'GTN') {
         // Server-side validation — never trust the client
         const n = parseInt(guess, 10)
-        if (!Number.isInteger(n) || n < 1 || n > 100) {
-          return ack?.({ ok: false, error: 'Guess must be a number between 1 and 100' })
+        if (!Number.isInteger(n) || n < 1 || n > 1000) {
+          return ack?.({ ok: false, error: 'Guess must be a number between 1 and 1000' })
         }
         const { GuessTheNumberEngine } = await import('../game/engines/GuessTheNumberEngine.js')
-        const tempEngine = new GuessTheNumberEngine({ difficulty: room.difficulty, range: 100 })
+        const tempEngine = new GuessTheNumberEngine({ difficulty: room.difficulty, range: 1000 })
         tempEngine.secret = parseInt(opponentSecret, 10)
         result = tempEngine.evaluate(n)
       } else {
-        // Server-side validation: must be 4 unique digits
+        // Server-side validation: 6 digits, duplicates allowed
         const g = String(guess).trim()
-        if (!/^\d{4}$/.test(g) || new Set(g).size !== 4) {
-          return ack?.({ ok: false, error: 'Guess must be 4 unique digits' })
+        if (!/^\d{6}$/.test(g)) {
+          return ack?.({ ok: false, error: 'Guess must be 6 digits (0-9)' })
         }
         const { BullsCowsEngine } = await import('../game/engines/BullsCowsEngine.js')
         const scored = BullsCowsEngine.score(g, opponentSecret)
-        const correct = scored.bulls === 4
+        const correct = scored.bulls === 6
         result = { valid: true, correct, bulls: scored.bulls, cows: scored.cows, positions: scored.positions, guess: g, over: correct }
         guess = g
       }

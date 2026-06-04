@@ -140,15 +140,15 @@ export default function RoomPage() {
     e.preventDefault()
     if (mode === 'GTN') {
       const n = parseInt(secret, 10)
-      if (!secret || isNaN(n) || n < 1 || n > 100) {
-        setSecretError('Enter a number between 1 and 100')
+      if (!secret || isNaN(n) || n < 1 || n > 1000) {
+        setSecretError('Enter a number between 1 and 1000')
         return
       }
     }
     if (mode === 'BC') {
       const s = secret.trim()
-      if (!/^\d{4}$/.test(s) || new Set(s).size !== 4) {
-        setSecretError('Enter 4 unique digits for your secret')
+      if (!/^\d{6}$/.test(s)) {
+        setSecretError('Enter a 6-digit code (0-9, repeats allowed)')
         return
       }
     }
@@ -163,10 +163,9 @@ export default function RoomPage() {
     if (!val) return
     if (mode === 'GTN') {
       const n = parseInt(val, 10)
-      if (isNaN(n) || n < 1 || n > 100) { setGuessError('Enter 1–100'); return }
+      if (isNaN(n) || n < 1 || n > 1000) { setGuessError('Enter 1–1000'); return }
     } else {
-      if (!/^\d{4}$/.test(val)) { setGuessError('4 digits'); return }
-      if (new Set(val).size !== 4) { setGuessError('All different'); return }
+      if (!/^\d{6}$/.test(val)) { setGuessError('Enter 6 digits'); return }
     }
     setGuessError('')
     setGuess('')
@@ -250,13 +249,13 @@ export default function RoomPage() {
           <form className={styles.setupForm} onSubmit={handleReady}>
             {mode === 'BC' && (
               <>
-                <p className={styles.setupHint}>Set a 4-digit secret code for your opponent to crack.</p>
+                <p className={styles.setupHint}>Set a 6-digit secret code (repeats allowed) for your opponent to crack.</p>
                 <input
                   className="input"
                   type="text"
                   inputMode="numeric"
-                  maxLength={4}
-                  placeholder="e.g. 3719"
+                  maxLength={6}
+                  placeholder="e.g. 371928"
                   value={secret}
                   onChange={e => { setSecret(e.target.value); setSecretError('') }}
                   aria-label="Your secret code"
@@ -267,7 +266,7 @@ export default function RoomPage() {
             {mode === 'GTN' && (
               <>
                 <p className={styles.setupHint}>
-                  Pick a secret number (1–100). Your opponent will try to guess it.
+                  Pick a secret number (1–1000). Your opponent will try to guess it.
                   They won't see it until the game ends.
                 </p>
                 <input
@@ -275,8 +274,8 @@ export default function RoomPage() {
                   type="number"
                   inputMode="numeric"
                   min={1}
-                  max={100}
-                  placeholder="e.g. 42"
+                  max={1000}
+                  placeholder="e.g. 427"
                   value={secret}
                   onChange={e => { setSecret(e.target.value); setSecretError('') }}
                   aria-label="Your secret number"
@@ -347,14 +346,14 @@ export default function RoomPage() {
                   <span className={styles.bcIcon}>🐂</span>
                   <div>
                     <strong>Bull</strong>
-                    <span> — right digit, right position</span>
+                    <span> — right digit, right position (highlighted)</span>
                   </div>
                 </div>
                 <div className={styles.bcLegendItem}>
                   <span className={styles.bcIcon}>🐄</span>
                   <div>
                     <strong>Cow</strong>
-                    <span> — right digit, wrong position</span>
+                    <span> — a digit is in the code but in the wrong spot</span>
                   </div>
                 </div>
               </div>
@@ -368,8 +367,8 @@ export default function RoomPage() {
                   className="input"
                   type={mode === 'GTN' ? 'number' : 'text'}
                   inputMode="numeric"
-                  maxLength={mode === 'BC' ? 4 : 3}
-                  placeholder={mode === 'GTN' ? '1 – 100' : '4 unique digits'}
+                  maxLength={mode === 'BC' ? 6 : 4}
+                  placeholder={mode === 'GTN' ? '1 – 1000' : '6 digits'}
                   value={guess}
                   onChange={e => { setGuess(e.target.value); setGuessError('') }}
                   aria-label="Your guess"
