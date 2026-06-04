@@ -36,6 +36,9 @@ model User {
   totalGames   Int      @default(0)
   gtnWins      Int      @default(0)
   bcWins       Int      @default(0)
+  xoxWins      Int      @default(0)
+  mathWins     Int      @default(0)
+  sudokuWins   Int      @default(0)
   failedLogins Int      @default(0)
   banned       Boolean  @default(false)
   bannedAt     DateTime?

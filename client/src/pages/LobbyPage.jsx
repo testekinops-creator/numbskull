@@ -5,8 +5,9 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂' }
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU'])
 
 export default function LobbyPage() {
   const navigate = useNavigate()
@@ -18,7 +19,7 @@ export default function LobbyPage() {
   const displayName = isRegistered && user?.username ? user.username : playerName
 
   // Mode is fixed — chosen on the Home games list. No in-page toggle.
-  const mode = location.state?.mode === 'BC' ? 'BC' : 'GTN'
+  const mode = KNOWN_MODES.has(location.state?.mode) ? location.state.mode : 'GTN'
 
   // Clear any stale room so the auto-navigate can't bounce us into a dead room.
   useEffect(() => { clearRoom() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -123,7 +124,9 @@ export default function LobbyPage() {
         {topTab === 'ai' && (
           <div className={`${styles.tabContent} ${styles.aiPanel} anim-slide-up`}>
             <p className={styles.hint}>
-              Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.
+              {mode === 'XOX'
+                ? 'Take on the Numbskull AI at Tic-Tac-Toe. Pick X or O and try not to embarrass yourself.'
+                : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
             </p>
             <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={playVsAI}>
               🤖 Play vs Computer

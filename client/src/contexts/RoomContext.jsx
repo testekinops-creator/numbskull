@@ -16,6 +16,9 @@ const INITIAL = {
   matchmaking:          false,
   won:                  null,
   winnerId:             null,
+  draw:                 false,
+  // New game modes (XOX / Math Battle / Sudoku) — generic real-time match state
+  match:                null,
   // Rematch state machine: idle | requesting | incoming | declined
   rematchStatus:        'idle',
   rematchRequesterName: null,  // name of who sent the request
@@ -37,7 +40,7 @@ function reducer(state, action) {
       const newPhase = action.room?.phase || 'IDLE'
       const rematchReset = newPhase === 'SETUP' ? {
         rematchStatus: 'idle', rematchRequesterName: null,
-        won: null, winnerId: null,
+        won: null, winnerId: null, draw: false, match: null,
         guesses: [], lastGuessResult: null, roast: null,
       } : {}
       return {
@@ -112,6 +115,54 @@ function reducer(state, action) {
       }
     }
 
+    // ── New game modes (XOX / Math / Sudoku) ───────────────────────────────
+    // Match started — server sends { room (summary), match (public state) }
+    case 'MATCH_START':
+      return {
+        ...state,
+        room:  action.room ? { ...state.room, ...action.room } : state.room,
+        phase: 'PLAYING',
+        match: action.match,
+        won: null, winnerId: null, draw: false,
+        rematchStatus: 'idle', rematchRequesterName: null,
+        roomClosedByOpponent: false,
+        myTurn: action.match?.turnId === action.playerId,
+      }
+
+    // Generic match state update (e.g. XOX board changed)
+    case 'MATCH_STATE':
+      return {
+        ...state,
+        match: { ...state.match, ...action.patch },
+        myTurn: action.patch?.turnId !== undefined
+          ? action.patch.turnId === action.playerId
+          : state.myTurn,
+      }
+
+    case 'MATCH_OVER': {
+      const updatedRoom = state.room
+        ? {
+            ...state.room,
+            phase: 'GAME_OVER',
+            players: action.scores
+              ? state.room.players.map(p => ({
+                  ...p,
+                  score: action.scores.find(s => s.id === p.id)?.score ?? p.score,
+                }))
+              : state.room.players,
+          }
+        : state.room
+      return {
+        ...state,
+        phase:    'GAME_OVER',
+        room:     updatedRoom,
+        myTurn:   false,
+        draw:     !!action.draw,
+        won:      action.draw ? null : (action.winnerId ? action.winnerId === action.playerId : null),
+        winnerId: action.winnerId || null,
+      }
+    }
+
     // I clicked Play Again → waiting for opponent's response
     case 'REMATCH_REQUESTING':
       return { ...state, rematchStatus: 'requesting' }
@@ -167,13 +218,21 @@ function reducer(state, action) {
       const s = action.snapshot
       if (!s) return state
       const isOver = s.phase === 'GAME_OVER'
+      const m = s.match || null
+      // New game modes derive turn/winner from the match snapshot; guess modes
+      // use the top-level turnId/winnerId fields.
+      const turnId = m ? m.turnId : s.turnId
       return {
         ...state,
         room:    s.room,
         phase:   s.phase || 'IDLE',
         guesses: s.guesses || [],
-        myTurn:  !isOver && s.turnId === action.playerId,
-        won:     isOver && s.winnerId ? s.winnerId === action.playerId : (isOver ? null : state.won),
+        match:   m,
+        myTurn:  !isOver && turnId === action.playerId,
+        draw:    isOver ? !!(m && m.draw) : false,
+        won:     isOver
+          ? (m && m.draw ? null : (s.winnerId ? s.winnerId === action.playerId : null))
+          : state.won,
         winnerId: s.winnerId || null,
         roomClosedByOpponent: false,
         opponentLeftMessage: null,
@@ -250,6 +309,29 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'ROUND_OVER', winnerId: winnerId || null, scores: null, playerId })
     })
 
+    // ── New game modes (XOX / Math Battle / Sudoku) ────────────────────────
+    socket.on('match:start', ({ room, match } = {}) => {
+      dispatch({ type: 'MATCH_START', room, match, playerId })
+    })
+
+    socket.on('xox:update', ({ board, turnId } = {}) => {
+      dispatch({ type: 'MATCH_STATE', patch: { board, turnId }, playerId })
+    })
+
+    socket.on('match:turn', ({ turnId } = {}) => {
+      clearInterval(timerRef.current)
+      dispatch({ type: 'TURN_CHANGE', playerId: turnId, myId: playerId })
+      timerRef.current = setInterval(() => dispatch({ type: 'TIMER_TICK' }), 1000)
+    })
+
+    socket.on('match:over', ({ winnerId, draw, scores } = {}) => {
+      clearInterval(timerRef.current)
+      dispatch({ type: 'MATCH_OVER', winnerId: winnerId || null, draw: !!draw, scores, playerId })
+    })
+
+    socket.on('match:timeout', () => clearInterval(timerRef.current))
+    socket.on('match:forfeit', () => clearInterval(timerRef.current))
+
     socket.on('game:rematch_start',    room => dispatch({ type: 'ROOM_UPDATED', room }))
     socket.on('game:rematch_incoming', ({ fromPlayerId, fromPlayerName }) => {
       // Ignore my own request (broadcast goes to the whole room incl. sender)
@@ -301,6 +383,12 @@ export function RoomProvider({ children }) {
       socket.off('game:guess_result')
       socket.off('game:round_over')
       socket.off('game:forfeit')
+      socket.off('match:start')
+      socket.off('xox:update')
+      socket.off('match:turn')
+      socket.off('match:over')
+      socket.off('match:timeout')
+      socket.off('match:forfeit')
       socket.off('game:rematch_start')
       socket.off('game:rematch_incoming')
       socket.off('game:rematch_declined')
@@ -370,6 +458,19 @@ export function RoomProvider({ children }) {
     socket?.emit('game:guess', { roomId, guess })
   }, [socket])
 
+  // ── New game modes (XOX / Math Battle / Sudoku) ─────────────────────────
+  const matchReady = useCallback((roomId) => {
+    socket?.emit('match:ready', { roomId })
+  }, [socket])
+
+  const xoxMove = useCallback((roomId, cell) => {
+    socket?.emit('xox:move', { roomId, cell })
+  }, [socket])
+
+  const matchForfeit = useCallback((roomId) => {
+    socket?.emit('match:forfeit', { roomId })
+  }, [socket])
+
   // I click "Play Again" → send request to opponent
   const requestRematch = useCallback((roomId) => {
     dispatch({ type: 'REMATCH_REQUESTING' })
@@ -422,6 +523,7 @@ export function RoomProvider({ children }) {
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
+      matchReady, xoxMove, matchForfeit,
     }}>
       {children}
     </RoomContext.Provider>

@@ -23,6 +23,13 @@ const GAMES = [
     desc: 'Break the 6-digit code. Bulls hit, cows tease.',
     accent: 'var(--color-pink)',
   },
+  {
+    mode: 'XOX',
+    icon: '⭕',
+    name: 'Tic-Tac-Toe',
+    desc: 'Three in a row. Beat the AI or a friend — classic XOX.',
+    accent: 'var(--color-juice)',
+  },
 ]
 
 export default function HomeListPage() {

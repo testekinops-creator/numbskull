@@ -10,6 +10,15 @@ const EVENT_LIMITS = {
   'room:reconnect':        { max: 30, windowMs: 30_000 },
   'chat:message':          { max: 20, windowMs: 10_000 },
   'chat:emoji':            { max: 40, windowMs: 10_000 },
+  // New game modes (XOX / Math Battle / Sudoku)
+  'match:ready':           { max: 15, windowMs: 30_000 },
+  'match:forfeit':         { max: 10, windowMs: 30_000 },
+  'xox:move':              { max: 60, windowMs: 30_000 },
+  'math:answer':           { max: 60, windowMs: 30_000 },
+  'sudoku:fill':           { max: 200, windowMs: 30_000 },
+  'sudoku:lock':           { max: 200, windowMs: 30_000 },
+  'sudoku:unlock':         { max: 200, windowMs: 30_000 },
+  'sudoku:clear':          { max: 100, windowMs: 30_000 },
 }
 
 const counters = new Map()

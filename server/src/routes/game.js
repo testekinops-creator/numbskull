@@ -17,7 +17,7 @@ gameRouter.get('/roast', (_req, res) => {
 
 // ── Record a finished game for the logged-in user ──────────────────────────
 const recordSchema = z.object({
-  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE']),
+  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU']),
   won:  z.boolean(),
 })
 
@@ -43,8 +43,11 @@ gameRouter.post('/record', optionalAuth, async (req, res, next) => {
     if (!user) return res.json({ success: true, data: { recorded: false } })
 
     const patch = { totalGames: user.totalGames + 1 }
-    if (won && mode === 'GTN') patch.gtnWins = user.gtnWins + 1
-    if (won && mode === 'BC')  patch.bcWins  = user.bcWins  + 1
+    if (won && mode === 'GTN')    patch.gtnWins    = user.gtnWins + 1
+    if (won && mode === 'BC')     patch.bcWins     = user.bcWins  + 1
+    if (won && mode === 'XOX')    patch.xoxWins    = (user.xoxWins    || 0) + 1
+    if (won && mode === 'MATH')   patch.mathWins   = (user.mathWins   || 0) + 1
+    if (won && mode === 'SUDOKU') patch.sudokuWins = (user.sudokuWins || 0) + 1
 
     const updated = await AuthService.updateUser(req.userId, patch)
     res.json({ success: true, data: { recorded: true, user: AuthService.publicProfile(updated) } })
@@ -57,6 +60,7 @@ const startSchema = z.object({
   range:      z.number().int().positive().optional(),
   totalGames: z.number().int().min(0).default(0),
   largeCount: z.number().int().min(0).max(4).optional(),
+  symbol:     z.enum(['X', 'O']).optional(),   // XOX: which symbol the human plays
 })
 
 const guessSchema = z.object({
@@ -86,17 +90,47 @@ const sessions = new Map()
 
 gameRouter.post('/start', (req, res, next) => {
   try {
-    const { mode, difficulty, range, largeCount } = startSchema.parse(req.body)
+    const { mode, difficulty, range, largeCount, symbol } = startSchema.parse(req.body)
     const event    = getActiveEvent()
-    const baseOpts = { difficulty, range, largeCount }
+    const baseOpts = { difficulty, range, largeCount, symbol }
     const opts     = applyEventModifier(baseOpts, event)
     const engine   = engineFactory(mode, opts)
     const sessionId = uid()
     sessions.set(sessionId, { engine, mode, event: event?.id || null })
     setTimeout(() => sessions.delete(sessionId), 30 * 60 * 1000)
 
-    const state = engine.getState ? engine.getState() : {}
+    // XOX: if the human chose O, the AI (X) opens immediately so the board
+    // already reflects the first move when the client renders.
+    let state = engine.getState ? engine.getState() : {}
+    if (mode === 'XOX') state = engine.aiOpeningMove()
+
     res.json({ success: true, data: { sessionId, mode, range: engine.range, event: event?.id || null, ...state } })
+  } catch (err) { next(err) }
+})
+
+// ── XOX (Tic-Tac-Toe) AI move ──────────────────────────────────────────────
+const xoxMoveSchema = z.object({
+  cell:       z.number().int().min(0).max(8),
+  sessionId:  z.string(),
+  totalGames: z.number().int().min(0).default(0),
+})
+
+gameRouter.post('/xox/move', (req, res, next) => {
+  try {
+    const { cell, sessionId, totalGames } = xoxMoveSchema.parse(req.body)
+    const session = sessions.get(sessionId)
+    if (!session) throw createError('Session not found', 404, 'SESSION_NOT_FOUND')
+
+    const result = session.engine.playerMove(cell)
+
+    let roastEvent = null
+    if (result.over) {
+      roastEvent = result.draw ? 'lose' : (result.winner === result.playerSymbol ? 'correct' : 'lose')
+    }
+    const roast = roastEvent ? getRoastMessage(roastEvent, totalGames) : null
+    if (result.over) sessions.delete(sessionId)
+
+    res.json({ success: true, data: { ...result, roast: roast?.message || null } })
   } catch (err) { next(err) }
 })
 

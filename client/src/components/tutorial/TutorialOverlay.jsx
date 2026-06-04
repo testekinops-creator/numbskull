@@ -36,6 +36,23 @@ const STEPS = {
       emoji: "🔢",
     },
   ],
+  XOX: [
+    {
+      title: "Tic-Tac-Toe",
+      body: "Old game, same humiliation. Get three of your marks in a row — across, down, or diagonally — before your opponent does.",
+      emoji: "⭕",
+    },
+    {
+      title: "Take turns",
+      body: "X always moves first. Tap any empty square on your turn. Don't take too long — stall and you forfeit.",
+      emoji: "⏱️",
+    },
+    {
+      title: "Three in a row wins",
+      body: "Line up three and it's yours. Fill the board with nobody winning and it's a draw. Against me on Hard? Good luck drawing.",
+      emoji: "🏆",
+    },
+  ],
 }
 
 const STORAGE_KEY = 'ns_tutorial_done'

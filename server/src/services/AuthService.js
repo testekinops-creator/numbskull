@@ -141,6 +141,9 @@ export const AuthService = {
       totalGames: user.totalGames,
       gtnWins:    user.gtnWins,
       bcWins:     user.bcWins,
+      xoxWins:    user.xoxWins    ?? 0,
+      mathWins:   user.mathWins   ?? 0,
+      sudokuWins: user.sudokuWins ?? 0,
       createdAt:  user.createdAt,
     }
   },

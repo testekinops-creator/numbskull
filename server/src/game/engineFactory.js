@@ -4,8 +4,9 @@ import { CountdownEngine }        from './engines/CountdownEngine.js'
 import { NumberChainEngine }      from './engines/NumberChainEngine.js'
 import { NumberTowersEngine }     from './engines/NumberTowersEngine.js'
 import { ReverseChallenge }       from './engines/ReverseChallenge.js'
+import { TicTacToeEngine }        from './engines/TicTacToeEngine.js'
 
-export const VALID_MODES = ['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE']
+export const VALID_MODES = ['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX']
 
 export function engineFactory(mode, options = {}) {
   switch (mode) {
@@ -15,6 +16,7 @@ export function engineFactory(mode, options = {}) {
     case 'NUMBER_CHAIN':  return new NumberChainEngine(options)
     case 'NUMBER_TOWERS': return new NumberTowersEngine(options)
     case 'REVERSE':       return new ReverseChallenge(options)
+    case 'XOX':           return new TicTacToeEngine(options)
     default:              throw new Error(`Unknown game mode: ${mode}`)
   }
 }

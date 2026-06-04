@@ -1,0 +1,13 @@
+.playArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  align-items: center;
+}
+
+.turnLabel {
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-align: center;
+  margin: 0;
+}

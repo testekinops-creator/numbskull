@@ -15,11 +15,51 @@ import ChatPanel from '../components/game/ChatPanel.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getSkullExpression } from '../utils/personality.js'
+import MatchRoom from '../components/match/MatchRoom.jsx'
 import styles from './RoomPage.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
 
+// New game modes (XOX / Math Battle / Sudoku) use a separate real-time match
+// flow. They are rendered by MatchRoom; the GTN/BC guess flow below is untouched.
+const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU'])
+
+// Thin router: decides which room UI to render based on the room's mode.
+// If we landed cold (refresh / direct link) we reconnect first to learn the
+// mode, then delegate. The child components run their own full reconnect.
 export default function RoomPage() {
+  const { roomId } = useParams()
+  const navigate = useNavigate()
+  const { state, reconnectRoom } = useRoom()
+  const { socket } = useSocket()
+  const room = state.room
+  const mode = room?.mode
+
+  const triedRef = useRef(false)
+  useEffect(() => {
+    if (!socket || !roomId || room || triedRef.current) return
+    triedRef.current = true
+    ;(async () => {
+      const r = await reconnectRoom(roomId)
+      if (!r?.ok) navigate('/home')
+    })()
+  }, [socket, roomId, room]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!room) {
+    return (
+      <div className="screen">
+        <div className={styles.loading}>
+          <div className={styles.spinner} />
+          <p>Connecting to room…</p>
+        </div>
+      </div>
+    )
+  }
+  if (MATCH_MODES.has(mode)) return <MatchRoom roomId={roomId} mode={mode} />
+  return <GuessRoom />
+}
+
+function GuessRoom() {
   const { roomId } = useParams()
   const navigate = useNavigate()
   const {

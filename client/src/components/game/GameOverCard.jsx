@@ -2,30 +2,38 @@ import { useEffect, useRef } from 'react'
 import styles from './GameOverCard.module.css'
 import SkullMascot from '../skull/SkullMascot.jsx'
 
-export default function GameOverCard({ won, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores }) {
+export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores }) {
   const efficiency = optimalMoves && attempts
     ? Math.round((optimalMoves / attempts) * 100)
     : null
 
+  const isWin  = won && !draw
+  const showGuessCount = (mode === 'GTN' || mode === 'BC') && attempts != null
+
   return (
-    <div className={`${styles.card} ${won ? styles.winCard : styles.loseCard}`}>
+    <div className={`${styles.card} ${draw ? styles.loseCard : isWin ? styles.winCard : styles.loseCard}`}>
 
       {/* Confetti particles — win only */}
-      {won && <Confetti />}
+      {isWin && <Confetti />}
 
       {/* Skull with animation */}
-      <div className={`${styles.skullWrap} ${won ? styles.skullWin : styles.skullLose}`}>
+      <div className={`${styles.skullWrap} ${isWin ? styles.skullWin : styles.skullLose}`}>
         <SkullMascot
-          expression={won ? 'impressed' : 'annoyed'}
+          expression={draw ? 'grudging' : isWin ? 'impressed' : 'annoyed'}
           size={100}
-          glow={won}
+          glow={isWin}
         />
-        {won && <div className={styles.winRing} />}
+        {isWin && <div className={styles.winRing} />}
       </div>
 
       {/* Result text */}
       <div className={styles.resultText}>
-        {won ? (
+        {draw ? (
+          <>
+            <span className={styles.loseEmoji}>🤝</span>
+            <h2 className={styles.loseTitle}>It's a Draw!</h2>
+          </>
+        ) : isWin ? (
           <>
             <span className={styles.winEmoji}>🎉</span>
             <h2 className={styles.winTitle}>You Won!</h2>
@@ -40,7 +48,7 @@ export default function GameOverCard({ won, attempts, secret, optimalMoves, mode
 
       {/* Stats row — centered */}
       <div className={styles.statsRow}>
-        <StatBox label="Guesses" value={attempts} />
+        {showGuessCount && <StatBox label="Guesses" value={attempts} />}
         {mode === 'GTN' && optimalMoves && (
           <StatBox label="Optimal" value={optimalMoves} />
         )}

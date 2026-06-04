@@ -180,6 +180,8 @@ export function registerGameHandlers(io, socket) {
       await roomManager.update(roomId, r => {
         r.phase = 'SETUP'
         r.round = null
+        r.match = null   // also reset new-mode (XOX/MATH/SUDOKU) state
+        r.winnerId = null
         r.players.forEach(p => { p.ready = false })
       })
       const fresh = await roomManager.get(roomId)

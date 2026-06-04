@@ -1,6 +1,7 @@
 import { roomManager } from '../game/RoomManager.js'
 import { quickMatch } from '../game/QuickMatch.js'
 import { clearTimer } from '../game/TurnTimer.js'
+import { publicMatchFor } from './matchHandlers.js'
 import { logger } from '../utils/logger.js'
 
 export function registerRoomHandlers(io, socket) {
@@ -136,6 +137,8 @@ export function registerRoomHandlers(io, socket) {
       turnId:   round.turnId || null,
       mySecret: round.secrets?.[playerId] || null,
       winnerId: room.winnerId || null,
+      // New game modes (XOX/MATH/SUDOKU) rebuild from room.match; null for GTN/BC
+      match:    publicMatchFor(room),
     }
     ack?.({ ok: true, room: snapshot.room, snapshot })
   })

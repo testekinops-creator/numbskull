@@ -2,6 +2,7 @@ import { Server } from 'socket.io'
 import { logger } from '../utils/logger.js'
 import { registerRoomHandlers } from './roomHandlers.js'
 import { registerGameHandlers } from './gameHandlers.js'
+import { registerMatchHandlers } from './matchHandlers.js'
 import { registerChatHandlers } from './chatHandlers.js'
 import { socketRateLimit } from '../middleware/socketRateLimit.js'
 
@@ -44,6 +45,7 @@ export function setupSocket(httpServer) {
 
     registerRoomHandlers(io, socket)
     registerGameHandlers(io, socket)
+    registerMatchHandlers(io, socket)
     registerChatHandlers(io, socket)
 
     socket.on('disconnect', (reason) => {
