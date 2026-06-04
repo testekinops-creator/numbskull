@@ -319,6 +319,32 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Connection banners (fixed top) ──────────────────────────── */
+.connBanner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-toast);
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-2) var(--space-4);
+  animation: slideDownIn 0.25s var(--ease-out);
+}
+.connOffline {
+  background: rgba(255, 62, 138, 0.92);
+  color: white;
+}
+.connOppLost {
+  background: rgba(255, 167, 38, 0.92);
+  color: #1a1200;
+}
+@keyframes slideDownIn {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
 /* ── Opponent-left overlay ───────────────────────────────────── */
 .leftOverlay {
   position: fixed;

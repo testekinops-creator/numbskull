@@ -26,6 +26,8 @@ const INITIAL = {
   lastEmoji:            null,  // { id, emoji, mine } — drives the burst overlay
   // Opponent left / room closed — drives redirect + message
   opponentLeftMessage:  null,
+  // Opponent temporarily dropped (within grace) — drives "reconnecting…" banner
+  opponentConnLost:     false,
 }
 
 function reducer(state, action) {
@@ -152,7 +154,32 @@ function reducer(state, action) {
       return { ...state, roomClosedByOpponent: true }
 
     case 'OPPONENT_LEFT':
-      return { ...state, opponentLeftMessage: action.message, roomClosedByOpponent: true }
+      return { ...state, opponentLeftMessage: action.message, roomClosedByOpponent: true, opponentConnLost: false }
+
+    case 'OPPONENT_CONN_LOST':
+      return { ...state, opponentConnLost: true }
+
+    case 'OPPONENT_CONN_RESTORED':
+      return { ...state, opponentConnLost: false }
+
+    // Full state rebuild after a reconnect (refresh / network drop)
+    case 'RECONNECT_RESTORE': {
+      const s = action.snapshot
+      if (!s) return state
+      const isOver = s.phase === 'GAME_OVER'
+      return {
+        ...state,
+        room:    s.room,
+        phase:   s.phase || 'IDLE',
+        guesses: s.guesses || [],
+        myTurn:  !isOver && s.turnId === action.playerId,
+        won:     isOver && s.winnerId ? s.winnerId === action.playerId : (isOver ? null : state.won),
+        winnerId: s.winnerId || null,
+        roomClosedByOpponent: false,
+        opponentLeftMessage: null,
+        opponentConnLost: false,
+      }
+    }
 
     case 'MATCHMAKING':
       return { ...state, matchmaking: action.value }
@@ -242,6 +269,14 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'OPPONENT_LEFT', message: msg })
     })
 
+    // G4: opponent dropped (within grace) → show "reconnecting…" banner
+    socket.on('player:disconnected', ({ playerId: pid } = {}) => {
+      if (pid && pid !== playerId) dispatch({ type: 'OPPONENT_CONN_LOST' })
+    })
+    socket.on('player:reconnected', ({ playerId: pid } = {}) => {
+      if (pid && pid !== playerId) dispatch({ type: 'OPPONENT_CONN_RESTORED' })
+    })
+
     // ── Chat + emoji ──────────────────────────────────────────────────────
     socket.on('chat:message', ({ fromPlayerId, fromName, text, ts }) => {
       dispatch({
@@ -273,6 +308,8 @@ export function RoomProvider({ children }) {
       socket.off('chat:message')
       socket.off('chat:emoji')
       socket.off('game:opponent_left')
+      socket.off('player:disconnected')
+      socket.off('player:reconnected')
       clearInterval(timerRef.current)
     }
   }, [socket, playerId])
@@ -314,6 +351,20 @@ export function RoomProvider({ children }) {
   const setReady = useCallback((roomId, secret) => {
     socket?.emit('game:ready', { roomId, secret })
   }, [socket])
+
+  // Reconnect to a room and rebuild full game state from the server snapshot.
+  // Returns the snapshot (so the page can restore its own refs, e.g. secret).
+  const reconnectRoom = useCallback((roomId) => {
+    return new Promise(res => {
+      if (!socket) return res({ ok: false })
+      socket.emit('room:reconnect', { roomId }, r => {
+        if (r?.ok && r.snapshot) {
+          dispatch({ type: 'RECONNECT_RESTORE', snapshot: r.snapshot, playerId })
+        }
+        res(r || { ok: false })
+      })
+    })
+  }, [socket, playerId])
 
   const submitGuess = useCallback((roomId, guess) => {
     socket?.emit('game:guess', { roomId, guess })
@@ -364,7 +415,7 @@ export function RoomProvider({ children }) {
     <RoomContext.Provider value={{
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, spectate,
-      sendChat, sendEmoji, clearUnreadChat,
+      sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
     }}>
       {children}
     </RoomContext.Provider>

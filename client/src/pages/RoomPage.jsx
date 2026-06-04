@@ -22,11 +22,11 @@ export default function RoomPage() {
   const navigate = useNavigate()
   const {
     state, setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom,
-    sendChat, sendEmoji, clearUnreadChat,
+    sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
   } = useRoom()
   const { playerId } = usePlayer()
   const [chatOpen, setChatOpen] = useState(false)
-  const { socket } = useSocket()
+  const { socket, connected } = useSocket()
   const { isRegistered, updateUser } = useAuth()
 
   const [secret, setSecret] = useState('')
@@ -65,11 +65,24 @@ export default function RoomPage() {
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
 
+  // Reconnect + restore on mount AND on every socket (re)connect.
+  // Covers: page refresh, network drop, network switch, app resume.
   useEffect(() => {
     if (!socket || !roomId) return
-    socket.emit('room:reconnect', { roomId }, r => {
-      if (!r.ok) navigate('/home')
-    })
+
+    const doReconnect = async () => {
+      const r = await reconnectRoom(roomId)
+      if (!r?.ok) {
+        navigate('/home')
+        return
+      }
+      // Restore my secret so the secret banner shows after a refresh
+      if (r.snapshot?.mySecret) mySecretRef.current = r.snapshot.mySecret
+    }
+
+    doReconnect()
+    socket.on('connect', doReconnect)  // fires again on every reconnection
+    return () => socket.off('connect', doReconnect)
   }, [socket, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Room closed (opponent left / declined) → show message briefly, then go home.
@@ -162,6 +175,19 @@ export default function RoomPage() {
 
   return (
     <div className="screen">
+      {/* You are offline (your own socket dropped) */}
+      {!connected && (
+        <div className={`${styles.connBanner} ${styles.connOffline}`}>
+          📡 You’re offline — reconnecting…
+        </div>
+      )}
+      {/* Opponent dropped (within grace) */}
+      {connected && state.opponentConnLost && (
+        <div className={`${styles.connBanner} ${styles.connOppLost}`}>
+          ⚠️ {opponent?.name || 'Opponent'} lost connection — waiting for them to return…
+        </div>
+      )}
+
       <div className={`panel ${styles.roomPage}`}>
         {/* Header */}
         <div className={styles.header}>

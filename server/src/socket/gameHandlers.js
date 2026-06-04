@@ -2,6 +2,7 @@ import { roomManager } from '../game/RoomManager.js'
 import { engineFactory } from '../game/engineFactory.js'
 import { getRoastMessage } from '../game/personality.js'
 import { getTimer, clearTimer } from '../game/TurnTimer.js'
+import { cancelRoomGrace } from './roomHandlers.js'
 import { logger } from '../utils/logger.js'
 
 export function registerGameHandlers(io, socket) {
@@ -220,8 +221,12 @@ async function _startRound(io, roomId, room) {
 
 async function _endRound(io, roomId, winnerId) {
   clearTimer(roomId)
+  // G3: round ended → cancel any pending disconnect-grace so it can't fire
+  // an "opponent left" after the game already finished.
+  cancelRoomGrace(roomId)
   await roomManager.update(roomId, r => {
     r.phase = 'GAME_OVER'
+    r.winnerId = winnerId
     const winner = r.players.find(p => p.id === winnerId)
     if (winner) winner.score = (winner.score || 0) + 1
   })
