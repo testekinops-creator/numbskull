@@ -20,7 +20,7 @@ export default function GamePage() {
   const navigate = useNavigate()
   const { state, startGame, submitGuess } = useGame()
   const { isRegistered, updateUser } = useAuth()
-  const { playTone } = useSound()
+  const { playTone, playWin, playLose, unlock } = useSound()
   const { buzz } = useHaptic()
 
   const [inputValue, setInputValue] = useState('')
@@ -58,10 +58,13 @@ export default function GamePage() {
     const r = state.lastResult
     if (!r) return
     if (r.correct || r.won) {
-      playTone(r.proximity ?? 1)
+      playWin()
       buzz('correct')
     } else if (r.valid === false) {
       buzz('error')
+    } else if (r.over) {
+      playLose()
+      buzz('wrong')
     } else {
       playTone(r.proximity ?? 0)
       buzz('wrong')
@@ -70,6 +73,7 @@ export default function GamePage() {
 
   function handleSubmit(e) {
     e.preventDefault()
+    unlock()  // prime audio within the user gesture
     const val = inputValue.trim()
     if (!val) return
 

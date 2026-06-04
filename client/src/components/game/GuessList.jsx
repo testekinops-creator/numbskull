@@ -1,12 +1,23 @@
 import styles from './GuessList.module.css'
 
 export default function GuessList({ guesses, mode }) {
-  if (guesses.length === 0) return null
+  // Keep a STABLE key per guess (its position in the original array never
+  // changes), then show newest-first. Index-of-reversed keys were re-shuffling
+  // every render and leaving rows stuck mid-animation (blank bars).
+  const rows = guesses
+    .map((entry, idx) => ({ entry, idx }))
+    .filter(({ entry }) => {
+      const v = entry.value ?? entry.guess
+      return v !== undefined && v !== null && String(v) !== ''
+    })
+    .reverse()
+
+  if (rows.length === 0) return null
 
   return (
     <ul className={styles.list} aria-label="Guess history">
-      {[...guesses].reverse().map((entry, i) => (
-        <li key={i} className={`${styles.item} anim-slide-up`}>
+      {rows.map(({ entry, idx }) => (
+        <li key={idx} className={styles.item}>
           {mode === 'BC'
             ? <BCGuessRow entry={entry} />
             : <GTNGuessRow entry={entry} />

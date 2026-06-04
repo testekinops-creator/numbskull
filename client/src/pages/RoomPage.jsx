@@ -12,6 +12,8 @@ import RematchPrompt from '../components/game/RematchPrompt.jsx'
 import TurnTimer from '../components/game/TurnTimer.jsx'
 import EmojiBurst from '../components/game/EmojiBurst.jsx'
 import ChatPanel from '../components/game/ChatPanel.jsx'
+import { useSound } from '../hooks/useSound.js'
+import { useHaptic } from '../hooks/useHaptic.js'
 import { getSkullExpression } from '../utils/personality.js'
 import styles from './RoomPage.module.css'
 
@@ -28,6 +30,8 @@ export default function RoomPage() {
   const [chatOpen, setChatOpen] = useState(false)
   const { socket, connected } = useSocket()
   const { isRegistered, updateUser } = useAuth()
+  const { playTone, playWin, playLose, unlock } = useSound()
+  const { buzz } = useHaptic()
 
   const [secret, setSecret] = useState('')
   const [guess, setGuess] = useState('')
@@ -110,6 +114,22 @@ export default function RoomPage() {
   useEffect(() => {
     if (isMyTurn && phase === 'PLAYING') inputRef.current?.focus()
   }, [isMyTurn, phase])
+
+  // ── Sound + haptics on each guess result ──────────────────────────────────
+  useEffect(() => {
+    const r = state.lastGuessResult
+    if (!r) return
+    if (r.correct || r.won) { playWin(); buzz('correct') }
+    else { playTone(r.proximity ?? (r.bulls ? r.bulls / 6 : 0)); buzz('wrong') }
+  }, [state.lastGuessResult]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Win / lose chord when the round ends
+  useEffect(() => {
+    if (phase === 'GAME_OVER') {
+      if (state.won) playWin()
+      else if (state.won === false) playLose()
+    }
+  }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce the "you're offline" banner so it doesn't flash on the initial
   // connect or a sub-second blip.
