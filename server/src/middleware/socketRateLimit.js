@@ -1,10 +1,15 @@
 const EVENT_LIMITS = {
-  'game:guess':        { max: 30, windowMs: 30_000 },
-  'room:create':       { max: 5,  windowMs: 60_000 },
-  'room:join':         { max: 10, windowMs: 60_000 },
-  'room:quickmatch':   { max: 5,  windowMs: 30_000 },
-  'chat:message':      { max: 20, windowMs: 10_000 },
-  'chat:emoji':        { max: 40, windowMs: 10_000 },
+  'game:guess':            { max: 30, windowMs: 30_000 },
+  'game:ready':            { max: 10, windowMs: 30_000 },
+  'game:rematch_request':  { max: 10, windowMs: 30_000 },
+  'game:rematch_accept':   { max: 10, windowMs: 30_000 },
+  'game:rematch_decline':  { max: 10, windowMs: 30_000 },
+  'room:create':           { max: 5,  windowMs: 60_000 },
+  'room:join':             { max: 10, windowMs: 60_000 },
+  'room:quickmatch':       { max: 5,  windowMs: 30_000 },
+  'room:reconnect':        { max: 30, windowMs: 30_000 },
+  'chat:message':          { max: 20, windowMs: 10_000 },
+  'chat:emoji':            { max: 40, windowMs: 10_000 },
 }
 
 const counters = new Map()

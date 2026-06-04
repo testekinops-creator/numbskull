@@ -1,5 +1,4 @@
 import { roomManager } from '../game/RoomManager.js'
-import { engineFactory } from '../game/engineFactory.js'
 import { getRoastMessage } from '../game/personality.js'
 import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { cancelRoomGrace } from './roomHandlers.js'
@@ -12,9 +11,14 @@ export function registerGameHandlers(io, socket) {
   // ── Player ready (sets secret for B&C, marks ready for GTN) ──────────────
   socket.on('game:ready', async ({ roomId, secret } = {}, ack) => {
     try {
+      if (typeof roomId !== 'string') return ack?.({ ok: false, error: 'Invalid room' })
       const room = await roomManager.get(roomId)
       if (!room) return ack?.({ ok: false, error: 'Room not found' })
       if (room.phase !== 'SETUP') return ack?.({ ok: false, error: 'Room not in setup phase' })
+      // Security: only an actual player of this room may set a secret
+      if (!room.players.find(p => p.id === playerId)) {
+        return ack?.({ ok: false, error: 'Not a player in this room' })
+      }
 
       // Validate the manually-entered secret for both GTN and BC
       if (room.mode === 'GTN') {
@@ -60,6 +64,7 @@ export function registerGameHandlers(io, socket) {
   // ── Submit guess ──────────────────────────────────────────────────────────
   socket.on('game:guess', async ({ roomId, guess } = {}, ack) => {
     try {
+      if (typeof roomId !== 'string') return ack?.({ ok: false, error: 'Invalid room' })
       const room = await roomManager.get(roomId)
       if (!room) return ack?.({ ok: false, error: 'Room not found' })
       if (room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Game not active' })
@@ -69,21 +74,30 @@ export function registerGameHandlers(io, socket) {
 
       const opponentId = room.players.find(p => p.id !== playerId)?.id
       const opponentSecret = room.round.secrets[opponentId]
-      const engine = engineFactory(room.mode, {})
+      if (!opponentSecret) return ack?.({ ok: false, error: 'Opponent secret not set' })
 
       let result
       if (room.mode === 'GTN') {
-        const tempEngine = new (await import('../game/engines/GuessTheNumberEngine.js')).GuessTheNumberEngine({
-          difficulty: room.difficulty,
-          range: 100,
-        })
+        // Server-side validation — never trust the client
+        const n = parseInt(guess, 10)
+        if (!Number.isInteger(n) || n < 1 || n > 100) {
+          return ack?.({ ok: false, error: 'Guess must be a number between 1 and 100' })
+        }
+        const { GuessTheNumberEngine } = await import('../game/engines/GuessTheNumberEngine.js')
+        const tempEngine = new GuessTheNumberEngine({ difficulty: room.difficulty, range: 100 })
         tempEngine.secret = parseInt(opponentSecret, 10)
-        result = tempEngine.evaluate(parseInt(guess, 10))
+        result = tempEngine.evaluate(n)
       } else {
+        // Server-side validation: must be 4 unique digits
+        const g = String(guess).trim()
+        if (!/^\d{4}$/.test(g) || new Set(g).size !== 4) {
+          return ack?.({ ok: false, error: 'Guess must be 4 unique digits' })
+        }
         const { BullsCowsEngine } = await import('../game/engines/BullsCowsEngine.js')
-        const scored = BullsCowsEngine.score(String(guess), opponentSecret)
+        const scored = BullsCowsEngine.score(g, opponentSecret)
         const correct = scored.bulls === 4
-        result = { valid: true, correct, bulls: scored.bulls, cows: scored.cows, positions: scored.positions, guess, over: correct }
+        result = { valid: true, correct, bulls: scored.bulls, cows: scored.cows, positions: scored.positions, guess: g, over: correct }
+        guess = g
       }
 
       if (!result.valid) return ack?.({ ok: false, error: result.error })

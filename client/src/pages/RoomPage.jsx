@@ -107,10 +107,15 @@ export default function RoomPage() {
     if (isMyTurn && phase === 'PLAYING') inputRef.current?.focus()
   }, [isMyTurn, phase])
 
-  // Record the multiplayer result to the logged-in user's account (once)
+  // Record the result ONLY on the real PLAYING → GAME_OVER transition.
+  // (Reconnecting straight into GAME_OVER must NOT re-record — prevents
+  //  double-counting stats after a refresh.)
+  const prevPhaseRef = useRef(phase)
   useEffect(() => {
-    if (phase === 'PLAYING') recordedRef.current = false
-    if (phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
+    const prev = prevPhaseRef.current
+    prevPhaseRef.current = phase
+    if (phase === 'PLAYING') recordedRef.current = false  // new game → allow next record
+    if (prev === 'PLAYING' && phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
       recordedRef.current = true
       api.post('/game/record', { mode, won: !!state.won })
         .then(d => { if (d.user) updateUser(d.user) })

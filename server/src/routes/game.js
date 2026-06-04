@@ -17,15 +17,27 @@ gameRouter.get('/roast', (_req, res) => {
 
 // ── Record a finished game for the logged-in user ──────────────────────────
 const recordSchema = z.object({
-  mode: z.string(),
+  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE']),
   won:  z.boolean(),
 })
+
+// Anti-inflation: a real game can't finish more than once every few seconds.
+const lastRecordAt = new Map()  // userId -> ts
+const RECORD_COOLDOWN_MS = 3000
 
 gameRouter.post('/record', optionalAuth, async (req, res, next) => {
   try {
     const { mode, won } = recordSchema.parse(req.body)
     // Guests have no DB record — silently skip
     if (!req.userId) return res.json({ success: true, data: { recorded: false } })
+
+    // Throttle rapid repeats from the same account (cheap stat-inflation guard)
+    const now = Date.now()
+    const last = lastRecordAt.get(req.userId) || 0
+    if (now - last < RECORD_COOLDOWN_MS) {
+      return res.json({ success: true, data: { recorded: false, throttled: true } })
+    }
+    lastRecordAt.set(req.userId, now)
 
     const user = await AuthService.getUser(req.userId)
     if (!user) return res.json({ success: true, data: { recorded: false } })
