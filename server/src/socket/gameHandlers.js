@@ -2,6 +2,7 @@ import { roomManager } from '../game/RoomManager.js'
 import { getRoastMessage } from '../game/personality.js'
 import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { cancelRoomGrace } from './roomHandlers.js'
+import { recordResult } from '../game/MonthlyLeaderboard.js'
 import { logger } from '../utils/logger.js'
 
 export function registerGameHandlers(io, socket) {
@@ -250,6 +251,11 @@ async function _endRound(io, roomId, winnerId) {
     if (winner) winner.score = (winner.score || 0) + 1
   })
   const updated = await roomManager.get(roomId)
+  // Monthly multiplayer leaderboard (server-authoritative).
+  for (const p of updated.players) {
+    const s = _getSocketForPlayer(io, p.id)
+    recordResult({ entrantId: s?.handshake.auth?.userId || p.id, name: p.name, won: p.id === winnerId })
+  }
   io.to(roomId).emit('game:round_over', {
     winnerId,
     scores: updated.players.map(p => ({ id: p.id, score: p.score })),

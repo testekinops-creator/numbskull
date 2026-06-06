@@ -10,6 +10,7 @@ import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine } from '../game/engines/SudokuEngine.js'
+import { recordResult } from '../game/MonthlyLeaderboard.js'
 import { logger } from '../utils/logger.js'
 
 export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU'])
@@ -491,6 +492,11 @@ async function _endMatch(io, roomId, { winnerId = null, draw = false }) {
     }
   })
   const updated = await roomManager.get(roomId)
+  // Monthly multiplayer leaderboard (server-authoritative).
+  for (const p of updated.players) {
+    const s = _findSocket(io, p.id)
+    recordResult({ entrantId: s?.handshake.auth?.userId || p.id, name: p.name, won: p.id === winnerId })
+  }
   io.to(roomId).emit('match:over', {
     winnerId,
     draw,

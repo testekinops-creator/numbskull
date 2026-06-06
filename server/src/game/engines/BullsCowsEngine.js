@@ -13,7 +13,8 @@ export class BullsCowsEngine {
     this.guesses = []
     this.over = false
     this.won = false
-    this.maxGuesses = 12
+    // Difficulty controls how many guesses you get (6 digits + duplicates is hard)
+    this.maxGuesses = { easy: 14, medium: 11, hard: 8 }[difficulty] ?? 11
     this.range = null
   }
 

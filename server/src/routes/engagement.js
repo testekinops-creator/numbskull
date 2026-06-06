@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { todaysChallenge, getDailyChallenge } from '../game/DailyChallenge.js'
 import { getLeaderboard, submitScore, getPlayerRank } from '../game/Leaderboard.js'
+import { getMonthly, getMonthlyRank } from '../game/MonthlyLeaderboard.js'
 import { BADGES, checkBadges } from '../game/Badges.js'
 import { getWeeklyQuests, claimQuest } from '../game/WeeklyQuests.js'
 import { announcements } from './admin.js'
@@ -24,7 +25,15 @@ engagementRouter.post('/daily/submit', (req, res) => {
   res.json({ success: true, data: { score, date: ch.date, mode: ch.mode } })
 })
 
-// ── Leaderboard ────────────────────────────────────────────────────────────
+// ── Monthly MULTIPLAYER leaderboard (resets each calendar month) ────────────
+engagementRouter.get('/leaderboard', (_req, res) => {
+  res.json({ success: true, data: getMonthly(50) })
+})
+engagementRouter.get('/leaderboard/rank/:id', (req, res) => {
+  res.json({ success: true, data: { rank: getMonthlyRank(req.params.id) } })
+})
+
+// ── Daily-challenge leaderboard (legacy) ────────────────────────────────────
 engagementRouter.get('/leaderboard/:type', (req, res) => {
   const { type } = req.params
   const { date } = req.query
