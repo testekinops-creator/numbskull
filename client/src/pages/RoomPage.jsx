@@ -5,6 +5,7 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useSocket } from '../contexts/SocketContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { api } from '../services/api.js'
+import { recordGameForBadges } from '../services/badges.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
@@ -15,6 +16,7 @@ import ChatPanel from '../components/game/ChatPanel.jsx'
 import EmojiPicker from '../components/game/EmojiPicker.jsx'
 import RoomSocialCluster from '../components/game/RoomSocialCluster.jsx'
 import RoomToasts from '../components/game/RoomToasts.jsx'
+import MultiplayerTutorial from '../components/tutorial/MultiplayerTutorial.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getSkullExpression } from '../utils/personality.js'
@@ -191,11 +193,15 @@ function GuessRoom() {
     const prev = prevPhaseRef.current
     prevPhaseRef.current = phase
     if (phase === 'PLAYING') recordedRef.current = false  // new game → allow next record
-    if (prev === 'PLAYING' && phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
+    if (prev === 'PLAYING' && phase === 'GAME_OVER' && !recordedRef.current) {
       recordedRef.current = true
-      api.post('/game/record', { mode, won: !!state.won })
-        .then(d => { if (d.user) updateUser(d.user) })
-        .catch(() => {})
+      const won = !!state.won
+      recordGameForBadges({ mode, won, multiplayer: true, gtnRange1000Win: mode === 'GTN' && won })
+      if (isRegistered) {
+        api.post('/game/record', { mode, won })
+          .then(d => { if (d.user) updateUser(d.user) })
+          .catch(() => {})
+      }
     }
   }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -255,6 +261,7 @@ function GuessRoom() {
 
   return (
     <div className="screen">
+      <MultiplayerTutorial variant="guess" />
       {/* You are offline (your own socket dropped) — debounced */}
       {showOffline && (
         <div className={`${styles.connBanner} ${styles.connOffline}`}>

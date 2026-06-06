@@ -1,0 +1,23 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  justify-content: center;
+  min-height: 70dvh;
+}
+
+.code {
+  font-family: var(--font-display);
+  font-size: var(--text-5xl);
+  font-weight: var(--weight-black);
+  color: var(--color-juice);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 24px var(--color-juice-glow);
+}
+
+.text {
+  color: var(--color-text-secondary);
+  max-width: 32ch;
+}

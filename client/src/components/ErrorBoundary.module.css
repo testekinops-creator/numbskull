@@ -1,0 +1,39 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(83, 74, 183, 0.22) 0%, transparent 65%),
+    var(--color-bg);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+  padding: var(--space-8) var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.title { font-size: var(--text-2xl); font-weight: var(--weight-black); }
+.text  { color: var(--color-text-secondary); line-height: var(--leading-normal); }
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-2);
+}
+.actions > * { width: 100%; }

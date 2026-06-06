@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { setColorblindMode } from '../components/AppShell.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { setSoundVolume } from '../hooks/useSound.js'
 import styles from './SettingsPage.module.css'
 
 const CB_KEY      = 'ns_colorblind_mode'
 const SOUND_KEY   = 'ns_sound_enabled'
+const VOLUME_KEY  = 'ns_sound_volume'
 const HAPTIC_KEY  = 'ns_haptic_enabled'
 const MOTION_KEY  = 'ns_reduced_motion'
 
@@ -19,7 +21,11 @@ export default function SettingsPage() {
   const { isRegistered, user } = useAuth()
 
   const [cbMode,    setCbMode]    = useState(() => localStorage.getItem(CB_KEY) || 'none')
-  const [sound,     setSound]     = useState(() => getBool(SOUND_KEY, true))
+  const [volume,    setVolume]    = useState(() => {
+    const raw = localStorage.getItem(VOLUME_KEY)
+    if (raw !== null) return Math.max(0, Math.min(100, parseInt(raw, 10) || 0))
+    return getBool(SOUND_KEY, true) ? 80 : 0   // migrate from the old on/off toggle
+  })
   const [haptic,    setHaptic]    = useState(() => getBool(HAPTIC_KEY, true))
   const [motion,    setMotion]    = useState(() => getBool(MOTION_KEY, false))
 
@@ -28,7 +34,11 @@ export default function SettingsPage() {
     localStorage.setItem(CB_KEY, cbMode === 'none' ? '' : cbMode)
   }, [cbMode])
 
-  useEffect(() => { localStorage.setItem(SOUND_KEY, String(sound)) }, [sound])
+  useEffect(() => {
+    localStorage.setItem(VOLUME_KEY, String(volume))
+    localStorage.setItem(SOUND_KEY, String(volume > 0))  // keep legacy key in sync
+    setSoundVolume(volume)                                // apply to live audio graph
+  }, [volume])
   useEffect(() => { localStorage.setItem(HAPTIC_KEY, String(haptic)) }, [haptic])
 
   useEffect(() => {
@@ -75,11 +85,11 @@ export default function SettingsPage() {
         </Section>
 
         <Section title="Audio & Feedback">
-          <ToggleRow
-            label="Sound Effects"
-            description="Musical pitch feedback on guesses."
-            checked={sound}
-            onChange={setSound}
+          <SliderRow
+            label="Sound Volume"
+            description="Musical pitch feedback on guesses. 0 = muted."
+            value={volume}
+            onChange={setVolume}
           />
           <ToggleRow
             label="Haptic Feedback"
@@ -148,6 +158,29 @@ function ToggleRow({ label, description, checked, onChange }) {
       >
         <span className={styles.toggleThumb} />
       </button>
+    </div>
+  )
+}
+
+function SliderRow({ label, description, value, onChange }) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowInfo}>
+        <span className={styles.rowLabel}>{label}</span>
+        <span className={styles.rowDesc}>{description}</span>
+      </div>
+      <div className={styles.sliderWrap}>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={value}
+          onChange={e => onChange(parseInt(e.target.value, 10))}
+          className={styles.slider}
+          aria-label={label}
+        />
+        <span className={styles.sliderVal}>{value === 0 ? '🔇' : `${value}%`}</span>
+      </div>
     </div>
   )
 }

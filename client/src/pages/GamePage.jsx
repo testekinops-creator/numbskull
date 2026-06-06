@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useGame } from '../contexts/GameContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { api } from '../services/api.js'
+import { recordGameForBadges } from '../services/badges.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import PressureMeter from '../components/game/PressureMeter.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
+import DifficultyPicker from '../components/game/DifficultyPicker.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getTierFromGames, getSkullExpression } from '../utils/personality.js'
@@ -27,15 +29,21 @@ export default function GamePage() {
   const [inputError, setInputError] = useState('')
   const [shaking, setShaking] = useState(false)
   const [tutorialDone, setTutorialDone] = useState(false)
+  const [picked, setPicked] = useState(null)   // chosen difficulty (gates start)
   const inputRef = useRef(null)
   const recordedRef = useRef(false)  // guard so each game records only once
 
   const validMode = mode === 'GTN' || mode === 'BC'
 
   useEffect(() => {
-    if (!validMode) { navigate('/home'); return }
-    startGame({ mode, difficulty: 'medium', range: 1000 })
+    if (!validMode) navigate('/home')   // start is deferred until difficulty is picked
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function choose(difficulty) {
+    setPicked(difficulty)
+    const range = mode === 'GTN' ? { easy: 100, medium: 1000, hard: 10000 }[difficulty] : undefined
+    startGame({ mode, difficulty, range })
+  }
 
   useEffect(() => {
     if (state.phase === 'PLAYING') {
@@ -44,13 +52,19 @@ export default function GamePage() {
     }
   }, [state.phase])
 
-  // Record the finished game to the logged-in user's account (once per game)
+  // On game over: award badges (everyone) + record stats (registered only)
   useEffect(() => {
-    if (state.phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
+    if (state.phase === 'GAME_OVER' && !recordedRef.current) {
       recordedRef.current = true
-      api.post('/game/record', { mode, won: !!state.won })
-        .then(d => { if (d.user) updateUser(d.user) })
-        .catch(() => {})
+      const won = !!state.won
+      const optimal = mode === 'GTN' && won && state.lastResult?.optimalMoves != null
+        && state.attempts <= state.lastResult.optimalMoves
+      recordGameForBadges({ mode, won, optimal, gtnRange1000Win: mode === 'GTN' && won })
+      if (isRegistered) {
+        api.post('/game/record', { mode, won })
+          .then(d => { if (d.user) updateUser(d.user) })
+          .catch(() => {})
+      }
     }
   }, [state.phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -113,7 +127,16 @@ export default function GamePage() {
   if (state.phase === 'IDLE') {
     return (
       <div className="screen">
-        <div className={styles.loading}>Loading…</div>
+        <div className={`panel ${styles.gamePage}`}>
+          <div className={styles.header}>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
+            <span className={`badge badge-juice`}>{MODE_LABELS[mode]}</span>
+            <span />
+          </div>
+          {picked
+            ? <div className={styles.loading}>Loading…</div>
+            : <DifficultyPicker mode={mode} onSelect={choose} />}
+        </div>
       </div>
     )
   }
@@ -169,7 +192,7 @@ export default function GamePage() {
               type={mode === 'GTN' ? 'number' : 'text'}
               inputMode="numeric"
               pattern={mode === 'GTN' ? '[0-9]*' : '[0-9]{6}'}
-              maxLength={mode === 'GTN' ? 4 : 6}
+              maxLength={mode === 'GTN' ? String(state.range).length : 6}
               value={inputValue}
               onChange={e => { setInputValue(e.target.value); setInputError('') }}
               placeholder={placeholder}
@@ -194,7 +217,7 @@ export default function GamePage() {
             secret={state.lastResult?.secret}
             optimalMoves={state.lastResult?.optimalMoves}
             mode={mode}
-            onPlayAgain={() => startGame({ mode, difficulty: 'medium', range: state.range })}
+            onPlayAgain={() => startGame({ mode, difficulty: state.difficulty, range: state.range })}
             onHome={() => navigate('/home')}
           />
         )}

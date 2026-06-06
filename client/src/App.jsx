@@ -7,6 +7,8 @@ import { RoomProvider }      from './contexts/RoomContext.jsx'
 import { AuthProvider }      from './contexts/AuthContext.jsx'
 import GDPRBanner            from './components/GDPRBanner.jsx'
 import PWAInstallBanner      from './components/PWAInstallBanner.jsx'
+import BadgeToast            from './components/BadgeToast.jsx'
+import ErrorBoundary         from './components/ErrorBoundary.jsx'
 import { initAnalytics }     from './services/analytics.js'
 import { SkipLink, useColorblindMode } from './components/AppShell.jsx'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js'
@@ -40,6 +42,7 @@ const NumberTowersPage    = lazy(() => import('./pages/NumberTowersPage.jsx'))
 const SettingsPage        = lazy(() => import('./pages/SettingsPage.jsx'))
 const XoxAiPage           = lazy(() => import('./pages/XoxAiPage.jsx'))
 const MathBattleAiPage    = lazy(() => import('./pages/MathBattleAiPage.jsx'))
+const NotFoundPage        = lazy(() => import('./pages/NotFoundPage.jsx'))
 
 function PageFallback() {
   return (
@@ -88,12 +91,14 @@ function AppInner() {
           <Route path="/friends"            element={<FriendsPage />} />
           <Route path="/settings"           element={<SettingsPage />} />
           <Route path="/admin"              element={<AdminPage />} />
+          <Route path="*"                   element={<NotFoundPage />} />
         </Routes>
       </Suspense>
 
       {/* Global overlays — stay across all routes */}
       <GDPRBanner />
       <PWAInstallBanner />
+      <BadgeToast />
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </>
   )
@@ -111,7 +116,9 @@ export default function App() {
           <GameProvider>
             <SocketProvider>
               <RoomProvider>
-                <AppInner />
+                <ErrorBoundary>
+                  <AppInner />
+                </ErrorBoundary>
               </RoomProvider>
             </SocketProvider>
           </GameProvider>

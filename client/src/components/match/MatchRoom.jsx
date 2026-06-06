@@ -5,6 +5,7 @@ import { usePlayer } from '../../contexts/PlayerContext.jsx'
 import { useSocket } from '../../contexts/SocketContext.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { api } from '../../services/api.js'
+import { recordGameForBadges } from '../../services/badges.js'
 import SkullMascot from '../skull/SkullMascot.jsx'
 import GameOverCard from '../game/GameOverCard.jsx'
 import RematchPrompt from '../game/RematchPrompt.jsx'
@@ -14,6 +15,7 @@ import ChatPanel from '../game/ChatPanel.jsx'
 import EmojiPicker from '../game/EmojiPicker.jsx'
 import RoomSocialCluster from '../game/RoomSocialCluster.jsx'
 import RoomToasts from '../game/RoomToasts.jsx'
+import MultiplayerTutorial from '../tutorial/MultiplayerTutorial.jsx'
 import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
@@ -119,18 +121,23 @@ export default function MatchRoom({ roomId, mode }) {
     return () => clearTimeout(t)
   }, [connected])
 
-  // Record the result once, on the real PLAYING → GAME_OVER transition.
+  // On the real PLAYING → GAME_OVER transition: badges (everyone) + stats
+  // (registered). The monthly leaderboard is recorded server-side at match-end.
   const recordedRef = useRef(false)
   const prevPhaseRef = useRef(phase)
   useEffect(() => {
     const prev = prevPhaseRef.current
     prevPhaseRef.current = phase
     if (phase === 'PLAYING') recordedRef.current = false
-    if (prev === 'PLAYING' && phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
+    if (prev === 'PLAYING' && phase === 'GAME_OVER' && !recordedRef.current) {
       recordedRef.current = true
-      api.post('/game/record', { mode, won: state.won === true })
-        .then(d => { if (d.user) updateUser(d.user) })
-        .catch(() => {})
+      const won = state.won === true
+      recordGameForBadges({ mode, won, multiplayer: true, gtnRange1000Win: mode === 'GTN' && won })
+      if (isRegistered) {
+        api.post('/game/record', { mode, won })
+          .then(d => { if (d.user) updateUser(d.user) })
+          .catch(() => {})
+      }
     }
   }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -206,6 +213,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   return (
     <div className="screen">
+      <MultiplayerTutorial variant="match" />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…

@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import RoastReportCard from '../components/engagement/RoastReportCard.jsx'
+import { ErrorState } from '../components/States.jsx'
 import styles from './DailyChallengePage.module.css'
 
 const STORAGE_KEY = 'ns_daily_done'
@@ -19,16 +20,20 @@ export default function DailyChallengePage() {
   const [report, setReport] = useState(null)
   const [alreadyDone, setAlreadyDone] = useState(false)
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState(false)
   const startRef = useRef(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoadError(false)
     api.get('/daily').then(data => {
       setChallenge(data)
       const done = localStorage.getItem(`${STORAGE_KEY}_${data.date}`)
       if (done) setAlreadyDone(true)
       else startRef.current = Date.now()
-    })
+    }).catch(() => setLoadError(true))
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   async function handleGuess(e) {
     e.preventDefault()
@@ -71,6 +76,17 @@ export default function DailyChallengePage() {
 
   async function fetchSecret(date) {
     return null
+  }
+
+  if (loadError) {
+    return (
+      <div className="screen">
+        <div className={`panel ${styles.page}`}>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
+          <ErrorState message="Couldn't load today's challenge." onRetry={load} />
+        </div>
+      </div>
+    )
   }
 
   if (!challenge) {

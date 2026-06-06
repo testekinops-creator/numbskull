@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
 import { SkeletonBadgeGrid } from '../components/Skeleton.jsx'
+import { ErrorState } from '../components/States.jsx'
 import styles from './BadgesPage.module.css'
 
 const EARNED_KEY = 'ns_badges_earned'
@@ -10,13 +11,20 @@ export default function BadgesPage() {
   const navigate = useNavigate()
   const [badges, setBadges] = useState([])
   const [loadingBadges, setLoadingBadges] = useState(true)
-  const [earned, setEarned] = useState(() => {
+  const [loadError, setLoadError] = useState(false)
+  const [earned] = useState(() => {
     try { return JSON.parse(localStorage.getItem(EARNED_KEY) || '[]') } catch { return [] }
   })
 
-  useEffect(() => {
-    api.get('/badges').then(data => setBadges(data.badges)).finally(() => setLoadingBadges(false))
+  const load = useCallback(() => {
+    setLoadingBadges(true); setLoadError(false)
+    api.get('/badges')
+      .then(data => setBadges(data.badges || []))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoadingBadges(false))
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   const earnedSet = new Set(earned)
   const earnedCount = badges.filter(b => earnedSet.has(b.slug)).length
@@ -31,8 +39,11 @@ export default function BadgesPage() {
         </div>
 
         {loadingBadges && <SkeletonBadgeGrid />}
+        {loadError && !loadingBadges && (
+          <ErrorState message="Couldn't load badges." onRetry={load} />
+        )}
         <div className={styles.grid}>
-          {badges.map(b => {
+          {!loadError && badges.map(b => {
             const unlocked = earnedSet.has(b.slug)
             return (
               <div key={b.slug} className={`${styles.badge} ${unlocked ? styles.unlocked : styles.locked}`} title={b.description}>

@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
+import CountUp from 'react-countup'
 import styles from './GameOverCard.module.css'
 import SkullMascot from '../skull/SkullMascot.jsx'
+import { celebrateWin } from '../../utils/celebrate.js'
 
 export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores, roast }) {
   const efficiency = optimalMoves && attempts
@@ -10,11 +12,13 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
   const isWin  = won && !draw
   const showGuessCount = (mode === 'GTN' || mode === 'BC') && attempts != null
 
+  // Fire the confetti cannons once on a win (reduce-motion aware).
+  useEffect(() => { if (isWin) celebrateWin() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className={`${styles.card} ${draw ? styles.loseCard : isWin ? styles.winCard : styles.loseCard} ${!isWin && !draw ? 'anim-screen-shake' : ''}`}>
 
-      {/* Confetti particles — win only */}
-      {isWin && <Confetti />}
+      {/* Win confetti is fired imperatively via canvas-confetti (see effect). */}
 
       {/* Skull with animation */}
       <div className={`${styles.skullWrap} ${isWin ? styles.skullWin : styles.skullLose}`}>
@@ -79,10 +83,10 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
                   {isWinner ? ' 👑' : ''}
                 </span>
                 <span
-                  className={`${styles.scoreVal} anim-count`}
+                  className={styles.scoreVal}
                   style={{ color: isWinner ? 'var(--color-juice)' : 'var(--color-text-secondary)' }}
                 >
-                  {p.score}
+                  <CountUp end={p.score} duration={0.9} />
                 </span>
               </div>
             )
@@ -109,7 +113,9 @@ function StatBox({ label, value, highlight, accent }) {
   return (
     <div className={`${styles.statBox} ${highlight ? styles.statHighlight : ''} ${accent ? styles.statAccent : ''}`}>
       <span className={styles.statLabel}>{label}</span>
-      <span className={styles.statValue}>{value}</span>
+      <span className={styles.statValue}>
+        {typeof value === 'number' ? <CountUp end={value} duration={0.8} /> : value}
+      </span>
     </div>
   )
 }

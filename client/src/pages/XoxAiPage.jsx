@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
+import { recordGameForBadges } from '../services/badges.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
@@ -84,13 +85,17 @@ export default function XoxAiPage() {
     finally { setBusy(false) }
   }
 
-  // Record the finished game to a logged-in user's account (once).
+  // On game over: badges (everyone) + stats (registered only)
   useEffect(() => {
-    if (phase === 'GAME_OVER' && isRegistered && !recordedRef.current) {
+    if (phase === 'GAME_OVER' && !recordedRef.current) {
       recordedRef.current = true
-      api.post('/game/record', { mode: 'XOX', won: won && !draw })
-        .then(d => { if (d.user) updateUser(d.user) })
-        .catch(() => {})
+      const w = won && !draw
+      recordGameForBadges({ mode: 'XOX', won: w })
+      if (isRegistered) {
+        api.post('/game/record', { mode: 'XOX', won: w })
+          .then(d => { if (d.user) updateUser(d.user) })
+          .catch(() => {})
+      }
     }
   }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
 

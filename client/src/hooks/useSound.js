@@ -4,11 +4,24 @@ const MUSICAL_NOTES = [
   261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, // C4..C5
 ]
 
-const SOUND_KEY = 'ns_sound_enabled'
+const VOLUME_KEY = 'ns_sound_volume'  // 0–100
 
-function isSoundEnabled() {
-  const v = localStorage.getItem(SOUND_KEY)
-  return v === null ? true : v === 'true'
+// Master volume as 0–1. Falls back to the legacy on/off toggle if no volume set.
+function getVolume() {
+  const raw = localStorage.getItem(VOLUME_KEY)
+  if (raw !== null) {
+    const n = parseInt(raw, 10)
+    return isNaN(n) ? 0.8 : Math.max(0, Math.min(1, n / 100))
+  }
+  return localStorage.getItem('ns_sound_enabled') === 'false' ? 0 : 0.8
+}
+
+function isSoundEnabled() { return getVolume() > 0 }
+
+// Apply a new volume (0–100) to the live audio graph immediately.
+export function setSoundVolume(v) {
+  const g = Math.max(0, Math.min(1, (Number(v) || 0) / 100))
+  if (masterGain) masterGain.gain.value = g
 }
 
 // ── Single shared AudioContext, unlocked on the first user gesture ──────────
@@ -16,6 +29,7 @@ function isSoundEnabled() {
 // tones from async callbacks (after the server responds), we MUST prime the
 // context up-front on the first tap/key/touch, then reuse it.
 let audioCtx = null
+let masterGain = null
 let unlocked = false
 
 function ensureCtx() {
@@ -23,6 +37,9 @@ function ensureCtx() {
     const AC = window.AudioContext || window.webkitAudioContext
     if (!AC) return null
     audioCtx = new AC()
+    masterGain = audioCtx.createGain()
+    masterGain.gain.value = getVolume()
+    masterGain.connect(audioCtx.destination)
   }
   return audioCtx
 }
@@ -69,7 +86,7 @@ function tone(ctx, freq, startOffset = 0, dur = 0.4, type = 'sine', vol = 0.25) 
   gain.gain.setValueAtTime(vol, t)
   gain.gain.exponentialRampToValueAtTime(0.001, t + dur)
   osc.connect(gain)
-  gain.connect(ctx.destination)
+  gain.connect(masterGain || ctx.destination)
   osc.start(t)
   osc.stop(t + dur)
 }

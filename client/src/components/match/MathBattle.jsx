@@ -1,3 +1,4 @@
+import CountUp from 'react-countup'
 import styles from './MathBattle.module.css'
 
 // Pure presentational Math Battle view. Both the AI page and the multiplayer
@@ -22,7 +23,7 @@ export default function MathBattle({
       <div className={styles.hud}>
         <div className={`${styles.scoreChip} ${styles.me}`}>
           <span className={styles.scoreLabel}>{solo ? 'Correct' : 'You'}</span>
-          <span key={myScore} className={`${styles.scoreVal} anim-count`}>{myScore}</span>
+          <span className={styles.scoreVal}><CountUp end={myScore} duration={0.5} preserveValue /></span>
         </div>
         <div className={styles.qCount}>Q {Math.min(index + 1, total)} / {total}</div>
         {solo ? (
@@ -30,7 +31,7 @@ export default function MathBattle({
         ) : (
           <div className={`${styles.scoreChip} ${styles.opp}`}>
             <span className={styles.scoreLabel}>{oppName}</span>
-            <span key={oppScore} className={`${styles.scoreVal} anim-count`}>{oppScore}</span>
+            <span className={styles.scoreVal}><CountUp end={oppScore} duration={0.5} preserveValue /></span>
           </div>
         )}
       </div>

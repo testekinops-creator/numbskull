@@ -1,39 +1,44 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
 import { SkeletonLeaderboard } from '../components/Skeleton.jsx'
 import styles from './LeaderboardPage.module.css'
 
-const TABS = [
-  { id: 'gtn_alltime', label: '🎯 GTN All-Time' },
-  { id: 'bc_alltime',  label: '🐂 B&C All-Time' },
-  { id: 'gtn_weekly',  label: '📅 GTN Weekly' },
-  { id: 'bc_weekly',   label: '📅 B&C Weekly' },
-  { id: 'daily',       label: '☀️ Today' },
-]
+function monthName(period) {
+  if (!period) return ''
+  const [y, m] = period.split('-')
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' })
+}
 
+function medal(i) {
+  return i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1
+}
+
+// Monthly MULTIPLAYER leaderboard — ranked by wins this calendar month.
 export default function LeaderboardPage() {
   const navigate = useNavigate()
-  const { type: paramType } = useParams()
   const { playerId } = usePlayer()
-  const [tab, setTab] = useState(paramType || 'gtn_alltime')
+  const { user } = useAuth()
+  const myId = user?.id || playerId
+
+  const [period, setPeriod] = useState('')
   const [entries, setEntries] = useState([])
   const [myRank, setMyRank] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
-    const params = tab === 'daily' ? `?date=${new Date().toISOString().slice(0,10)}` : ''
-    api.get(`/leaderboard/${tab}${params}`)
-      .then(data => setEntries(data.entries))
+    api.get('/leaderboard')
+      .then(data => { setEntries(data.entries || []); setPeriod(data.period) })
       .catch(() => setEntries([]))
       .finally(() => setLoading(false))
 
-    api.get(`/leaderboard/${tab}/rank/${playerId}`)
+    api.get(`/leaderboard/rank/${encodeURIComponent(myId)}`)
       .then(data => setMyRank(data.rank))
       .catch(() => setMyRank(null))
-  }, [tab, playerId])
+  }, [myId])
 
   return (
     <div className="screen">
@@ -41,31 +46,28 @@ export default function LeaderboardPage() {
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
           <h1 className={styles.title}>Leaderboard</h1>
-          {myRank && <span className={`badge badge-juice`}>#{myRank}</span>}
+          {myRank && <span className="badge badge-juice">#{myRank}</span>}
         </div>
 
-        <div className={styles.tabs}>
-          {TABS.map(t => (
-            <button key={t.id} className={`${styles.tab} ${tab === t.id ? styles.active : ''}`} onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
+        <div className={styles.sub}>
+          <span className={styles.month}>🏆 {monthName(period)} · Multiplayer wins</span>
+          <span className={styles.reset}>Resets at month end</span>
         </div>
 
         {loading && <SkeletonLeaderboard />}
 
         {!loading && entries.length === 0 && (
-          <p className={styles.empty}>No scores yet. Be the first.</p>
+          <p className={styles.empty}>No multiplayer games yet this month. Win one to claim the top spot.</p>
         )}
 
         {!loading && entries.length > 0 && (
           <ol className={styles.list}>
             {entries.map((e, i) => (
-              <li key={e.playerId} className={`${styles.entry} ${e.playerId === playerId ? styles.me : ''}`}>
-                <span className={styles.rank}>{i + 1}</span>
-                <span className={styles.name}>{e.playerName}</span>
-                <span className={styles.score}>{e.score.toLocaleString()}</span>
-                <span className={styles.attempts}>{e.attempts} guesses</span>
+              <li key={e.entrantId} className={`${styles.entry} ${e.entrantId === myId ? styles.me : ''}`}>
+                <span className={styles.rank}>{medal(i)}</span>
+                <span className={styles.name}>{e.name}</span>
+                <span className={styles.score}>{e.wins} {e.wins === 1 ? 'win' : 'wins'}</span>
+                <span className={styles.attempts}>{e.games} games</span>
               </li>
             ))}
           </ol>
