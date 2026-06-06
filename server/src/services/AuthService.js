@@ -29,17 +29,46 @@ export const AuthService = {
       const err = new Error('Username already taken'); err.code = 'USERNAME_EXISTS'; err.status = 409; throw err
     }
 
+    // Carry over guest progress only if that guestId isn't already linked to an
+    // account. The client sends its persistent guest id on every signup, so a
+    // guest who already registered once (or creates a 2nd account in the same
+    // browser) reuses the same id — linking it again would trip the @unique
+    // constraint and fail the whole signup. In that case we just skip the link.
+    let linkGuestId = null
+    if (guestId) {
+      const claimed = await prisma.user.findUnique({ where: { guestId } })
+      if (!claimed) linkGuestId = guestId
+    }
+
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        username,
-        passwordHash,
-        role: 'user',
-        guestId: guestId || null,
-      },
-    })
-    return this._tokenPair(user)
+    try {
+      const user = await prisma.user.create({
+        data: {
+          email: email.toLowerCase(),
+          username,
+          passwordHash,
+          role: 'user',
+          guestId: linkGuestId,
+        },
+      })
+      return this._tokenPair(user)
+    } catch (err) {
+      // Defensive: a concurrent signup could still trip a unique constraint.
+      if (err.code === 'P2002') {
+        const field = Array.isArray(err.meta?.target) ? err.meta.target[0] : String(err.meta?.target || '')
+        if (field.includes('guestId')) {
+          // The only clash is the guest link — retry the signup without it.
+          const user = await prisma.user.create({
+            data: { email: email.toLowerCase(), username, passwordHash, role: 'user', guestId: null },
+          })
+          return this._tokenPair(user)
+        }
+        const isEmail = field.includes('email')
+        const e = new Error(isEmail ? 'Email already registered' : 'Username already taken')
+        e.code = isEmail ? 'EMAIL_EXISTS' : 'USERNAME_EXISTS'; e.status = 409; throw e
+      }
+      throw err
+    }
   },
 
   async login({ email, password }) {
