@@ -1,9 +1,15 @@
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../utils/logger.js'
+import { getRedis } from '../config/redis.js'
 
 const ROOM_TTL_MS = 10 * 60 * 1000
+const REDIS_TTL_S = Math.floor(ROOM_TTL_MS / 1000)
 const MAX_ROOMS = 5000
 const ROOM_CODE_LEN = 6
+
+const ROOMS_SET = 'ns:rooms'
+const roomKey = (id) => `ns:room:${id}`
+const codeKey = (c)  => `ns:code:${c}`
 
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -20,6 +26,49 @@ export class RoomManager {
     this._byCode = new Map()
     this._locks = new Map()
     setInterval(() => this._evict(), 60_000)
+    this._loadFromRedis()  // no-op unless REDIS_URL is set
+  }
+
+  // ── Redis mirror (best-effort; survives restarts when REDIS_URL is set) ────
+  _persist(room) {
+    const r = getRedis()
+    if (!r || !room) return
+    const json = JSON.stringify(room)
+    r.multi()
+      .set(roomKey(room.id), json, 'EX', REDIS_TTL_S)
+      .set(codeKey(room.code), room.id, 'EX', REDIS_TTL_S)
+      .sadd(ROOMS_SET, room.id)
+      .exec()
+      .catch(e => logger.warn({ err: e.message }, 'room persist failed'))
+  }
+
+  _unpersist(room) {
+    const r = getRedis()
+    if (!r || !room) return
+    r.multi()
+      .del(roomKey(room.id))
+      .del(codeKey(room.code))
+      .srem(ROOMS_SET, room.id)
+      .exec()
+      .catch(() => {})
+  }
+
+  async _loadFromRedis() {
+    const r = getRedis()
+    if (!r) return
+    try {
+      const ids = await r.smembers(ROOMS_SET)
+      for (const id of ids) {
+        const json = await r.get(roomKey(id))
+        if (!json) { r.srem(ROOMS_SET, id).catch(() => {}); continue }
+        const room = JSON.parse(json)
+        this._rooms.set(room.id, room)
+        this._byCode.set(room.code, room.id)
+      }
+      if (this._rooms.size) logger.info({ count: this._rooms.size }, 'Rooms restored from Redis')
+    } catch (e) {
+      logger.warn({ err: e.message }, 'room reload failed')
+    }
   }
 
   // ── Locking (simple async mutex per room) ─────────────────────────────────
@@ -56,6 +105,7 @@ export class RoomManager {
 
     this._rooms.set(room.id, room)
     this._byCode.set(code, room.id)
+    this._persist(room)
     logger.debug({ roomId: room.id, code }, 'Room created')
     return room
   }
@@ -74,6 +124,7 @@ export class RoomManager {
       if (!room) return null
       fn(room)
       room.updatedAt = Date.now()
+      this._persist(room)
       return room
     } finally {
       this._unlock(roomId)
@@ -85,6 +136,7 @@ export class RoomManager {
     if (room) {
       this._byCode.delete(room.code)
       this._rooms.delete(roomId)
+      this._unpersist(room)
     }
   }
 
@@ -101,6 +153,7 @@ export class RoomManager {
       if (now - room.updatedAt > ROOM_TTL_MS) {
         this._byCode.delete(room.code)
         this._rooms.delete(id)
+        this._unpersist(room)
         logger.debug({ roomId: id }, 'Room evicted (TTL)')
       }
     }

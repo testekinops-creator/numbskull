@@ -24,22 +24,23 @@ export function registerRoomHandlers(io, socket) {
   // ── Join by code ──────────────────────────────────────────────────────────
   socket.on('room:join', async ({ code } = {}, ack) => {
     try {
-      const room = await roomManager.getByCode(code)
+      if (typeof code !== 'string' || !code.trim()) {
+        return ack?.({ ok: false, error: 'Enter a room code' })
+      }
+      const room = await roomManager.getByCode(code.trim())
       if (!room) return ack?.({ ok: false, error: 'Room not found' })
-      if (room.players.length >= 2 && !room.players.find(p => p.id === playerId)) {
-        return ack?.({ ok: false, error: 'Room is full' })
-      }
-      if (room.phase !== 'LOBBY' && !room.players.find(p => p.id === playerId)) {
-        return ack?.({ ok: false, error: 'Game already in progress' })
-      }
 
-      const alreadyIn = room.players.find(p => p.id === playerId)
-      if (!alreadyIn) {
-        await roomManager.update(room.id, r => {
-          r.players.push({ id: playerId, name: playerName, ready: false, score: 0 })
-          if (r.players.length === 2) r.phase = 'SETUP'
-        })
-      }
+      // Validate AND mutate under the room lock so two simultaneous joins can't
+      // both pass the capacity check and overfill the room (was a 3-player race).
+      let joinError = null
+      await roomManager.update(room.id, r => {
+        if (r.players.find(p => p.id === playerId)) return   // idempotent re-join
+        if (r.players.length >= 2) { joinError = 'Room is full'; return }
+        if (r.phase !== 'LOBBY')   { joinError = 'Game already in progress'; return }
+        r.players.push({ id: playerId, name: playerName, ready: false, score: 0 })
+        if (r.players.length === 2) r.phase = 'SETUP'
+      })
+      if (joinError) return ack?.({ ok: false, error: joinError })
 
       socket.join(room.id)
       const updated = await roomManager.get(room.id)
@@ -53,6 +54,8 @@ export function registerRoomHandlers(io, socket) {
   // ── Quick match ───────────────────────────────────────────────────────────
   socket.on('room:quickmatch', async ({ mode = 'GTN', difficulty = 'medium' } = {}, ack) => {
     try {
+      // Remove stale (disconnected) entries before pairing.
+      quickMatch.prune(pid => !!_findSocket(io, pid))
       const result = await quickMatch.enqueue(playerId, playerName, mode, difficulty)
       if (result.matched) {
         const room = result.room

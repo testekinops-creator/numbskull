@@ -1,10 +1,13 @@
 import { Server } from 'socket.io'
+import { createAdapter } from '@socket.io/redis-adapter'
 import { logger } from '../utils/logger.js'
+import { redisEnabled, getRedisPubSub } from '../config/redis.js'
 import { registerRoomHandlers } from './roomHandlers.js'
 import { registerGameHandlers } from './gameHandlers.js'
 import { registerMatchHandlers } from './matchHandlers.js'
 import { registerChatHandlers } from './chatHandlers.js'
 import { registerCallHandlers } from './callHandlers.js'
+import { registerFriendHandlers } from './friendHandlers.js'
 import { socketRateLimit } from '../middleware/socketRateLimit.js'
 
 const socketPlayerMap = new Map()
@@ -26,6 +29,17 @@ export function setupSocket(httpServer) {
       credentials: true,
     },
   })
+
+  // Multi-instance event fan-out (only when REDIS_URL is configured)
+  if (redisEnabled) {
+    try {
+      const { pub, sub } = getRedisPubSub()
+      io.adapter(createAdapter(pub, sub))
+      logger.info('Socket.IO Redis adapter enabled')
+    } catch (e) {
+      logger.warn({ err: e.message }, 'Failed to enable Redis adapter — continuing single-instance')
+    }
+  }
 
   io.on('connection', (socket) => {
     logger.debug({ socketId: socket.id }, 'Client connected')
@@ -49,6 +63,7 @@ export function setupSocket(httpServer) {
     registerMatchHandlers(io, socket)
     registerChatHandlers(io, socket)
     registerCallHandlers(io, socket)
+    registerFriendHandlers(io, socket)
 
     socket.on('disconnect', (reason) => {
       if (playerId && socketPlayerMap.get(playerId) === socket.id) {

@@ -38,6 +38,12 @@ export class QuickMatchQueue {
     if (idx !== -1) this._queue.splice(idx, 1)
   }
 
+  // Drop entries whose player is no longer connected (closed-tab ghosts), so
+  // nobody "matches" with someone who has left the queue.
+  prune(isAlive) {
+    this._queue = this._queue.filter(e => isAlive(e.playerId))
+  }
+
   get size() { return this._queue.length }
 }
 

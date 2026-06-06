@@ -25,6 +25,8 @@ const EVENT_LIMITS = {
   'call:ice':              { max: 400, windowMs: 30_000 },
   'call:end':              { max: 20,  windowMs: 30_000 },
   'call:decline':          { max: 10,  windowMs: 30_000 },
+  'friend:request':        { max: 10,  windowMs: 30_000 },
+  'friend:accept':         { max: 10,  windowMs: 30_000 },
 }
 
 const counters = new Map()

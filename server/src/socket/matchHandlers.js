@@ -161,9 +161,9 @@ export function registerMatchHandlers(io, socket) {
       await roomManager.update(roomId, r => {
         const mm = r.match
         if (mm.resolved || index !== mm.index) return
-        const res = mm.engine.check(index, choice)
-        correct = res.correct
-        answer  = res.answer
+        const q = mm.questions[index]
+        correct = Number(choice) === q.answer
+        answer  = q.answer
         // correct = +1 to answerer; wrong = −1 to answerer AND +1 to opponent.
         const oppId = r.players.find(p => p.id !== playerId)?.id
         if (correct) {
@@ -246,7 +246,7 @@ export function registerMatchHandlers(io, socket) {
         return ack?.({ ok: false, error: 'Cell is being edited' })
       }
 
-      const correct = m.engine.isCorrect(index, val)
+      const correct = m.solution[index] === val
       let over = false
       await roomManager.update(roomId, r => {
         const mm = r.match
@@ -358,18 +358,22 @@ async function _startMatch(io, roomId) {
   }
   if (room.mode === 'MATH') {
     const [a, b] = room.players
+    // Generate with the engine, then store PLAIN data (questions incl. answers)
+    // so the room is fully JSON-serialisable (for Redis persistence).
     const engine = new MathBattleEngine({ difficulty: room.difficulty || 'medium', count: 20 })
+    const questions = engine.questions
+    const total = engine.total
     await roomManager.update(roomId, r => {
       r.phase = 'PLAYING'
       r.winnerId = null
       r.match = {
         kind:     'MATH',
-        engine,                       // server-side only; never serialised
+        questions,                    // [{ prompt, options, answer }] — server-only answers
         index:    0,
-        total:    engine.total,
+        total,
         scores:   { [a.id]: 0, [b.id]: 0 },
         resolved: false,
-        question: engine.publicQuestion(0),
+        question: _publicQuestion(questions, 0, total),
       }
     })
   }
@@ -384,7 +388,7 @@ async function _startMatch(io, roomId) {
       r.winnerId = null
       r.match = {
         kind:       'SUDOKU',
-        engine,                              // server-only (holds the solution)
+        solution:   engine.solution,         // server-only; never sent to clients
         grid:       [...engine.puzzle],
         given,
         status,
@@ -409,6 +413,13 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
 }
 
+// Build a client-safe question (no answer) from the stored questions array.
+function _publicQuestion(questions, i, total) {
+  const q = questions[i]
+  if (!q) return null
+  return { index: i, prompt: q.prompt, options: q.options, total }
+}
+
 // Advance Math Battle to the next question (after a brief reveal pause), or end.
 async function _advanceMath(io, roomId) {
   _clearMathTimer(roomId)
@@ -422,7 +433,7 @@ async function _advanceMath(io, roomId) {
     mm.index++
     mm.resolved = false
     if (mm.index >= mm.total) over = true
-    else mm.question = mm.engine.publicQuestion(mm.index)
+    else mm.question = _publicQuestion(mm.questions, mm.index, mm.total)
   })
 
   const updated = await roomManager.get(roomId)
@@ -450,7 +461,7 @@ function _startQuestionTimer(io, roomId) {
     if (!room || room.mode !== 'MATH' || room.phase !== 'PLAYING') return
     const m = room.match
     if (!m || m.resolved) return
-    const answer = m.engine.questions[m.index]?.answer
+    const answer = m.questions[m.index]?.answer
     await roomManager.update(roomId, r => { r.match.resolved = true })
     io.to(roomId).emit('math:resolved', {
       index: m.index, byPlayerId: null, correct: false, answer, timeout: true,
