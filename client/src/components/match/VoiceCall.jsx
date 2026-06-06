@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useVoiceCall } from '../../hooks/useVoiceCall.js'
 import styles from './VoiceCall.module.css'
 
@@ -36,8 +37,9 @@ export default function VoiceCall({ roomId, opponentName }) {
         </div>
       )}
 
-      {/* Incoming call overlay */}
-      {callState === 'incoming' && (
+      {/* Incoming call overlay — portaled to <body> so no transformed ancestor
+          can contain its position:fixed and clip the Accept/Decline buttons. */}
+      {callState === 'incoming' && createPortal(
         <div className={styles.overlay} role="dialog" aria-label="Incoming call">
           <div className={`${styles.card} anim-bounce-land`}>
             <div className={styles.ring}>📞</div>
@@ -48,7 +50,8 @@ export default function VoiceCall({ roomId, opponentName }) {
               <button className={`${styles.action} ${styles.decline}`} onClick={declineCall}>Decline</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {error && callState === 'idle' && <span className={styles.err} role="status">{error}</span>}
