@@ -14,6 +14,7 @@ import ChatPanel from '../game/ChatPanel.jsx'
 import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
+import VoiceCall from './VoiceCall.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { getModeRoast } from '../../utils/roasts.js'
@@ -379,7 +380,7 @@ export default function MatchRoom({ roomId, mode }) {
 
       <EmojiBurst trigger={state.lastEmoji} />
 
-      {/* Chat / emoji bar */}
+      {/* Chat / emoji / voice bar */}
       {opponent && (
         <div className={roomStyles.chatBar}>
           <div className={roomStyles.emojiRow}>
@@ -389,6 +390,7 @@ export default function MatchRoom({ roomId, mode }) {
               </button>
             ))}
           </div>
+          <VoiceCall roomId={roomId} opponentName={opponent?.name} />
           <button className={roomStyles.chatToggle} onClick={openChat} aria-label="Open chat">
             💬
             {state.unreadChat > 0 && <span className={roomStyles.unreadDot}>{state.unreadChat}</span>}

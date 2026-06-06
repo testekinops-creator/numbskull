@@ -4,6 +4,7 @@ import { registerRoomHandlers } from './roomHandlers.js'
 import { registerGameHandlers } from './gameHandlers.js'
 import { registerMatchHandlers } from './matchHandlers.js'
 import { registerChatHandlers } from './chatHandlers.js'
+import { registerCallHandlers } from './callHandlers.js'
 import { socketRateLimit } from '../middleware/socketRateLimit.js'
 
 const socketPlayerMap = new Map()
@@ -47,6 +48,7 @@ export function setupSocket(httpServer) {
     registerGameHandlers(io, socket)
     registerMatchHandlers(io, socket)
     registerChatHandlers(io, socket)
+    registerCallHandlers(io, socket)
 
     socket.on('disconnect', (reason) => {
       if (playerId && socketPlayerMap.get(playerId) === socket.id) {

@@ -36,11 +36,13 @@ export function registerChatHandlers(io, socket) {
   })
 
   // ── Emoji burst ──────────────────────────────────────────────────────────
+  // Reactions appear ONLY on the opponent's screen — broadcast to the room
+  // except the sender (socket.to, not io.to).
   socket.on('chat:emoji', async ({ roomId, emoji } = {}, ack) => {
     try {
       if (!roomId || !ALLOWED_EMOJI.has(emoji)) return ack?.({ ok: false })
       socket.join(roomId)
-      io.to(roomId).emit('chat:emoji', {
+      socket.to(roomId).emit('chat:emoji', {
         fromPlayerId: playerId,
         emoji,
         ts: Date.now(),

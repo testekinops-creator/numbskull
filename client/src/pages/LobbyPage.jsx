@@ -37,7 +37,8 @@ export default function LobbyPage() {
 
   // Sudoku is multiplayer-only and lets the host pick puzzle difficulty.
   const isSudoku = mode === 'SUDOKU'
-  const [topTab, setTopTab] = useState(isSudoku ? 'multi' : 'ai')  // ai | multi
+  // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
+  const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
   const [difficulty, setDifficulty] = useState('medium')
   const [joinCode, setJoinCode] = useState('')
@@ -111,16 +112,16 @@ export default function LobbyPage() {
         {!isSudoku && (
           <div className={styles.topTabs}>
             <button
-              className={`${styles.topTab} ${topTab === 'ai' ? styles.topTabActive : ''}`}
-              onClick={() => setTopTab('ai')}
-            >
-              {mode === 'MATH' ? '🧠 Solo' : '🤖 vs AI'}
-            </button>
-            <button
               className={`${styles.topTab} ${topTab === 'multi' ? styles.topTabActive : ''}`}
               onClick={() => setTopTab('multi')}
             >
               ⚡ Multiplayer
+            </button>
+            <button
+              className={`${styles.topTab} ${topTab === 'ai' ? styles.topTabActive : ''}`}
+              onClick={() => setTopTab('ai')}
+            >
+              {mode === 'MATH' ? '🧠 Solo' : '🤖 vs AI'}
             </button>
           </div>
         )}

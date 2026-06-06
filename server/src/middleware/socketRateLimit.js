@@ -19,6 +19,12 @@ const EVENT_LIMITS = {
   'sudoku:lock':           { max: 200, windowMs: 30_000 },
   'sudoku:unlock':         { max: 200, windowMs: 30_000 },
   'sudoku:clear':          { max: 100, windowMs: 30_000 },
+  // WebRTC voice-call signaling (ICE can be chatty)
+  'call:offer':            { max: 10,  windowMs: 30_000 },
+  'call:answer':           { max: 10,  windowMs: 30_000 },
+  'call:ice':              { max: 400, windowMs: 30_000 },
+  'call:end':              { max: 20,  windowMs: 30_000 },
+  'call:decline':          { max: 10,  windowMs: 30_000 },
 }
 
 const counters = new Map()

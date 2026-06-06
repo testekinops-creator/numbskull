@@ -338,14 +338,19 @@ async function _startMatch(io, roomId) {
 
   if (room.mode === 'XOX') {
     const [a, b] = room.players
+    // Alternate who is X (and therefore moves first) every game/rematch.
+    const seq = room.gameSeq || 0
+    const xId = seq % 2 === 0 ? a.id : b.id
+    const oId = seq % 2 === 0 ? b.id : a.id
     await roomManager.update(roomId, r => {
       r.phase = 'PLAYING'
       r.winnerId = null
+      r.gameSeq = seq + 1
       r.match = {
         kind:    'XOX',
         board:   Array(9).fill(null),
-        symbols: { [a.id]: 'X', [b.id]: 'O' }, // host is X and moves first
-        turnId:  a.id,
+        symbols: { [xId]: 'X', [oId]: 'O' },  // X moves first; swaps each game
+        turnId:  xId,
         winnerId: null,
         draw:    false,
       }

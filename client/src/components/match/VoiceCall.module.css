@@ -1,0 +1,102 @@
+.callBtn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface-2, #312A72);
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+
+.callBtn:hover { transform: translateY(-2px); }
+.callBtn:active { transform: scale(0.94); }
+
+.calling { background: color-mix(in srgb, var(--color-juice, #00f5ff) 30%, var(--color-surface-2, #312A72)); }
+.live    { background: color-mix(in srgb, var(--color-success, #00e676) 30%, var(--color-surface-2, #312A72)); }
+.muted   { background: color-mix(in srgb, var(--color-pink, #ff3e8a) 26%, var(--color-surface-2, #312A72)); }
+.end     { background: color-mix(in srgb, var(--color-pink, #ff3e8a) 40%, var(--color-surface-2, #312A72)); }
+
+.inCall { display: flex; gap: 8px; }
+
+.pulse {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--color-juice, #00f5ff);
+  animation: ringPulse 1.2s ease-out infinite;
+}
+
+@keyframes ringPulse {
+  0%   { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* Incoming overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(8, 6, 24, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4, 16px);
+}
+
+.card {
+  background: var(--color-surface, #26215C);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl, 20px);
+  padding: var(--space-6, 28px);
+  text-align: center;
+  max-width: 320px;
+  width: 100%;
+}
+
+.ring {
+  font-size: 2.6rem;
+  animation: shake 0.8s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes shake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+
+.callTitle { font-size: 1.2rem; font-weight: 800; margin: 10px 0 2px; }
+.callSub   { color: var(--color-text-muted, #6B638A); margin: 0 0 16px; }
+
+.actions { display: flex; gap: 10px; }
+
+.action {
+  flex: 1;
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #fff;
+}
+
+.accept  { background: var(--color-success, #00e676); color: #04210f; }
+.decline { background: var(--color-pink, #ff3e8a); }
+
+.err {
+  font-size: 0.72rem;
+  color: var(--color-pink, #ff3e8a);
+  align-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse, .ring { animation: none; }
+}

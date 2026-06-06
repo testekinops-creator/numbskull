@@ -12,6 +12,7 @@ import RematchPrompt from '../components/game/RematchPrompt.jsx'
 import TurnTimer from '../components/game/TurnTimer.jsx'
 import EmojiBurst from '../components/game/EmojiBurst.jsx'
 import ChatPanel from '../components/game/ChatPanel.jsx'
+import VoiceCall from '../components/match/VoiceCall.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getSkullExpression } from '../utils/personality.js'
@@ -504,6 +505,7 @@ function GuessRoom() {
               </button>
             ))}
           </div>
+          <VoiceCall roomId={roomId} opponentName={opponent?.name} />
           <button className={styles.chatToggle} onClick={openChat} aria-label="Open chat">
             💬
             {state.unreadChat > 0 && <span className={styles.unreadDot}>{state.unreadChat}</span>}

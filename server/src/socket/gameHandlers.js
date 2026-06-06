@@ -215,7 +215,9 @@ export function registerGameHandlers(io, socket) {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function _startRound(io, roomId, room) {
-  const firstPlayerId = room.players[Math.floor(Math.random() * 2)].id
+  // Alternate who guesses first every game/rematch (was random → could repeat).
+  const seq = room.gameSeq || 0
+  const firstPlayerId = room.players[seq % 2].id
 
   // Both GTN and BC: secrets are already set by players in game:ready
   // No auto-generation — each player manually chose what their opponent guesses
@@ -224,6 +226,7 @@ async function _startRound(io, roomId, room) {
     r.round.turnId = firstPlayerId
     r.round.timerStart = Date.now()
     r.phase = 'PLAYING'
+    r.gameSeq = seq + 1
   })
 
   const updated = await roomManager.get(roomId)
