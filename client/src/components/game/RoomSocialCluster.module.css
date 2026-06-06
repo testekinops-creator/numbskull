@@ -28,13 +28,14 @@
   border-radius: 50%;
   background: var(--color-surface-2);
   border: 1px solid rgba(0, 245, 255, 0.25);
-  font-size: 1.2rem;
+  color: var(--color-juice, #00f5ff);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: transform 0.12s var(--ease-spring), background 0.2s, box-shadow 0.2s;
 }
+.friendBtn svg, .friendDone svg { display: block; }
 .friendBtn:not(:disabled):hover {
   transform: translateY(-2px);
   background: var(--color-surface-3);
@@ -49,7 +50,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  color: var(--color-success, #00e676);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-success, #00e676) 14%, transparent);
 }
 
 .err {

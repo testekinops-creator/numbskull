@@ -9,11 +9,14 @@ const ICE_SERVERS = [
 ]
 
 // Peer-to-peer voice call over WebRTC, signalled through the room socket.
-// callState: 'idle' | 'calling' | 'incoming' | 'connected'
+// callState: 'idle' | 'calling' | 'connecting' | 'connected'
+// Direct-connect: an incoming offer auto-accepts (no manual Accept/Decline);
+// the only unavoidable friction is the browser's one-time mic-permission prompt.
 export function useVoiceCall(roomId) {
   const { socket } = useSocket()
   const [callState, setCallState] = useState('idle')
-  const [muted, setMuted] = useState(false)
+  const [muted, setMuted] = useState(false)             // own mic muted
+  const [remoteMuted, setRemoteMuted] = useState(false) // opponent audio muted (local-only)
   const [callerName, setCallerName] = useState(null)
   const [error, setError] = useState(null)
 
@@ -30,8 +33,9 @@ export function useVoiceCall(roomId) {
     localStreamRef.current = null
     pendingOffer.current = null
     pendingIce.current = []
-    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null
+    if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = null; remoteAudioRef.current.muted = false }
     setMuted(false)
+    setRemoteMuted(false)
   }, [])
 
   const createPc = useCallback(() => {
@@ -117,13 +121,25 @@ export function useVoiceCall(roomId) {
     if (track) { track.enabled = !track.enabled; setMuted(!track.enabled) }
   }, [])
 
+  // Local-only: silence the opponent without touching the connection.
+  const toggleRemoteMute = useCallback(() => {
+    const el = remoteAudioRef.current
+    if (el) { el.muted = !el.muted; setRemoteMuted(el.muted) }
+  }, [])
+
+  // Latest acceptCall, so the offer handler can auto-accept without stale deps.
+  const acceptRef = useRef(acceptCall)
+  useEffect(() => { acceptRef.current = acceptCall }, [acceptCall])
+
   useEffect(() => {
     if (!socket) return
 
+    // Direct-connect: auto-accept the incoming offer (mic prompt is the only gate).
     const onOffer = ({ fromName, sdp }) => {
       pendingOffer.current = sdp
       setCallerName(fromName || 'Opponent')
-      setCallState('incoming')
+      setCallState('connecting')
+      acceptRef.current?.()
     }
     const onAnswer = async ({ sdp }) => {
       const pc = pcRef.current
@@ -160,5 +176,8 @@ export function useVoiceCall(roomId) {
 
   useEffect(() => () => cleanup(), [cleanup])  // end call when leaving the room
 
-  return { callState, muted, callerName, error, remoteAudioRef, startCall, acceptCall, declineCall, endCall, toggleMute }
+  return {
+    callState, muted, remoteMuted, callerName, error, remoteAudioRef,
+    startCall, acceptCall, declineCall, endCall, toggleMute, toggleRemoteMute,
+  }
 }

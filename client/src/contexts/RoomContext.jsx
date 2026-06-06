@@ -667,6 +667,14 @@ export function RoomProvider({ children }) {
     socket?.emit('friend:accept', { roomId })
   }, [socket])
 
+  // Ask the server whether we're already friends with the current opponent
+  // (e.g. from a past session) so the add-friend button starts hidden.
+  const checkFriendStatus = useCallback((roomId) => {
+    socket?.emit('friend:status', { roomId }, r => {
+      if (r?.status === 'friends') dispatch({ type: 'FRIEND_ACCEPTED' })
+    })
+  }, [socket])
+
   const clearIncomingFriend = useCallback(() => dispatch({ type: 'FRIEND_CLEAR_INCOMING' }), [])
 
   return (
@@ -674,7 +682,7 @@ export function RoomProvider({ children }) {
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
-      clearChatToast, sendFriendRequest, acceptFriendRequest, clearIncomingFriend,
+      clearChatToast, sendFriendRequest, acceptFriendRequest, checkFriendStatus, clearIncomingFriend,
       matchReady, xoxMove, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     }}>

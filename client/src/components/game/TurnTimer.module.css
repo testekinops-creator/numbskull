@@ -1,10 +1,19 @@
+/* Wrapper reserves enough height for the seconds pill and does NOT clip it. */
 .timer {
   width: 100%;
-  height: 6px;
+  position: relative;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+/* The visible bar; this is the only part that clips its overflow. */
+.track {
+  flex: 1;
+  height: 8px;
   background: var(--color-surface-2);
   border-radius: var(--radius-full);
   overflow: hidden;
-  position: relative;
 }
 
 .inactive .bar {
@@ -24,21 +33,39 @@
   animation: flash 0.4s ease-in-out infinite alternate;
 }
 
+/* Readable pill — full height, sits above the thin bar, never clipped. */
 .label {
   position: absolute;
-  right: var(--space-2);
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
-  font-size: var(--text-xs);
+  font-size: 0.72rem;
+  line-height: 1;
   font-weight: var(--weight-bold);
   font-family: var(--font-display);
-  color: var(--color-text-primary);
-  background: rgba(0,0,0,0.5);
-  padding: 0 var(--space-1);
-  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: rgba(8, 6, 24, 0.82);
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  pointer-events: none;
 }
 
-.critLabel { color: var(--color-pink); }
+.highLabel {
+  color: #1a1430;
+  background: var(--color-warning);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.critLabel {
+  color: #fff;
+  background: var(--color-pink);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 12px rgba(255, 64, 129, 0.55);
+}
 
 @keyframes flash {
   from { opacity: 0.7; }

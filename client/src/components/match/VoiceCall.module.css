@@ -3,24 +3,32 @@
   width: 44px;
   height: 44px;
   flex-shrink: 0;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   background: var(--color-surface-2, #312A72);
-  font-size: 1.3rem;
+  color: var(--color-text-primary, #fff);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.12s ease, background 0.2s ease;
+  transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .callBtn:hover { transform: translateY(-2px); }
 .callBtn:active { transform: scale(0.94); }
+.callBtn svg { display: block; }
 
-.calling { background: color-mix(in srgb, var(--color-juice, #00f5ff) 30%, var(--color-surface-2, #312A72)); }
-.live    { background: color-mix(in srgb, var(--color-success, #00e676) 30%, var(--color-surface-2, #312A72)); }
-.muted   { background: color-mix(in srgb, var(--color-pink, #ff3e8a) 26%, var(--color-surface-2, #312A72)); }
-.end     { background: color-mix(in srgb, var(--color-pink, #ff3e8a) 40%, var(--color-surface-2, #312A72)); }
+.calling {
+  background: color-mix(in srgb, var(--color-juice, #00f5ff) 34%, var(--color-surface-2, #312A72));
+  color: #eafdff;
+  box-shadow: 0 0 16px rgba(0, 245, 255, 0.35);
+}
+.live    { background: color-mix(in srgb, var(--color-success, #00e676) 34%, var(--color-surface-2, #312A72)); color: #eafff2; }
+.muted   { background: color-mix(in srgb, var(--color-pink, #ff3e8a) 30%, var(--color-surface-2, #312A72)); color: #ffe6f0; }
+.end     {
+  background: color-mix(in srgb, var(--color-pink, #ff3e8a) 46%, var(--color-surface-2, #312A72));
+  color: #fff;
+}
 
 .inCall { display: flex; gap: 8px; }
 
