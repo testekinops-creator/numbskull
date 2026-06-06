@@ -4,7 +4,6 @@ import styles from './ChatPanel.module.css'
 
 export default function ChatPanel({ open, onClose, messages, onSend }) {
   const [text, setText]         = useState('')
-  const [roast, setRoast]       = useState('')
   const [generating, setGen]    = useState(false)
   const logRef = useRef(null)
 
@@ -23,13 +22,16 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
     return () => window.removeEventListener('keydown', h)
   }, [open, onClose])
 
-  async function generateRoast() {
+  // AI roast generates AND sends instantly — no preview/Send step.
+  // (Manually typed messages still use the Send button below.)
+  async function roastAndSend() {
+    if (generating) return
     setGen(true)
     try {
       const data = await api.get('/game/roast')
-      setRoast(data.roast)
+      onSend(data.roast || 'My roast generator is broken. Kind of like your strategy.')
     } catch {
-      setRoast('My roast generator is broken. Kind of like your strategy.')
+      onSend('My roast generator is broken. Kind of like your strategy.')
     } finally {
       setGen(false)
     }
@@ -40,12 +42,6 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
     if (!t) return
     onSend(t)
     setText('')
-  }
-
-  function sendRoast() {
-    if (!roast) return
-    onSend(roast)
-    setRoast('')
   }
 
   return (
@@ -76,23 +72,11 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
           ))}
         </div>
 
-        {/* AI roast generator */}
+        {/* AI roast — generates and fires instantly */}
         <div className={styles.roastBox}>
-          {roast ? (
-            <div className={styles.roastPreview}>
-              <span className={styles.roastText}>"{roast}"</span>
-              <div className={styles.roastActions}>
-                <button className={styles.roastRegen} onClick={generateRoast} disabled={generating}>
-                  🎲
-                </button>
-                <button className={styles.roastSend} onClick={sendRoast}>Send roast →</button>
-              </div>
-            </div>
-          ) : (
-            <button className={styles.generateBtn} onClick={generateRoast} disabled={generating}>
-              {generating ? '🤖 Generating…' : '🤖 Generate AI Roast'}
-            </button>
-          )}
+          <button className={styles.generateBtn} onClick={roastAndSend} disabled={generating}>
+            {generating ? '🤖 Roasting…' : '🤖 Roast them (instant AI)'}
+          </button>
         </div>
 
         {/* Free text input */}

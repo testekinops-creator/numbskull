@@ -40,7 +40,7 @@
 }
 
 .codeValue {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-4xl);
   font-weight: var(--weight-black);
   color: var(--color-juice);
@@ -100,7 +100,7 @@
 }
 
 .playerScore {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-3xl);
   font-weight: var(--weight-black);
   line-height: 1;
@@ -199,7 +199,7 @@
 }
 
 .mySecretValue {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: var(--weight-black);
   color: var(--color-juice);
@@ -216,7 +216,7 @@
 }
 
 .secretDigit {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: clamp(1.2rem, 6vw, var(--text-2xl));
   font-weight: var(--weight-black);
   color: var(--color-juice);
@@ -265,7 +265,7 @@
 }
 
 .oppGuessValue {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: var(--weight-black);
   color: var(--color-pink);

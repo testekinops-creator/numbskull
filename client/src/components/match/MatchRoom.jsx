@@ -11,10 +11,12 @@ import RematchPrompt from '../game/RematchPrompt.jsx'
 import TurnTimer from '../game/TurnTimer.jsx'
 import EmojiBurst from '../game/EmojiBurst.jsx'
 import ChatPanel from '../game/ChatPanel.jsx'
+import EmojiPicker from '../game/EmojiPicker.jsx'
+import RoomSocialCluster from '../game/RoomSocialCluster.jsx'
+import RoomToasts from '../game/RoomToasts.jsx'
 import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
-import VoiceCall from './VoiceCall.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { getModeRoast } from '../../utils/roasts.js'
@@ -254,7 +256,7 @@ export default function MatchRoom({ roomId, mode }) {
             <span className={roomStyles.playerName}>You {mySymbol ? `(${mySymbol})` : ''}</span>
             <span className={roomStyles.playerScore}>{me?.score ?? 0}</span>
           </div>
-          <span className={roomStyles.vs}>vs</span>
+          <RoomSocialCluster roomId={roomId} opponent={opponent} />
           {opponent ? (
             <div className={`${roomStyles.playerSlot} ${opponent?.ready ? roomStyles.ready : ''}`}>
               <span className={roomStyles.playerName}>
@@ -380,23 +382,18 @@ export default function MatchRoom({ roomId, mode }) {
 
       <EmojiBurst trigger={state.lastEmoji} />
 
-      {/* Chat / emoji / voice bar */}
+      {/* Chat / emoji bar */}
       {opponent && (
         <div className={roomStyles.chatBar}>
-          <div className={roomStyles.emojiRow}>
-            {QUICK_EMOJIS.map(e => (
-              <button key={e} className={roomStyles.emojiBtn} onClick={() => sendEmoji(roomId, e)} aria-label={`Send ${e}`}>
-                {e}
-              </button>
-            ))}
-          </div>
-          <VoiceCall roomId={roomId} opponentName={opponent?.name} />
+          <EmojiPicker onPick={(e) => sendEmoji(roomId, e)} />
           <button className={roomStyles.chatToggle} onClick={openChat} aria-label="Open chat">
             💬
             {state.unreadChat > 0 && <span className={roomStyles.unreadDot}>{state.unreadChat}</span>}
           </button>
         </div>
       )}
+
+      <RoomToasts roomId={roomId} />
 
       <ChatPanel
         open={chatOpen}

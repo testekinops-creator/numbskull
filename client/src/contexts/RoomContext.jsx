@@ -27,6 +27,10 @@ const INITIAL = {
   chatMessages:         [],    // { id, fromPlayerId, fromName, text, ts, mine }
   unreadChat:          0,
   lastEmoji:            null,  // { id, emoji, mine } — drives the burst overlay
+  lastIncomingChat:     null,  // newest opponent message → floating toast bubble
+  // Friend requests (registered players)
+  incomingFriend:       null,  // { fromName, fromPlayerId } — opponent asked to be friends
+  friendStatus:         'idle',// idle | requested | friends
   // Opponent left / room closed — drives redirect + message
   opponentLeftMessage:  null,
   // Opponent temporarily dropped (within grace) — drives "reconnecting…" banner
@@ -258,11 +262,25 @@ function reducer(state, action) {
         ...state,
         chatMessages: msgs,
         unreadChat: msg.mine ? state.unreadChat : state.unreadChat + 1,
+        lastIncomingChat: msg.mine ? state.lastIncomingChat : msg,
       }
     }
 
     case 'CHAT_CLEAR_UNREAD':
       return { ...state, unreadChat: 0 }
+
+    case 'CHAT_CLEAR_TOAST':
+      return { ...state, lastIncomingChat: null }
+
+    // ── Friend requests ───────────────────────────────────────────────────
+    case 'FRIEND_INCOMING':
+      return { ...state, incomingFriend: { fromName: action.fromName, fromPlayerId: action.fromPlayerId } }
+    case 'FRIEND_REQUESTED':
+      return { ...state, friendStatus: 'requested' }
+    case 'FRIEND_ACCEPTED':
+      return { ...state, friendStatus: 'friends', incomingFriend: null }
+    case 'FRIEND_CLEAR_INCOMING':
+      return { ...state, incomingFriend: null }
 
     // ── Emoji burst ───────────────────────────────────────────────────────
     case 'EMOJI_BURST':
@@ -467,6 +485,11 @@ export function RoomProvider({ children }) {
       })
     })
 
+    socket.on('friend:incoming', ({ fromName, fromPlayerId } = {}) => {
+      dispatch({ type: 'FRIEND_INCOMING', fromName, fromPlayerId })
+    })
+    socket.on('friend:accepted', () => dispatch({ type: 'FRIEND_ACCEPTED' }))
+
     return () => {
       socket.off('room:updated')
       socket.off('room:closed')   // same event name, handler is updated
@@ -493,6 +516,8 @@ export function RoomProvider({ children }) {
       socket.off('game:turn_timeout')
       socket.off('chat:message')
       socket.off('chat:emoji')
+      socket.off('friend:incoming')
+      socket.off('friend:accepted')
       socket.off('game:opponent_left')
       socket.off('player:disconnected')
       socket.off('player:reconnected')
@@ -625,11 +650,31 @@ export function RoomProvider({ children }) {
     dispatch({ type: 'CHAT_CLEAR_UNREAD' })
   }, [])
 
+  const clearChatToast = useCallback(() => dispatch({ type: 'CHAT_CLEAR_TOAST' }), [])
+
+  // ── Friend requests ─────────────────────────────────────────────────────
+  const sendFriendRequest = useCallback((roomId) => {
+    return new Promise(res => {
+      if (!socket) return res({ ok: false })
+      socket.emit('friend:request', { roomId }, r => {
+        if (r?.ok) dispatch({ type: 'FRIEND_REQUESTED' })
+        res(r || { ok: false })
+      })
+    })
+  }, [socket])
+
+  const acceptFriendRequest = useCallback((roomId) => {
+    socket?.emit('friend:accept', { roomId })
+  }, [socket])
+
+  const clearIncomingFriend = useCallback(() => dispatch({ type: 'FRIEND_CLEAR_INCOMING' }), [])
+
   return (
     <RoomContext.Provider value={{
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
+      clearChatToast, sendFriendRequest, acceptFriendRequest, clearIncomingFriend,
       matchReady, xoxMove, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     }}>

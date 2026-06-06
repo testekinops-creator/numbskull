@@ -20,7 +20,11 @@ export function SocketProvider({ children }) {
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000'
 
     const socket = io(SOCKET_URL, {
-      auth: { playerId, playerName: displayName },
+      auth: {
+        playerId,
+        playerName: displayName,
+        userId: isRegistered && user?.id ? user.id : null,  // DB id for friend requests
+      },
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,

@@ -72,15 +72,34 @@ input, textarea, select {
   flex-direction: column;
   align-items: center;
   min-height: 100dvh;
-  padding: var(--space-4);
+  /* Respect notch / home-indicator safe areas */
+  padding: max(var(--space-4), var(--safe-top))
+           max(var(--space-4), var(--safe-right))
+           max(var(--space-4), var(--safe-bottom))
+           max(var(--space-4), var(--safe-left));
+  /* Subtle page-entrance transition between routes */
+  animation: page-in var(--duration-slow) var(--ease-decelerate) both;
 }
 
 /* --- Card --- */
 .card {
+  position: relative;
+  isolation: isolate;
   background: var(--color-surface);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
   padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+}
+/* Subtle top-light sheen for depth */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent 38%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* --- Buttons --- */
@@ -95,6 +114,7 @@ input, textarea, select {
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   line-height: 1;
+  min-height: 44px;            /* a11y touch target */
   transition: transform var(--duration-fast) var(--ease-spring),
               background-color var(--duration-fast) var(--ease-default),
               box-shadow var(--duration-fast) var(--ease-default);
@@ -104,6 +124,20 @@ input, textarea, select {
 
 .btn:active { transform: scale(0.95); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-juice-glow); }
+
+/* Loading state — hides label, shows a spinner */
+.btn-loading { color: transparent !important; pointer-events: none; position: relative; }
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
@@ -116,15 +150,27 @@ input, textarea, select {
 }
 
 .btn-juice {
-  background: var(--color-juice);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #33F7FF, var(--color-juice));
   color: var(--color-bg);
   font-weight: var(--weight-bold);
   box-shadow: var(--shadow-juice);
 }
 .btn-juice:hover {
-  background: #33F7FF;
+  background: linear-gradient(135deg, #5CF9FF, #33F7FF);
   box-shadow: 0 0 24px var(--color-juice-glow), 0 0 48px var(--color-juice-glow);
 }
+/* Premium sheen sweep on hover (desktop); harmless no-op on touch */
+.btn-juice::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.5) 50%, transparent 65%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+.btn-juice:hover::after { animation: shimmer-sweep 0.8s var(--ease-out); }
 
 .btn-ghost {
   background: rgba(255,255,255,0.07);
@@ -149,16 +195,18 @@ input, textarea, select {
 /* --- Form Elements --- */
 .input {
   width: 100%;
+  min-height: 48px;
   background: var(--color-surface-2);
   border: 2px solid transparent;
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);
   color: var(--color-text-primary);
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-xl);
   text-align: center;
   font-variant-numeric: tabular-nums;
-  transition: border-color var(--duration-fast) var(--ease-default);
+  transition: border-color var(--duration-fast) var(--ease-default),
+              box-shadow var(--duration-fast) var(--ease-default);
   outline: none;
 }
 .input:focus {
@@ -289,6 +337,104 @@ input, textarea, select {
   to   { width: 0%; }
 }
 
+/* 15. Page entrance (route transition).
+   Opacity-only on purpose: a lingering transform on .screen (fill-mode both)
+   would create a containing block for fixed descendants (chat bar, banners). */
+@keyframes page-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 16. Spring pop-in */
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.6); }
+  70%  { transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* 17. Number tick (value change) */
+@keyframes count-tick {
+  0%   { transform: scale(1.35); filter: brightness(1.6); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+
+/* 18. Idle glow breathe (skull / hero / CTA) */
+@keyframes glow-breathe {
+  0%, 100% { filter: drop-shadow(0 0 6px var(--color-juice-glow)); }
+  50%      { filter: drop-shadow(0 0 22px rgba(0,245,255,0.55)); }
+}
+
+/* 19. Premium shimmer sweep */
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-130%); }
+  60%, 100% { transform: translateX(130%); }
+}
+
+/* 20. Screen shake (impact feedback) */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 2px); }
+  40% { transform: translate(4px, -2px); }
+  60% { transform: translate(-3px, -1px); }
+  80% { transform: translate(3px, 1px); }
+}
+
+/* 21. Toast slide-in */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-16px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 22. CTA breathing pulse */
+@keyframes cta-pulse {
+  0%, 100% { transform: scale(1);    box-shadow: var(--shadow-juice); }
+  50%      { transform: scale(1.025); box-shadow: 0 0 26px var(--color-juice-glow), 0 0 52px var(--color-juice-glow); }
+}
+
+/* --- New utility classes --- */
+.anim-pop          { animation: pop-in var(--duration-slow) var(--ease-bounce) both; }
+.anim-count        { animation: count-tick var(--duration-slow) var(--ease-bounce) both; }
+.anim-screen-shake { animation: screen-shake 0.4s var(--ease-default) both; }
+.anim-toast        { animation: toast-in var(--duration-normal) var(--ease-spring) both; }
+.glow-breathe      { animation: glow-breathe 3.2s ease-in-out infinite; }
+.cta-pulse         { animation: cta-pulse 2.6s ease-in-out infinite; }
+
+/* Glowing text */
+.glow-text-juice { color: var(--color-juice); text-shadow: 0 0 12px var(--color-juice-glow); }
+.glow-text-pink  { color: var(--color-pink);  text-shadow: 0 0 12px var(--color-pink-glow); }
+
+/* Frosted glass surface (overlays / sheets) */
+.glass {
+  background: rgba(38, 33, 92, 0.62);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Subtle top-light sheen on raised surfaces */
+.surface-sheen { position: relative; isolation: isolate; }
+.surface-sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 38%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Premium sweep highlight — apply to a positioned, clipped element */
+.shimmer { position: relative; overflow: hidden; }
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.38) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: shimmer-sweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* --- Utility Animation Classes --- */
 .anim-shake       { animation: shake 0.5s var(--ease-default) both; }
 .anim-correct     { animation: correct-pulse 0.6s var(--ease-spring) both; }
@@ -304,6 +450,19 @@ input, textarea, select {
 .stagger > *:nth-child(3) { animation-delay: 120ms; }
 .stagger > *:nth-child(4) { animation-delay: 180ms; }
 .stagger > *:nth-child(5) { animation-delay: 240ms; }
+
+/* --- Keyboard focus rings (mouse/touch unaffected) --- */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-juice);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
 
 /* --- Accessibility --- */
 @media (prefers-reduced-motion: reduce) {

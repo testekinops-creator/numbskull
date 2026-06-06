@@ -114,14 +114,29 @@
   background: var(--accent);
   opacity: 0.8;
 }
+/* Top-light sheen for depth */
+.gameCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent 36%);
+  pointer-events: none;
+}
 .gameCard:hover {
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 24px color-mix(in srgb, var(--accent) 15%, transparent);
 }
+.gameCard:hover .gameIcon  { transform: scale(1.12) rotate(-5deg); }
+.gameCard:hover .playArrow { transform: scale(1.12); box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 60%, transparent); }
 .gameCard:active { transform: scale(0.98); }
 
-.gameIcon { font-size: 2.4rem; line-height: 1; flex-shrink: 0; }
+.gameIcon {
+  font-size: 2.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: transform 0.2s var(--ease-spring);
+}
 .gameText { flex: 1; display: flex; flex-direction: column; gap: var(--space-1); }
 .gameName { font-size: var(--text-lg); font-weight: var(--weight-bold); }
 .gameDesc { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.4; }
@@ -138,6 +153,7 @@
   justify-content: center;
   font-size: 0.9rem;
   box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s;
 }
 
 /* Guest upsell */

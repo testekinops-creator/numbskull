@@ -22,7 +22,7 @@ export default function MathBattle({
       <div className={styles.hud}>
         <div className={`${styles.scoreChip} ${styles.me}`}>
           <span className={styles.scoreLabel}>{solo ? 'Correct' : 'You'}</span>
-          <span className={styles.scoreVal}>{myScore}</span>
+          <span key={myScore} className={`${styles.scoreVal} anim-count`}>{myScore}</span>
         </div>
         <div className={styles.qCount}>Q {Math.min(index + 1, total)} / {total}</div>
         {solo ? (
@@ -30,7 +30,7 @@ export default function MathBattle({
         ) : (
           <div className={`${styles.scoreChip} ${styles.opp}`}>
             <span className={styles.scoreLabel}>{oppName}</span>
-            <span className={styles.scoreVal}>{oppScore}</span>
+            <span key={oppScore} className={`${styles.scoreVal} anim-count`}>{oppScore}</span>
           </div>
         )}
       </div>

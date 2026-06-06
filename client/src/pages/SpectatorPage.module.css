@@ -62,7 +62,7 @@
 }
 
 .pName { font-size: var(--text-sm); color: var(--color-text-secondary); }
-.pScore { font-family: var(--font-mono); font-size: var(--text-3xl); font-weight: var(--weight-black); }
+.pScore { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: var(--weight-black); }
 
 .skullRow {
   display: flex;

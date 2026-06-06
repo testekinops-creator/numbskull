@@ -113,7 +113,7 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
-.statValue { font-family: var(--font-mono); font-weight: var(--weight-bold); color: var(--color-text-secondary); }
+.statValue { font-family: var(--font-display); font-weight: var(--weight-bold); color: var(--color-text-secondary); }
 .statLabel { color: var(--color-text-muted); }
 .statDot   { color: var(--color-surface-3); }
 .tier {

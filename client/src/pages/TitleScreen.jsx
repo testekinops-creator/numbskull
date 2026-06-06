@@ -63,7 +63,9 @@ export default function TitleScreen() {
       {/* Hero */}
       <div className={styles.hero}>
         <div className={`${styles.skullWrap} anim-logo-enter`}>
-          <SkullMascot expression="neutral" size={160} glow />
+          <div className="glow-breathe">
+            <SkullMascot expression="neutral" size={160} glow />
+          </div>
         </div>
         <div className={styles.branding}>
           <GlitchWordmark size="lg" />

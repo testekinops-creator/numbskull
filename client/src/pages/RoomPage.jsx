@@ -12,7 +12,9 @@ import RematchPrompt from '../components/game/RematchPrompt.jsx'
 import TurnTimer from '../components/game/TurnTimer.jsx'
 import EmojiBurst from '../components/game/EmojiBurst.jsx'
 import ChatPanel from '../components/game/ChatPanel.jsx'
-import VoiceCall from '../components/match/VoiceCall.jsx'
+import EmojiPicker from '../components/game/EmojiPicker.jsx'
+import RoomSocialCluster from '../components/game/RoomSocialCluster.jsx'
+import RoomToasts from '../components/game/RoomToasts.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getSkullExpression } from '../utils/personality.js'
@@ -286,7 +288,7 @@ function GuessRoom() {
         {/* Players */}
         <div className={styles.players}>
           <PlayerSlot player={me} isYou label="You" />
-          <span className={styles.vs}>vs</span>
+          <RoomSocialCluster roomId={roomId} opponent={opponent} />
           {opponent ? (
             <PlayerSlot player={opponent} label={opponent.name} />
           ) : (
@@ -493,25 +495,15 @@ function GuessRoom() {
       {/* ── Chat / emoji bar — shown once an opponent is in the room ── */}
       {opponent && (
         <div className={styles.chatBar}>
-          <div className={styles.emojiRow}>
-            {QUICK_EMOJIS.map(e => (
-              <button
-                key={e}
-                className={styles.emojiBtn}
-                onClick={() => sendEmoji(roomId, e)}
-                aria-label={`Send ${e}`}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-          <VoiceCall roomId={roomId} opponentName={opponent?.name} />
+          <EmojiPicker onPick={(e) => sendEmoji(roomId, e)} />
           <button className={styles.chatToggle} onClick={openChat} aria-label="Open chat">
             💬
             {state.unreadChat > 0 && <span className={styles.unreadDot}>{state.unreadChat}</span>}
           </button>
         </div>
       )}
+
+      <RoomToasts roomId={roomId} />
 
       {/* ── Chat panel (bottom sheet) ── */}
       <ChatPanel

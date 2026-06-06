@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-base);
   font-weight: var(--weight-bold);
   transition: background 0.2s, color 0.2s;

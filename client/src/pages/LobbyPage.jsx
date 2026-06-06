@@ -24,6 +24,12 @@ export default function LobbyPage() {
   // Clear any stale room so the auto-navigate can't bounce us into a dead room.
   useEffect(() => { clearRoom() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // If we leave the lobby while still searching (e.g. Back button), cancel the
+  // quick-match so we don't linger in the queue as a "ghost" opponent.
+  const matchmakingRef = useRef(false)
+  useEffect(() => { matchmakingRef.current = state.matchmaking }, [state.matchmaking])
+  useEffect(() => () => { if (matchmakingRef.current) cancelQuickMatch() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Only auto-navigate when WE started matchmaking and then got paired.
   const startedMatchmakingRef = useRef(false)
   useEffect(() => {

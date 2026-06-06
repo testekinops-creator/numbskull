@@ -11,7 +11,7 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
   const showGuessCount = (mode === 'GTN' || mode === 'BC') && attempts != null
 
   return (
-    <div className={`${styles.card} ${draw ? styles.loseCard : isWin ? styles.winCard : styles.loseCard}`}>
+    <div className={`${styles.card} ${draw ? styles.loseCard : isWin ? styles.winCard : styles.loseCard} ${!isWin && !draw ? 'anim-screen-shake' : ''}`}>
 
       {/* Confetti particles — win only */}
       {isWin && <Confetti />}
@@ -79,7 +79,7 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
                   {isWinner ? ' 👑' : ''}
                 </span>
                 <span
-                  className={styles.scoreVal}
+                  className={`${styles.scoreVal} anim-count`}
                   style={{ color: isWinner ? 'var(--color-juice)' : 'var(--color-text-secondary)' }}
                 >
                   {p.score}

@@ -40,6 +40,7 @@
 }
 
 .scoreVal {
+  font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 800;
   line-height: 1.1;
@@ -85,6 +86,7 @@
 }
 
 .promptText {
+  font-family: var(--font-display);
   font-size: clamp(2rem, 9vw, 3rem);
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -109,6 +111,7 @@
   border-radius: 14px;
   background: var(--color-surface, #1b1b2e);
   color: var(--color-text, #fff);
+  font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 800;
   cursor: pointer;
