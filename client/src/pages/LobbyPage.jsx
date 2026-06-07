@@ -5,9 +5,10 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU'])
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN'])
+const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
   const navigate = useNavigate()
@@ -127,7 +128,7 @@ export default function LobbyPage() {
               className={`${styles.topTab} ${topTab === 'ai' ? styles.topTabActive : ''}`}
               onClick={() => setTopTab('ai')}
             >
-              {mode === 'MATH' ? '🧠 Solo' : '🤖 vs AI'}
+              {SOLO_LABEL_MODES.has(mode) ? '🧠 Solo' : '🤖 vs AI'}
             </button>
           </div>
         )}
@@ -155,10 +156,12 @@ export default function LobbyPage() {
                 ? 'Take on the Numbskull AI at Tic-Tac-Toe. Pick X or O and try not to embarrass yourself.'
                 : mode === 'MATH'
                 ? '20 rapid-fire questions, just you against the clock. Sharpen your mental maths — no AI, pure practice.'
+                : mode === 'SPIN'
+                ? 'Solo practice: spin the wheel, call letters, and solve the phrase before five strikes end you.'
                 : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
             </p>
             <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={playVsAI}>
-              {mode === 'MATH' ? '🧠 Start Solo Practice' : '🤖 Play vs Computer'}
+              {SOLO_LABEL_MODES.has(mode) ? '🧠 Start Solo Practice' : '🤖 Play vs Computer'}
             </button>
           </div>
         )}

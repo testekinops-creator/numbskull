@@ -19,6 +19,8 @@ const INITIAL = {
   draw:                 false,
   // New game modes (XOX / Math Battle / Sudoku) — generic real-time match state
   match:                null,
+  // Spin Battle: last wheel/guess event (drives the wheel animation + feedback)
+  spin:                 null,
   // Rematch state machine: idle | requesting | incoming | declined
   rematchStatus:        'idle',
   rematchRequesterName: null,  // name of who sent the request
@@ -136,6 +138,7 @@ function reducer(state, action) {
         room:  action.room ? { ...state.room, ...action.room } : state.room,
         phase: 'PLAYING',
         match: action.match,
+        spin:  null,
         won: null, winnerId: null, draw: false,
         rematchStatus: 'idle', rematchRequesterName: null,
         roomClosedByOpponent: false,
@@ -151,6 +154,42 @@ function reducer(state, action) {
           ? action.patch.turnId === action.playerId
           : state.myTurn,
       }
+
+    // Spin Battle: an action happened (spin / guess / vowel / solve / roundover).
+    case 'SPIN_EVENT': {
+      const p = action.payload || {}
+      const match = p.match ? { ...state.match, ...p.match } : state.match
+      const turnId = p.match?.turnId ?? state.match?.turnId
+      const prevNonce = state.spin?.nonce || 0
+      return {
+        ...state,
+        match,
+        myTurn: turnId === action.playerId,
+        spin: {
+          // Only bump the nonce on an actual spin → re-triggers the wheel.
+          nonce: p.event === 'spin' ? prevNonce + 1 : prevNonce,
+          event: p.event, by: p.by,
+          index: p.index ?? state.spin?.index ?? 0,
+          wedge: p.wedge, effect: p.effect,
+          letter: p.letter, correct: p.correct, count: p.count, points: p.points,
+          passed: p.passed, solved: p.solved,
+          winnerId: p.winnerId, matchOver: p.matchOver,
+          ts: Date.now(),
+        },
+      }
+    }
+
+    // Spin Battle: a fresh round started.
+    case 'SPIN_ROUND': {
+      const p = action.payload || {}
+      const match = p.match ? { ...state.match, ...p.match } : state.match
+      return {
+        ...state,
+        match,
+        myTurn: match?.turnId === action.playerId,
+        spin: { ...(state.spin || {}), event: 'newround', round: p.round, ts: Date.now() },
+      }
+    }
 
     case 'MATCH_OVER': {
       const updatedRoom = state.room
@@ -429,6 +468,13 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'SUDOKU_UNLOCK', index })
     })
 
+    socket.on('spin:update', (payload = {}) => {
+      dispatch({ type: 'SPIN_EVENT', payload, playerId })
+    })
+    socket.on('spin:round', (payload = {}) => {
+      dispatch({ type: 'SPIN_ROUND', payload, playerId })
+    })
+
     socket.on('match:turn', ({ turnId } = {}) => {
       clearInterval(timerRef.current)
       dispatch({ type: 'TURN_CHANGE', playerId: turnId, myId: playerId })
@@ -506,6 +552,8 @@ export function RoomProvider({ children }) {
       socket.off('sudoku:update')
       socket.off('sudoku:lock')
       socket.off('sudoku:unlock')
+      socket.off('spin:update')
+      socket.off('spin:round')
       socket.off('match:turn')
       socket.off('match:over')
       socket.off('match:timeout')
@@ -599,6 +647,11 @@ export function RoomProvider({ children }) {
   const sudokuFill   = useCallback((roomId, index, value) => socket?.emit('sudoku:fill',   { roomId, index, value }), [socket])
   const sudokuClear  = useCallback((roomId, index)        => socket?.emit('sudoku:clear',  { roomId, index }),        [socket])
 
+  const spinSpin  = useCallback((roomId)          => socket?.emit('spin:spin',  { roomId }),          [socket])
+  const spinGuess = useCallback((roomId, letter)  => socket?.emit('spin:guess', { roomId, letter }),  [socket])
+  const spinVowel = useCallback((roomId, letter)  => socket?.emit('spin:vowel', { roomId, letter }),  [socket])
+  const spinSolve = useCallback((roomId, attempt) => socket?.emit('spin:solve', { roomId, attempt }), [socket])
+
   const matchForfeit = useCallback((roomId) => {
     socket?.emit('match:forfeit', { roomId })
   }, [socket])
@@ -685,6 +738,7 @@ export function RoomProvider({ children }) {
       clearChatToast, sendFriendRequest, acceptFriendRequest, checkFriendStatus, clearIncomingFriend,
       matchReady, xoxMove, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
+      spinSpin, spinGuess, spinVowel, spinSolve,
     }}>
       {children}
     </RoomContext.Provider>

@@ -50,7 +50,6 @@ const GAMES = [
     name: 'Spin Battle',
     desc: 'Spin the wheel, call letters, solve the phrase. Word-puzzle roulette.',
     accent: 'var(--color-pink)',
-    solo: true,
   },
 ]
 

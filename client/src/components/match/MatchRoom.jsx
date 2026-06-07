@@ -19,6 +19,7 @@ import MultiplayerTutorial from '../tutorial/MultiplayerTutorial.jsx'
 import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
+import SpinBattleMatch from './SpinBattleMatch.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { getModeRoast } from '../../utils/roasts.js'
@@ -26,13 +27,14 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku' }
+const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle' }
 
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
   const {
     state, matchReady, xoxMove, matchForfeit, mathAnswer,
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
+    spinSpin, spinGuess, spinVowel, spinSolve,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -335,6 +337,18 @@ export default function MatchRoom({ roomId, mode }) {
                   onClear={(i) => sudokuClear(roomId, i)}
                 />
               </>
+            )}
+            {mode === 'SPIN' && match.wheel && (
+              <SpinBattleMatch
+                match={match}
+                you={playerId}
+                opponent={opponent}
+                spin={state.spin}
+                onSpin={() => { unlock(); spinSpin(roomId) }}
+                onGuess={(l) => { unlock(); spinGuess(roomId, l) }}
+                onBuyVowel={(l) => { unlock(); spinVowel(roomId, l) }}
+                onSolve={(t) => { unlock(); spinSolve(roomId, t) }}
+              />
             )}
           </div>
         )}
