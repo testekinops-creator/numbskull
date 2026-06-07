@@ -110,6 +110,27 @@ export function useSound() {
     } catch {}
   }, [])
 
+  // Wheel spin: decelerating "flapper" ticks over the spin, then a landing thunk
+  // — scheduled up-front on the audio clock so it stays smooth.
+  const playSpin = useCallback((durationMs = 3600) => {
+    if (!isSoundEnabled()) return
+    const ctx = ensureCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    try {
+      const dur = durationMs / 1000
+      let t = 0
+      while (t < dur - 0.18) {
+        tone(ctx, 1300, t, 0.03, 'square', 0.10)   // short click
+        const frac = t / dur
+        t += 0.05 + frac * frac * 0.32             // gaps grow → deceleration
+      }
+      // Landing thunk
+      tone(ctx, 220, dur - 0.02, 0.22, 'triangle', 0.30)
+      tone(ctx, 130, dur + 0.02, 0.30, 'sine', 0.24)
+    } catch {}
+  }, [])
+
   const playWin = useCallback(() => {
     if (!isSoundEnabled()) return
     const ctx = ensureCtx()
@@ -135,5 +156,5 @@ export function useSound() {
     } catch {}
   }, [])
 
-  return { playTone, playWin, playLose, unlock }
+  return { playTone, playSpin, playWin, playLose, unlock }
 }

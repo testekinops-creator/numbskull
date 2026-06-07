@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useSound } from '../../hooks/useSound.js'
 import styles from './SpinWheel.module.css'
 
 export const SPIN_MS = 3600
@@ -47,6 +48,7 @@ export default function SpinWheel({ segments = [], targetIndex = 0, nonce = 0, s
   const [rotation, setRotation] = useState(0)
   const rotationRef = useRef(0)
   const settleRef = useRef(null)
+  const { playSpin } = useSound()
 
   useEffect(() => {
     if (!nonce) return
@@ -56,6 +58,7 @@ export default function SpinWheel({ segments = [], targetIndex = 0, nonce = 0, s
     const final = base + (360 - (targetIndex * seg + seg / 2))
     rotationRef.current = final
     setRotation(final)
+    playSpin(SPIN_MS)   // decelerating ticks + landing thunk, in sync with the spin
     settleRef.current = setTimeout(() => onSettle?.(), SPIN_MS)
     return () => clearTimeout(settleRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps

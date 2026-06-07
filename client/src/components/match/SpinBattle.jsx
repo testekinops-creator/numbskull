@@ -50,7 +50,7 @@ export default function SpinBattle({
 
       <PuzzleBoard masked={game.masked} category={game.category} />
 
-      <p className={styles.feedback} role="status">
+      <p key={feedback || (game.canGuess ? 'c' : 's')} className={styles.feedback} role="status">
         {feedback || (game.canGuess ? 'Call a consonant!' : 'Spin the wheel!')}
       </p>
 

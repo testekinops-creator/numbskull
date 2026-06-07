@@ -137,7 +137,7 @@ export default function SpinBattleMatch({
 
       <PuzzleBoard masked={match.masked} category={match.category} />
 
-      <p className={`${s.feedback} ${myTurn ? m.yourTurn : ''}`} role="status">{feedback}</p>
+      <p key={`${feedback}-${spin?.ts || 0}`} className={`${s.feedback} ${myTurn ? m.yourTurn : ''}`} role="status">{feedback}</p>
 
       <SpinWheel
         segments={match.wheel}
