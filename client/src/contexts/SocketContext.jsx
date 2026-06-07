@@ -10,6 +10,8 @@ export function SocketProvider({ children }) {
   const { user, isRegistered } = useAuth()
   const socketRef = useRef(null)
   const [connected, setConnected] = useState(false)
+  const [reconnecting, setReconnecting] = useState(false)
+  const everConnectedRef = useRef(false)
 
   // Always use the registered username if logged in, otherwise use guest name
   const displayName = isRegistered && user?.username ? user.username : playerName
@@ -31,8 +33,10 @@ export function SocketProvider({ children }) {
       transports: ['websocket', 'polling'],
     })
 
-    socket.on('connect', () => setConnected(true))
-    socket.on('disconnect', () => setConnected(false))
+    socket.on('connect', () => { setConnected(true); setReconnecting(false); everConnectedRef.current = true })
+    socket.on('disconnect', () => { setConnected(false); if (everConnectedRef.current) setReconnecting(true) })
+    socket.io.on('reconnect_attempt', () => { if (everConnectedRef.current) setReconnecting(true) })
+    socket.io.on('reconnect', () => setReconnecting(false))
     socket.on('error:duplicate_tab', () => {
       alert('You opened Numbskull in another tab. This tab has been disconnected.')
     })
@@ -42,7 +46,7 @@ export function SocketProvider({ children }) {
   }, [playerId, displayName])
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected }}>
+    <SocketContext.Provider value={{ socket: socketRef.current, connected, reconnecting }}>
       {children}
     </SocketContext.Provider>
   )

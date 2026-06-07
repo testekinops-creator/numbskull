@@ -8,6 +8,7 @@ import { AuthProvider }      from './contexts/AuthContext.jsx'
 import GDPRBanner            from './components/GDPRBanner.jsx'
 import PWAInstallBanner      from './components/PWAInstallBanner.jsx'
 import BadgeToast            from './components/BadgeToast.jsx'
+import ConnectionBanner      from './components/ConnectionBanner.jsx'
 import ErrorBoundary         from './components/ErrorBoundary.jsx'
 import { initAnalytics }     from './services/analytics.js'
 import { SkipLink, useColorblindMode } from './components/AppShell.jsx'
@@ -100,6 +101,7 @@ function AppInner() {
       {/* Global overlays — stay across all routes */}
       <GDPRBanner />
       <PWAInstallBanner />
+      <ConnectionBanner />
       <BadgeToast />
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </>

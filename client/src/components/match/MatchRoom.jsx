@@ -48,6 +48,15 @@ export default function MatchRoom({ roomId, mode }) {
   const [mathChoice, setMathChoice] = useState(null)
   const [copied, setCopied] = useState(false)
   const [resultRevealed, setResultRevealed] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const [startErr, setStartErr] = useState('')
+
+  async function doHostStart() {
+    setStartErr(''); setStarting(true)
+    const r = await hostStart(roomId)
+    if (!r?.ok) { setStartErr(r?.error || 'Could not start — try again'); setStarting(false) }
+    // on success, match:start flips the phase and this lobby unmounts
+  }
 
   const room = state.room
   const phase = room?.phase || 'IDLE'
@@ -79,12 +88,18 @@ export default function MatchRoom({ roomId, mode }) {
   // here. When both players are ready the match starts. Re-fires after rematch
   // (phase returns to SETUP and me.ready resets to false).
   useEffect(() => {
-    if (!room || !me) return
-    // Party rooms wait for the host to press Start — no auto-ready.
-    if (isParty) return
-    if ((phase === 'SETUP' || phase === 'LOBBY') && opponent && !me.ready) {
-      matchReady(roomId)
-    }
+    if (!room || !me || isParty) return  // party rooms wait for the host to start
+    if (!((phase === 'SETUP' || phase === 'LOBBY') && opponent && !me.ready)) return
+    // Retry on a slow/dropped connection so "Starting…" can't hang forever.
+    let cancelled = false
+    ;(async () => {
+      for (let i = 0; i < 6 && !cancelled; i++) {
+        const r = await matchReady(roomId)
+        if (cancelled || r?.ok) return
+        await new Promise(res => setTimeout(res, 1500))
+      }
+    })()
+    return () => { cancelled = true }
   }, [phase, me?.ready, opponent?.id, isParty]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Room closed (opponent left / declined) → brief message, then home.
@@ -306,10 +321,13 @@ export default function MatchRoom({ roomId, mode }) {
               </ul>
               <p className={styles.partyCode}>Share code: <b>{room.code}</b></p>
               {isHost ? (
-                <button className="btn btn-juice btn-lg" style={{ width: '100%' }}
-                  disabled={room.players.length < 2} onClick={() => hostStart(roomId)}>
-                  {room.players.length < 2 ? 'Waiting for players…' : `Start · ${room.players.length} players`}
-                </button>
+                <>
+                  <button className="btn btn-juice btn-lg" style={{ width: '100%' }}
+                    disabled={room.players.length < 2 || starting} onClick={doHostStart}>
+                    {starting ? 'Starting…' : room.players.length < 2 ? 'Waiting for players…' : `Start · ${room.players.length} players`}
+                  </button>
+                  {startErr && <p className={roomStyles.errorText || ''} style={{ color: 'var(--color-pink)', marginTop: 8 }}>{startErr}</p>}
+                </>
               ) : (
                 <p className={roomStyles.waitingText}>Waiting for the host to start…</p>
               )}

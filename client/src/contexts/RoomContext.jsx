@@ -4,6 +4,22 @@ import { usePlayer } from './PlayerContext.jsx'
 
 const RoomContext = createContext(null)
 
+// Emit with an ack TIMEOUT so a slow/dropped connection can't hang the UI
+// forever — resolves with a friendly error instead of waiting indefinitely.
+function emitAck(socket, ev, data, ms = 8000) {
+  return new Promise(res => {
+    if (!socket) return res({ ok: false, error: 'Not connected — check your internet' })
+    try {
+      socket.timeout(ms).emit(ev, data, (err, response) => {
+        if (err) return res({ ok: false, error: 'Connection is slow — please try again', timeout: true })
+        res(response || { ok: false })
+      })
+    } catch {
+      res({ ok: false, error: 'Could not reach the server — please try again' })
+    }
+  })
+}
+
 const INITIAL = {
   room:                 null,
   phase:                'IDLE',
@@ -575,32 +591,28 @@ export function RoomProvider({ children }) {
   }, [socket, playerId])
 
   const createRoom = useCallback(async (opts) => {
-    if (!socket) return
-    return new Promise(res => socket.emit('room:create', opts, r => {
-      if (r.ok) dispatch({ type: 'ROOM_UPDATED', room: r.room })
-      else dispatch({ type: 'ERROR', error: r.error })
-      res(r)
-    }))
+    const r = await emitAck(socket, 'room:create', opts)
+    if (r.ok) dispatch({ type: 'ROOM_UPDATED', room: r.room })
+    else dispatch({ type: 'ERROR', error: r.error })
+    return r
   }, [socket])
 
   const joinRoom = useCallback(async (code) => {
-    if (!socket) return
-    return new Promise(res => socket.emit('room:join', { code }, r => {
-      if (r.ok) dispatch({ type: 'ROOM_UPDATED', room: r.room })
-      else dispatch({ type: 'ERROR', error: r.error })
-      res(r)
-    }))
+    const r = await emitAck(socket, 'room:join', { code })
+    if (r.ok) dispatch({ type: 'ROOM_UPDATED', room: r.room })
+    else dispatch({ type: 'ERROR', error: r.error })
+    return r
   }, [socket])
 
   const quickMatch = useCallback(async (mode, difficulty) => {
-    if (!socket) return
+    if (!socket) return { ok: false, error: 'Not connected' }
     dispatch({ type: 'MATCHMAKING', value: true })
-    return new Promise(res => socket.emit('room:quickmatch', { mode, difficulty }, r => {
-      if (!r.ok || r.matched) dispatch({ type: 'MATCHMAKING', value: false })
-      if (r.ok && r.matched) dispatch({ type: 'ROOM_UPDATED', room: r.room })
-      else if (!r.ok) dispatch({ type: 'ERROR', error: r.error })
-      res(r)
-    }))
+    // Longer window — matchmaking may legitimately wait for a partner.
+    const r = await emitAck(socket, 'room:quickmatch', { mode, difficulty }, 12000)
+    if (!r.ok || r.matched) dispatch({ type: 'MATCHMAKING', value: false })
+    if (r.ok && r.matched) dispatch({ type: 'ROOM_UPDATED', room: r.room })
+    else if (!r.ok) dispatch({ type: 'ERROR', error: r.error })
+    return r
   }, [socket])
 
   const cancelQuickMatch = useCallback(() => {
@@ -614,16 +626,12 @@ export function RoomProvider({ children }) {
 
   // Reconnect to a room and rebuild full game state from the server snapshot.
   // Returns the snapshot (so the page can restore its own refs, e.g. secret).
-  const reconnectRoom = useCallback((roomId) => {
-    return new Promise(res => {
-      if (!socket) return res({ ok: false })
-      socket.emit('room:reconnect', { roomId }, r => {
-        if (r?.ok && r.snapshot) {
-          dispatch({ type: 'RECONNECT_RESTORE', snapshot: r.snapshot, playerId })
-        }
-        res(r || { ok: false })
-      })
-    })
+  const reconnectRoom = useCallback(async (roomId) => {
+    const r = await emitAck(socket, 'room:reconnect', { roomId }, 10000)
+    if (r?.ok && r.snapshot) {
+      dispatch({ type: 'RECONNECT_RESTORE', snapshot: r.snapshot, playerId })
+    }
+    return r || { ok: false }
   }, [socket, playerId])
 
   const submitGuess = useCallback((roomId, guess) => {
@@ -631,13 +639,9 @@ export function RoomProvider({ children }) {
   }, [socket])
 
   // ── New game modes (XOX / Math Battle / Sudoku) ─────────────────────────
-  const matchReady = useCallback((roomId) => {
-    socket?.emit('match:ready', { roomId })
-  }, [socket])
+  const matchReady = useCallback((roomId) => emitAck(socket, 'match:ready', { roomId }), [socket])
 
-  const hostStart = useCallback((roomId) => {
-    return new Promise(res => socket?.emit('match:host_start', { roomId }, r => res(r || { ok: false })))
-  }, [socket])
+  const hostStart = useCallback((roomId) => emitAck(socket, 'match:host_start', { roomId }), [socket])
 
   const xoxMove = useCallback((roomId, cell) => {
     socket?.emit('xox:move', { roomId, cell })
