@@ -18,7 +18,7 @@ function wedgeWord(w) {
 // Multiplayer (turn-based) Spin Battle. State comes from RoomContext; this view
 // renders + emits intent and only enables controls on the local player's turn.
 export default function SpinBattleMatch({
-  match, you, opponent, spin, onSpin, onGuess, onBuyVowel, onSolve,
+  match, you, players = [], opponent, spin, onSpin, onGuess, onBuyVowel, onSolve,
 }) {
   const [spinning, setSpinning] = useState(false)
   const [showSolve, setShowSolve] = useState(false)
@@ -34,8 +34,14 @@ export default function SpinBattleMatch({
   }, [spin?.nonce]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!match) return null
-  const oppId = opponent?.id
-  const oppName = opponent?.name || 'Opponent'
+  const everyone = players && players.length
+    ? players
+    : [{ id: you, name: 'You' }, ...(opponent ? [opponent] : [])]
+  const others = everyone.filter(p => p.id !== you)
+  const isMulti = everyone.length > 2
+  const nameOf = (id) => (id === you ? 'You' : (everyone.find(p => p.id === id)?.name || 'Opponent'))
+  const oppId = others[0]?.id
+  const oppName = others[0]?.name || 'Opponent'
   const myTurn = match.turnId === you
   const revealed = new Set(match.revealed || [])
   const roundOver = match.roundOver
@@ -47,8 +53,8 @@ export default function SpinBattleMatch({
   const canSolve = active
 
   // Feedback line from the latest event.
-  const who = spin?.by === you ? 'You' : oppName
-  let feedback = myTurn ? 'Your turn' : `${oppName} is playing…`
+  const who = spin?.by === you ? 'You' : nameOf(spin?.by)
+  let feedback = myTurn ? 'Your turn' : `${nameOf(match.turnId)} is playing…`
   if (spinning) feedback = `${who} ${who === 'You' ? 'are' : 'is'} spinning…`
   else if (spin?.event === 'spin') {
     feedback = spin.effect === 'bankrupt' ? `💀 ${who} hit Bankrupt!`
@@ -83,7 +89,8 @@ export default function SpinBattleMatch({
     setSolveText(''); setShowSolve(false)
   }
 
-  const dots = (count) => Array.from({ length: Math.ceil(match.bestOf / 2) }).map((_, i) => (
+  const toWin = match.roundsToWin || Math.ceil(match.bestOf / 2)
+  const dots = (count) => Array.from({ length: toWin }).map((_, i) => (
     <span key={i} className={`${m.roundDot} ${i < count ? m.roundDotWon : ''}`} />
   ))
   const status = (pid) => (
@@ -96,22 +103,37 @@ export default function SpinBattleMatch({
   return (
     <div className={s.wrap}>
       {/* Scoreboard */}
-      <div className={m.scoreboard}>
-        <div className={`${m.side} ${myTurn ? m.sideActive : ''}`}>
-          <span className={m.sideName}>You {status(you)}</span>
-          <span className={m.sideBank}><CountUp end={match.bank?.[you] || 0} duration={0.4} preserveValue /></span>
-          <span className={m.rounds}>{dots(match.roundWins?.[you] || 0)}</span>
+      {isMulti ? (
+        <div className={m.roster}>
+          <div className={m.roundLabel}>Round {match.round} · first to {toWin}</div>
+          <div className={m.rosterList}>
+            {everyone.map(p => (
+              <div key={p.id} className={`${m.rosterItem} ${match.turnId === p.id ? m.sideActive : ''}`}>
+                <span className={m.rosterName}>{p.id === you ? 'You' : p.name} {status(p.id)}</span>
+                <span className={m.rosterBank}><CountUp end={match.bank?.[p.id] || 0} duration={0.4} preserveValue /></span>
+                <span className={m.rounds}>{dots(match.roundWins?.[p.id] || 0)}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className={m.middle}>
-          <span className={m.roundLabel}>Round {match.round}</span>
-          <span className={m.vs}>VS</span>
+      ) : (
+        <div className={m.scoreboard}>
+          <div className={`${m.side} ${myTurn ? m.sideActive : ''}`}>
+            <span className={m.sideName}>You {status(you)}</span>
+            <span className={m.sideBank}><CountUp end={match.bank?.[you] || 0} duration={0.4} preserveValue /></span>
+            <span className={m.rounds}>{dots(match.roundWins?.[you] || 0)}</span>
+          </div>
+          <div className={m.middle}>
+            <span className={m.roundLabel}>Round {match.round}</span>
+            <span className={m.vs}>VS</span>
+          </div>
+          <div className={`${m.side} ${!myTurn ? m.sideActive : ''}`}>
+            <span className={m.sideName}>{oppName} {oppId && status(oppId)}</span>
+            <span className={m.sideBank}><CountUp end={oppId ? (match.bank?.[oppId] || 0) : 0} duration={0.4} preserveValue /></span>
+            <span className={m.rounds}>{dots(oppId ? (match.roundWins?.[oppId] || 0) : 0)}</span>
+          </div>
         </div>
-        <div className={`${m.side} ${!myTurn ? m.sideActive : ''}`}>
-          <span className={m.sideName}>{oppName} {oppId && status(oppId)}</span>
-          <span className={m.sideBank}><CountUp end={oppId ? (match.bank?.[oppId] || 0) : 0} duration={0.4} preserveValue /></span>
-          <span className={m.rounds}>{dots(oppId ? (match.roundWins?.[oppId] || 0) : 0)}</span>
-        </div>
-      </div>
+      )}
 
       <PuzzleBoard masked={match.masked} category={match.category} />
 

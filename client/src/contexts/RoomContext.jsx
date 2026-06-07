@@ -212,6 +212,7 @@ function reducer(state, action) {
         draw:     !!action.draw,
         won:      action.draw ? null : (action.winnerId ? action.winnerId === action.playerId : null),
         winnerId: action.winnerId || null,
+        ranking:  action.ranking || null,
       }
     }
 
@@ -481,9 +482,9 @@ export function RoomProvider({ children }) {
       timerRef.current = setInterval(() => dispatch({ type: 'TIMER_TICK' }), 1000)
     })
 
-    socket.on('match:over', ({ winnerId, draw, scores } = {}) => {
+    socket.on('match:over', ({ winnerId, draw, scores, ranking } = {}) => {
       clearInterval(timerRef.current)
-      dispatch({ type: 'MATCH_OVER', winnerId: winnerId || null, draw: !!draw, scores, playerId })
+      dispatch({ type: 'MATCH_OVER', winnerId: winnerId || null, draw: !!draw, scores, ranking: ranking || null, playerId })
     })
 
     socket.on('match:timeout', () => clearInterval(timerRef.current))
@@ -634,6 +635,10 @@ export function RoomProvider({ children }) {
     socket?.emit('match:ready', { roomId })
   }, [socket])
 
+  const hostStart = useCallback((roomId) => {
+    return new Promise(res => socket?.emit('match:host_start', { roomId }, r => res(r || { ok: false })))
+  }, [socket])
+
   const xoxMove = useCallback((roomId, cell) => {
     socket?.emit('xox:move', { roomId, cell })
   }, [socket])
@@ -736,7 +741,7 @@ export function RoomProvider({ children }) {
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
       clearChatToast, sendFriendRequest, acceptFriendRequest, checkFriendStatus, clearIncomingFriend,
-      matchReady, xoxMove, matchForfeit, mathAnswer,
+      matchReady, hostStart, xoxMove, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
       spinSpin, spinGuess, spinVowel, spinSolve,
     }}>

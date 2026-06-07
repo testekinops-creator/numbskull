@@ -32,7 +32,7 @@ const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
   const {
-    state, matchReady, xoxMove, matchForfeit, mathAnswer,
+    state, matchReady, hostStart, xoxMove, matchForfeit, mathAnswer,
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     spinSpin, spinGuess, spinVowel, spinSolve,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
@@ -54,6 +54,8 @@ export default function MatchRoom({ roomId, mode }) {
   const me = room?.players?.find(p => p.id === playerId)
   const opponent = room?.players?.find(p => p.id !== playerId)
   const match = state.match
+  const isParty = (room?.maxPlayers || 2) > 2          // 3–8 player party room
+  const isHost = room?.hostId === playerId
 
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
@@ -78,10 +80,12 @@ export default function MatchRoom({ roomId, mode }) {
   // (phase returns to SETUP and me.ready resets to false).
   useEffect(() => {
     if (!room || !me) return
+    // Party rooms wait for the host to press Start — no auto-ready.
+    if (isParty) return
     if ((phase === 'SETUP' || phase === 'LOBBY') && opponent && !me.ready) {
       matchReady(roomId)
     }
-  }, [phase, me?.ready, opponent?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [phase, me?.ready, opponent?.id, isParty]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Room closed (opponent left / declined) → brief message, then home.
   useEffect(() => {
@@ -288,11 +292,33 @@ export default function MatchRoom({ roomId, mode }) {
           {state.roast && <p className={`${roomStyles.roast} anim-slide-up`} key={state.roast}>"{state.roast}"</p>}
         </div>
 
-        {/* SETUP — auto-readying / waiting */}
-        {(phase === 'SETUP' || (phase === 'LOBBY' && opponent)) && (
-          <p className={roomStyles.waitingText}>
-            {opponent ? 'Starting…' : `Waiting for an opponent to join…`}
-          </p>
+        {/* SETUP — party lobby (host starts) or 1v1 auto-ready */}
+        {(phase === 'SETUP' || phase === 'LOBBY') && (
+          isParty ? (
+            <div className={styles.partyLobby}>
+              <p className={styles.partyTitle}>Party room · {room.players.length}/{room.maxPlayers}</p>
+              <ul className={styles.partyList}>
+                {room.players.map(p => (
+                  <li key={p.id} className={styles.partyItem}>
+                    {p.id === room.hostId ? '👑 ' : '🙂 '}{p.name}{p.id === playerId ? ' (you)' : ''}
+                  </li>
+                ))}
+              </ul>
+              <p className={styles.partyCode}>Share code: <b>{room.code}</b></p>
+              {isHost ? (
+                <button className="btn btn-juice btn-lg" style={{ width: '100%' }}
+                  disabled={room.players.length < 2} onClick={() => hostStart(roomId)}>
+                  {room.players.length < 2 ? 'Waiting for players…' : `Start · ${room.players.length} players`}
+                </button>
+              ) : (
+                <p className={roomStyles.waitingText}>Waiting for the host to start…</p>
+              )}
+            </div>
+          ) : (
+            <p className={roomStyles.waitingText}>
+              {opponent ? 'Starting…' : `Waiting for an opponent to join…`}
+            </p>
+          )
         )}
 
         {/* PLAYING */}
@@ -342,6 +368,7 @@ export default function MatchRoom({ roomId, mode }) {
               <SpinBattleMatch
                 match={match}
                 you={playerId}
+                players={room.players}
                 opponent={opponent}
                 spin={state.spin}
                 onSpin={() => { unlock(); spinSpin(roomId) }}
@@ -362,6 +389,26 @@ export default function MatchRoom({ roomId, mode }) {
         )}
 
         {phase === 'GAME_OVER' && (mode !== 'XOX' || resultRevealed) && (
+          isParty && state.ranking ? (
+            <div className={styles.rankCard}>
+              <h2 className={styles.rankTitle}>Final standings</h2>
+              <ol className={styles.rankList}>
+                {state.ranking.map(r => (
+                  <li key={r.id} className={`${styles.rankItem} ${r.id === playerId ? styles.rankYou : ''}`}>
+                    <span className={styles.rankPos}>{r.rank === 1 ? '🏆' : `#${r.rank}`}</span>
+                    <span className={styles.rankName}>{r.name}{r.id === playerId ? ' (you)' : ''}</span>
+                    <span className={styles.rankWins}>{r.roundWins}W</span>
+                    <span className={`${styles.rankTrophy} ${r.trophies >= 0 ? styles.trophyPos : styles.trophyNeg}`}>
+                      {r.trophies >= 0 ? `+${r.trophies}` : r.trophies}🏆
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={() => { leaveRoom(roomId); navigate('/home') }}>
+                Home
+              </button>
+            </div>
+          ) : (
           <>
             <GameOverCard
               won={state.won}
@@ -388,6 +435,7 @@ export default function MatchRoom({ roomId, mode }) {
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
           </>
+          )
         )}
       </div>
 

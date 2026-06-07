@@ -104,6 +104,24 @@ export function registerMatchHandlers(io, socket) {
     }
   })
 
+  // ── Party host pressed "Start" (party rooms ≥2 players) ───────────────────
+  socket.on('match:host_start', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room) return ack?.({ ok: false, error: 'Room not found' })
+      if (!MATCH_MODES.has(room.mode)) return ack?.({ ok: false, error: 'Wrong mode' })
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can start' })
+      if (room.players.length < 2) return ack?.({ ok: false, error: 'Need at least 2 players' })
+      if (room.phase !== 'LOBBY' && room.phase !== 'SETUP') return ack?.({ ok: false, error: 'Already started' })
+      socket.join(roomId)
+      await _startMatch(io, roomId)
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'match:host_start error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
   // ── XOX move ──────────────────────────────────────────────────────────────
   socket.on('xox:move', async ({ roomId, cell } = {}, ack) => {
     try {
@@ -339,7 +357,6 @@ export function registerMatchHandlers(io, socket) {
       await roomManager.update(roomId, r => {
         const mm = r.match
         mm.lastWedge = null
-        const oppId = r.players.find(p => p.id !== playerId)?.id
         if (typeof wedge === 'number') { mm.lastWedge = wedge; mm.canGuess = true; effect = 'points' }
         else if (wedge === 'BANKRUPT') {
           if (mm.shield?.[playerId]) { mm.shield[playerId] = false; effect = 'bankrupt_blocked' }
@@ -349,14 +366,15 @@ export function registerMatchHandlers(io, socket) {
         else if (wedge === 'EXTRA_TURN') { mm.bank[playerId] = (mm.bank[playerId] || 0) + EXTRA_TURN_BONUS; effect = 'extra_turn' }
         else if (wedge === 'DOUBLE') { mm.bank[playerId] = (mm.bank[playerId] || 0) * 2; effect = 'double' }
         else if (wedge === 'JACKPOT') { mm.bank[playerId] = (mm.bank[playerId] || 0) + JACKPOT_BONUS; effect = 'jackpot' }
-        else if (wedge === 'STEAL') { // take from the opponent's round bank
-          stealAmount = Math.min(STEAL_AMOUNT, oppId ? (mm.bank[oppId] || 0) : 0)
-          if (oppId) mm.bank[oppId] = (mm.bank[oppId] || 0) - stealAmount
+        else if (wedge === 'STEAL') { // take from the richest opponent's round bank
+          const target = _richestOpponent(mm, r.players, playerId)
+          stealAmount = Math.min(STEAL_AMOUNT, target ? (mm.bank[target] || 0) : 0)
+          if (target) mm.bank[target] = (mm.bank[target] || 0) - stealAmount
           mm.bank[playerId] = (mm.bank[playerId] || 0) + stealAmount
           effect = 'steal'
         }
         else if (wedge === 'SHIELD') { if (mm.shield) mm.shield[playerId] = true; effect = 'shield' }
-        else { mm.frozenId = oppId || null; effect = 'freeze' } // FREEZE — skip opp's next turn
+        else { mm.frozenId = _nextInOrder(r.players, playerId); effect = 'freeze' } // FREEZE — skip next player's turn
         if (passed) { const nt = _spinNextTurn(mm, r.players, playerId); mm.turnId = nt.turnId; skipped = nt.skipped }
       })
       const updated = await roomManager.get(roomId)
@@ -564,11 +582,14 @@ async function _startMatch(io, roomId) {
   }
 
   if (room.mode === 'SPIN') {
-    const [a, b] = room.players
-    // Alternate who spins first each match/rematch.
+    // Generalised to N players (2–8). Turn rotates through the player list; the
+    // starting player rotates each match/rematch.
+    const ids = room.players.map(p => p.id)
     const seq = room.gameSeq || 0
-    const firstId = seq % 2 === 0 ? a.id : b.id
+    const firstId = ids[seq % ids.length]
     const picked = pickPuzzle(room.difficulty || 'medium')
+    const zero = () => Object.fromEntries(ids.map(id => [id, 0]))
+    const falses = () => Object.fromEntries(ids.map(id => [id, false]))
     await roomManager.update(roomId, r => {
       r.phase = 'PLAYING'
       r.winnerId = null
@@ -580,12 +601,13 @@ async function _startMatch(io, roomId) {
         revealed:  [],
         wheel:     [...WHEEL],
         vowelCost: VOWEL_COST,
-        bank:      { [a.id]: 0, [b.id]: 0 },
-        roundWins: { [a.id]: 0, [b.id]: 0 },
-        shield:    { [a.id]: false, [b.id]: false },
+        bank:      zero(),
+        roundWins: zero(),
+        shield:    falses(),
         frozenId:  null,
         round:     1,
         bestOf:    SPIN_BEST_OF,
+        roundsToWin: r.players.length === 2 ? 2 : 2,  // first to 2 round wins
         turnId:    firstId,
         canGuess:  false,
         lastWedge: null,
@@ -605,13 +627,33 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
 }
 
-// Pass the turn, honouring FREEZE: if the opponent is frozen, consume the freeze
-// and the turn stays with the current player (the opponent's turn is skipped).
+function _nextInOrder(players, fromId) {
+  const ids = players.map(p => p.id)
+  if (ids.length < 2) return null
+  const i = ids.indexOf(fromId)
+  return ids[(i + 1) % ids.length]
+}
+
+function _richestOpponent(mm, players, fromId) {
+  let target = null, max = -1
+  for (const p of players) {
+    if (p.id === fromId) continue
+    const b = mm.bank[p.id] || 0
+    if (b > max) { max = b; target = p.id }
+  }
+  return target
+}
+
+// Pass the turn to the next player in order (N players), honouring FREEZE: if the
+// next player is frozen, consume the freeze and skip them to the following one.
 function _spinNextTurn(mm, players, fromId) {
-  const oppId = players.find(p => p.id !== fromId)?.id
-  if (!oppId) return { turnId: fromId, skipped: false }
-  if (mm.frozenId === oppId) { mm.frozenId = null; return { turnId: fromId, skipped: true } }
-  return { turnId: oppId, skipped: false }
+  const ids = players.map(p => p.id)
+  if (ids.length < 2) return { turnId: fromId, skipped: false }
+  const i = ids.indexOf(fromId)
+  let next = ids[(i + 1) % ids.length]
+  let skipped = false
+  if (mm.frozenId === next) { mm.frozenId = null; skipped = true; next = ids[(i + 2) % ids.length] }
+  return { turnId: next, skipped }
 }
 
 // Anti-stall: (re)arm a 30s timer for whoever's turn it is. If they don't act in
@@ -631,16 +673,17 @@ function _armSpinTimer(io, roomId, turnId) {
 }
 
 // ── Spin Battle: round / match progression ─────────────────────────────────
+const SPIN_TROPHIES = [30, 15, 5, -10, -10, -10, -10, -10]  // by final rank
+
 async function _afterSpinRoundWin(io, roomId, winnerId) {
   clearTimer(roomId)   // round decided → stop the anti-stall timer
-  let matchOver = false, roundWins = 0
+  let matchOver = false
   await roomManager.update(roomId, r => {
     const mm = r.match
     if (!mm || mm.roundOver) return
     mm.roundOver = true
     mm.roundWins[winnerId] = (mm.roundWins[winnerId] || 0) + 1
-    roundWins = mm.roundWins[winnerId]
-    if (roundWins >= Math.ceil(mm.bestOf / 2)) matchOver = true
+    if (mm.roundWins[winnerId] >= (mm.roundsToWin || 2)) matchOver = true
   })
   const updated = await roomManager.get(roomId)
   if (!updated?.match) return
@@ -648,7 +691,17 @@ async function _afterSpinRoundWin(io, roomId, winnerId) {
     event: 'roundover', winnerId, matchOver, match: _publicMatch(updated.match),
   })
   if (matchOver) {
-    await _endMatch(io, roomId, { winnerId, draw: false })
+    const mm = updated.match
+    // Rank by round wins, tiebreak by this round's bank.
+    const ranked = [...updated.players].sort((a, b) =>
+      (mm.roundWins[b.id] || 0) - (mm.roundWins[a.id] || 0) ||
+      (mm.bank[b.id] || 0) - (mm.bank[a.id] || 0))
+    const ranking = ranked.map((p, i) => ({
+      id: p.id, name: p.name, rank: i + 1,
+      roundWins: mm.roundWins[p.id] || 0,
+      trophies: SPIN_TROPHIES[i] ?? -10,
+    }))
+    await _endMatch(io, roomId, { winnerId, draw: false, ranking })
   } else {
     setTimeout(() => _nextSpinRound(io, roomId, winnerId), SPIN_ROUND_PAUSE)
   }
@@ -658,8 +711,8 @@ async function _nextSpinRound(io, roomId, lastWinnerId) {
   const room = await roomManager.get(roomId)
   if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return
   const picked = pickPuzzle(room.difficulty || 'medium')
-  // The player who lost the round starts the next one.
-  const firstId = room.players.find(p => p.id !== lastWinnerId)?.id || lastWinnerId
+  // Rotate the starter — the player after the round winner goes first.
+  const firstId = _nextInOrder(room.players, lastWinnerId) || lastWinnerId
   await roomManager.update(roomId, r => {
     const mm = r.match
     mm.answer = picked.text
@@ -742,7 +795,7 @@ export async function endMatch(io, roomId, { winnerId = null, draw = false } = {
   return _endMatch(io, roomId, { winnerId, draw })
 }
 
-async function _endMatch(io, roomId, { winnerId = null, draw = false }) {
+async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = null }) {
   clearTimer(roomId)
   _clearMathTimer(roomId)
   _clearRoomSudokuLockTimers(roomId)
@@ -764,8 +817,32 @@ async function _endMatch(io, roomId, { winnerId = null, draw = false }) {
   io.to(roomId).emit('match:over', {
     winnerId,
     draw,
+    ranking,   // N-player Spin Battle: [{ id, name, rank, roundWins, trophies }] or null
     scores: updated.players.map(p => ({ id: p.id, score: p.score })),
   })
+}
+
+// A player left/disconnected from a party room mid-game — keep the match going.
+export async function onPartyPlayerLeft(io, roomId, leftId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return
+  const mm = room.match
+  if (!mm) return
+  // Drop below 2 → end the match (last player standing wins).
+  if (room.players.length < 2) {
+    return _endMatch(io, roomId, { winnerId: room.players[0]?.id || null, draw: false })
+  }
+  // If it was the leaver's turn, hand it to the next present player.
+  if (mm.turnId === leftId) {
+    await roomManager.update(roomId, r => {
+      r.match.canGuess = false; r.match.lastWedge = null
+      if (r.match.frozenId === leftId) r.match.frozenId = null
+      r.match.turnId = r.players[0]?.id || r.match.turnId
+    })
+    const updated = await roomManager.get(roomId)
+    io.to(roomId).emit('spin:update', { event: 'spin', by: leftId, effect: 'lose_turn', passed: true, match: _publicMatch(updated.match) })
+    _armSpinTimer(io, roomId, updated.match.turnId)
+  }
 }
 
 // ── Per-turn timer (anti-stall) ────────────────────────────────────────────────
@@ -829,6 +906,7 @@ function _publicMatch(match) {
       frozenId:  match.frozenId,
       round:     match.round,
       bestOf:    match.bestOf,
+      roundsToWin: match.roundsToWin || 2,
       turnId:    match.turnId,
       canGuess:  match.canGuess,
       lastWedge: match.lastWedge,

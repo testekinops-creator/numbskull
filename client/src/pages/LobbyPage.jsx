@@ -48,6 +48,7 @@ export default function LobbyPage() {
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
   const [difficulty, setDifficulty] = useState('medium')
+  const [partySize, setPartySize] = useState(4)   // SPIN party rooms (3–8)
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
   const [error, setError] = useState('')
@@ -67,7 +68,8 @@ export default function LobbyPage() {
 
   async function handleCreate() {
     setBusy(true); setError('')
-    const res = await createRoom({ mode, isPublic: true, difficulty })
+    const maxPlayers = mode === 'SPIN' ? partySize : 2
+    const res = await createRoom({ mode, isPublic: true, difficulty, maxPlayers })
     setBusy(false)
     if (!res?.ok) { setError(res?.error || 'Failed'); return }
     navigate(`/room/${res.room.id}`)
@@ -203,7 +205,24 @@ export default function LobbyPage() {
 
               {mpTab === 'create' && (
                 <div className={styles.createPanel}>
-                  <p className={styles.hint}>Create a private room and share the code with a friend.</p>
+                  <p className={styles.hint}>
+                    {mode === 'SPIN'
+                      ? 'Create a party room and share the code. The host starts when everyone’s in.'
+                      : 'Create a private room and share the code with a friend.'}
+                  </p>
+                  {mode === 'SPIN' && (
+                    <div className={styles.tabs} style={{ marginBottom: 'var(--space-3, 12px)' }}>
+                      {[2, 3, 4, 6, 8].map(n => (
+                        <button
+                          key={n}
+                          className={`${styles.tab} ${partySize === n ? styles.activeTab : ''}`}
+                          onClick={() => setPartySize(n)}
+                        >
+                          {n}P
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleCreate} disabled={busy}>
                     Create Room
                   </button>

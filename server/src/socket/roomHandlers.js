@@ -1,7 +1,7 @@
 import { roomManager } from '../game/RoomManager.js'
 import { quickMatch } from '../game/QuickMatch.js'
 import { clearTimer } from '../game/TurnTimer.js'
-import { publicMatchFor } from './matchHandlers.js'
+import { publicMatchFor, onPartyPlayerLeft } from './matchHandlers.js'
 import { logger } from '../utils/logger.js'
 
 export function registerRoomHandlers(io, socket) {
@@ -10,9 +10,9 @@ export function registerRoomHandlers(io, socket) {
   const playerName = auth.playerName || 'Anonymous'
 
   // ── Create room ──────────────────────────────────────────────────────────
-  socket.on('room:create', async ({ mode = 'GTN', difficulty = 'medium', isPublic = true } = {}, ack) => {
+  socket.on('room:create', async ({ mode = 'GTN', difficulty = 'medium', isPublic = true, maxPlayers = 2 } = {}, ack) => {
     try {
-      const room = await roomManager.create({ hostId: playerId, hostName: playerName, mode, difficulty, isPublic })
+      const room = await roomManager.create({ hostId: playerId, hostName: playerName, mode, difficulty, isPublic, maxPlayers })
       socket.join(room.id)
       ack?.({ ok: true, room: sanitize(room, playerId) })
       logger.debug({ roomId: room.id }, 'Room created via socket')
@@ -34,11 +34,14 @@ export function registerRoomHandlers(io, socket) {
       // both pass the capacity check and overfill the room (was a 3-player race).
       let joinError = null
       await roomManager.update(room.id, r => {
+        const cap = r.maxPlayers || 2
         if (r.players.find(p => p.id === playerId)) return   // idempotent re-join
-        if (r.players.length >= 2) { joinError = 'Room is full'; return }
+        if (r.players.length >= cap) { joinError = 'Room is full'; return }
         if (r.phase !== 'LOBBY')   { joinError = 'Game already in progress'; return }
         r.players.push({ id: playerId, name: playerName, ready: false, score: 0 })
-        if (r.players.length === 2) r.phase = 'SETUP'
+        // 1v1 rooms auto-advance to SETUP at 2; party rooms (cap>2) wait for the
+        // host to press Start.
+        if (cap === 2 && r.players.length === 2) r.phase = 'SETUP'
       })
       if (joinError) return ack?.({ ok: false, error: joinError })
 
@@ -176,6 +179,8 @@ function _scheduleDisconnectClose(io, playerId, playerName, roomId) {
     if (room.phase === 'GAME_OVER') return
     const leaver = room.players.find(p => p.id === playerId)
     if (!leaver) return  // already removed
+    // Party rooms (>2): drop just this player and keep the room going.
+    if ((room.maxPlayers || 2) > 2) return _removeFromParty(io, roomId, playerId, leaver.name || playerName, 'disconnected')
     await _closeRoomNotifying(io, room, roomId, leaver.name || playerName, 'disconnected')
   }, DISCONNECT_GRACE_MS)
   disconnectTimers.set(key, t)
@@ -206,7 +211,29 @@ async function _handleLeave(io, socket, playerId, playerName, roomId, reason = '
   if (!room) return
   const leaver = room.players.find(p => p.id === playerId)
   socket.leave?.(roomId)
+  // Party rooms (>2): remove just this player and keep the room going.
+  if ((room.maxPlayers || 2) > 2) return _removeFromParty(io, roomId, playerId, leaver?.name || playerName, reason)
   await _closeRoomNotifying(io, room, roomId, leaver?.name || playerName, reason)
+}
+
+// Remove one player from a party room and keep the rest playing (close only when
+// empty; end the match if it drops below 2 mid-game).
+async function _removeFromParty(io, roomId, leaverId, leaverName, reason) {
+  await roomManager.update(roomId, r => {
+    r.players = r.players.filter(p => p.id !== leaverId)
+    if (r.hostId === leaverId && r.players[0]) r.hostId = r.players[0].id
+  })
+  const room = await roomManager.get(roomId)
+  if (!room) return
+  if (room.players.length === 0) {
+    clearTimer(roomId); cancelRoomGrace(roomId)
+    await roomManager.delete(roomId)
+    io.to(roomId).emit('room:closed', { roomId })
+    return
+  }
+  io.to(roomId).emit('room:player_left', { playerId: leaverId, leaverName, reason })
+  io.to(roomId).emit('room:updated', sanitize(room, null))
+  await onPartyPlayerLeft(io, roomId, leaverId)
 }
 
 // Notify any remaining player, then close the room for everyone
@@ -240,6 +267,7 @@ function sanitize(room, viewerId) {
     mode: room.mode,
     difficulty: room.difficulty,
     isPublic: room.isPublic,
+    maxPlayers: room.maxPlayers || 2,
     phase: room.phase,
     players: room.players.map(p => ({
       id: p.id,
