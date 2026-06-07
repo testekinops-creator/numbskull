@@ -24,7 +24,7 @@ function displayLabel(v) {
   if (v === 'EXTRA_TURN') return '+200'
   if (v === 'DOUBLE') return '2×'
   if (v === 'JACKPOT') return 'JACK'
-  if (v === 'STEAL') return 'STEAL'
+  if (v === 'STEAL') return 'STL'
   if (v === 'SHIELD') return 'SHLD'
   if (v === 'FREEZE') return 'FRZ'
   return String(v)
