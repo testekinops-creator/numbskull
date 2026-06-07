@@ -270,7 +270,7 @@ export default function MatchRoom({ roomId, mode }) {
             <span className={roomStyles.playerName}>You {mySymbol ? `(${mySymbol})` : ''}</span>
             <span className={roomStyles.playerScore}>{me?.score ?? 0}</span>
           </div>
-          <RoomSocialCluster roomId={roomId} opponent={opponent} />
+          <RoomSocialCluster roomId={roomId} opponent={opponent} allowVoice={!isParty} />
           {opponent ? (
             <div className={`${roomStyles.playerSlot} ${opponent?.ready ? roomStyles.ready : ''}`}>
               <span className={roomStyles.playerName}>

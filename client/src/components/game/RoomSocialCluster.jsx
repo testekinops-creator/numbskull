@@ -6,8 +6,9 @@ import { UserPlusIcon, UserCheckIcon, ClockIcon } from '../icons/Icons.jsx'
 import styles from './RoomSocialCluster.module.css'
 
 // Sits between the two players (replaces the plain "vs"): a premium voice-call
-// button (#1) and an add-friend button (#3).
-export default function RoomSocialCluster({ roomId, opponent }) {
+// button (#1) and an add-friend button (#3). Voice is 1v1 only, so `allowVoice`
+// is false in party rooms (3–8 players) where it can't form a group call.
+export default function RoomSocialCluster({ roomId, opponent, allowVoice = true }) {
   const { state, sendFriendRequest, checkFriendStatus } = useRoom()
   const { isRegistered } = useAuth()
   const [err, setErr] = useState('')
@@ -31,7 +32,7 @@ export default function RoomSocialCluster({ roomId, opponent }) {
       <span className={styles.vs}>VS</span>
       {opponent && (
         <div className={styles.actions}>
-          <VoiceCall roomId={roomId} opponentName={opponent?.name} />
+          {allowVoice && <VoiceCall roomId={roomId} opponentName={opponent?.name} />}
           {fs === 'friends' ? (
             <span className={styles.friendDone} title="Friends" aria-label="Friends">
               <UserCheckIcon size={20} />
