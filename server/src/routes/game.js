@@ -17,7 +17,7 @@ gameRouter.get('/roast', (_req, res) => {
 
 // ── Record a finished game for the logged-in user ──────────────────────────
 const recordSchema = z.object({
-  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU']),
+  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN']),
   won:  z.boolean(),
 })
 
@@ -216,6 +216,64 @@ gameRouter.post('/math/answer', (req, res, next) => {
       sessions.delete(sessionId)
     }
     res.json({ success: true, data })
+  } catch (err) { next(err) }
+})
+
+// ── Spin Battle (solo) ─────────────────────────────────────────────────────
+// All randomness + the answer stay server-side; the client only animates to the
+// returned wheel index.
+const spinSessionSchema = z.object({ sessionId: z.string(), totalGames: z.number().int().min(0).default(0) })
+const spinLetterSchema  = z.object({ sessionId: z.string(), letter: z.string().min(1).max(1), totalGames: z.number().int().min(0).default(0) })
+const spinSolveSchema   = z.object({ sessionId: z.string(), attempt: z.string().min(1).max(80), totalGames: z.number().int().min(0).default(0) })
+
+function spinSession(sessionId) {
+  const session = sessions.get(sessionId)
+  if (!session || session.mode !== 'SPIN') throw createError('Session not found', 404, 'SESSION_NOT_FOUND')
+  return session
+}
+
+// Attach an end-of-game roast and clean up the session when a result ends play.
+function finishSpin(session, sessionId, result, totalGames) {
+  if (result.over) {
+    const roast = getRoastMessage(result.won ? 'correct' : 'lose', totalGames)
+    result.roast = roast?.message || null
+    sessions.delete(sessionId)
+  }
+  return result
+}
+
+gameRouter.post('/spin/spin', (req, res, next) => {
+  try {
+    const { sessionId } = spinSessionSchema.parse(req.body)
+    const session = spinSession(sessionId)
+    res.json({ success: true, data: session.engine.spin() })
+  } catch (err) { next(err) }
+})
+
+gameRouter.post('/spin/guess', (req, res, next) => {
+  try {
+    const { sessionId, letter, totalGames } = spinLetterSchema.parse(req.body)
+    const session = spinSession(sessionId)
+    const result = finishSpin(session, sessionId, session.engine.guessConsonant(letter), totalGames)
+    res.json({ success: true, data: result })
+  } catch (err) { next(err) }
+})
+
+gameRouter.post('/spin/vowel', (req, res, next) => {
+  try {
+    const { sessionId, letter, totalGames } = spinLetterSchema.parse(req.body)
+    const session = spinSession(sessionId)
+    const result = finishSpin(session, sessionId, session.engine.buyVowel(letter), totalGames)
+    res.json({ success: true, data: result })
+  } catch (err) { next(err) }
+})
+
+gameRouter.post('/spin/solve', (req, res, next) => {
+  try {
+    const { sessionId, attempt, totalGames } = spinSolveSchema.parse(req.body)
+    const session = spinSession(sessionId)
+    const result = finishSpin(session, sessionId, session.engine.solve(attempt), totalGames)
+    res.json({ success: true, data: result })
   } catch (err) { next(err) }
 })
 
