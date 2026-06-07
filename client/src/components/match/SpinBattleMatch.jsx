@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAutoAnimate } from '@formkit/auto-animate/react'
 import CountUp from 'react-countup'
 import SpinWheel, { SPIN_MS } from './SpinWheel.jsx'
 import PuzzleBoard from './PuzzleBoard.jsx'
@@ -23,6 +24,7 @@ export default function SpinBattleMatch({
   const [spinning, setSpinning] = useState(false)
   const [showSolve, setShowSolve] = useState(false)
   const [solveText, setSolveText] = useState('')
+  const [rosterRef] = useAutoAnimate()
 
   // Animate the wheel whenever ANY player spins (nonce bumps on event 'spin').
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function SpinBattleMatch({
       {isMulti ? (
         <div className={m.roster}>
           <div className={m.roundLabel}>Round {match.round} · first to {toWin}</div>
-          <div className={m.rosterList}>
+          <div ref={rosterRef} className={m.rosterList}>
             {everyone.map(p => (
               <div key={p.id} className={`${m.rosterItem} ${match.turnId === p.id ? m.sideActive : ''}`}>
                 <span className={m.rosterName}>{p.id === you ? 'You' : p.name} {status(p.id)}</span>

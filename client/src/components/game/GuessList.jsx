@@ -1,6 +1,8 @@
+import { useAutoAnimate } from '@formkit/auto-animate/react'
 import styles from './GuessList.module.css'
 
 export default function GuessList({ guesses, mode }) {
+  const [listRef] = useAutoAnimate()
   // Keep a STABLE key per guess (its position in the original array never
   // changes), then show newest-first. Index-of-reversed keys were re-shuffling
   // every render and leaving rows stuck mid-animation (blank bars).
@@ -20,7 +22,7 @@ export default function GuessList({ guesses, mode }) {
         <span className={styles.panelTitle}>Guess History</span>
         <span className={styles.count}>{rows.length}</span>
       </div>
-      <ul className={styles.list} aria-label="Guess history">
+      <ul ref={listRef} className={styles.list} aria-label="Guess history">
         {rows.map(({ entry, idx }) => (
           <li key={idx} className={styles.item}>
             {mode === 'BC'

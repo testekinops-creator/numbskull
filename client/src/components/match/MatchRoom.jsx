@@ -327,7 +327,7 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'XOX' && (
               <>
                 <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} />
-                <p className={styles.turnLabel}>
+                <p key={state.myTurn ? 'me' : 'opp'} className={`${styles.turnLabel} anim-msg`}>
                   {state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'} is playing…`}
                 </p>
                 <XoxBoard board={match.board} onCell={handleCell} disabled={!state.myTurn} />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAutoAnimate } from '@formkit/auto-animate/react'
 import { api } from '../services/api.js'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -19,6 +20,7 @@ function medal(i) {
 // Monthly MULTIPLAYER leaderboard — ranked by wins this calendar month.
 export default function LeaderboardPage() {
   const navigate = useNavigate()
+  const [listRef] = useAutoAnimate()
   const { playerId } = usePlayer()
   const { user } = useAuth()
   const myId = user?.id || playerId
@@ -61,7 +63,7 @@ export default function LeaderboardPage() {
         )}
 
         {!loading && entries.length > 0 && (
-          <ol className={styles.list}>
+          <ol ref={listRef} className={styles.list}>
             {entries.map((e, i) => (
               <li key={e.entrantId} className={`${styles.entry} ${e.entrantId === myId ? styles.me : ''}`}>
                 <span className={styles.rank}>{medal(i)}</span>

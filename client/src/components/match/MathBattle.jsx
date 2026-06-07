@@ -73,7 +73,7 @@ export default function MathBattle({
       </div>
 
       {/* Reveal banner */}
-      <div className={styles.revealRow}>
+      <div key={reveal ? `rv${index}` : 'rv'} className={`${styles.revealRow} ${reveal ? 'anim-msg' : ''}`}>
         {reveal && (
           reveal.timeout ? (
             <span className={styles.revealNeutral}>⏱️ Time! The answer was {reveal.answer}.</span>

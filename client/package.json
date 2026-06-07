@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@formkit/auto-animate": "^0.9.0",
     "canvas-confetti": "^1.9.4",
     "react": "^19.0.0",
     "react-countup": "^6.5.3",

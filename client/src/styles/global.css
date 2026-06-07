@@ -122,7 +122,8 @@ input, textarea, select {
   -webkit-tap-highlight-color: transparent;
 }
 
-.btn:active { transform: scale(0.95); }
+.btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
+.btn:not(:disabled):active { transform: translateY(0) scale(0.94); transition-duration: 60ms; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-juice-glow); }
 
@@ -352,6 +353,16 @@ input, textarea, select {
   100% { opacity: 1; transform: scale(1); }
 }
 
+/* Premium per-message entrance (keyed by callers so it replays on each message) */
+@keyframes msg-in {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.92); filter: blur(2px); }
+  55%  { transform: translateY(0) scale(1.05); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-msg { animation: none; }
+}
+
 /* 17. Number tick (value change) */
 @keyframes count-tick {
   0%   { transform: scale(1.35); filter: brightness(1.6); }
@@ -394,6 +405,7 @@ input, textarea, select {
 /* --- New utility classes --- */
 .anim-pop          { animation: pop-in var(--duration-slow) var(--ease-bounce) both; }
 .anim-count        { animation: count-tick var(--duration-slow) var(--ease-bounce) both; }
+.anim-msg          { animation: msg-in 0.42s var(--ease-spring) both; }
 .anim-screen-shake { animation: screen-shake 0.4s var(--ease-default) both; }
 .anim-toast        { animation: toast-in var(--duration-normal) var(--ease-spring) both; }
 .glow-breathe      { animation: glow-breathe 3.2s ease-in-out infinite; }

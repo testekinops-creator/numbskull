@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAutoAnimate } from '@formkit/auto-animate/react'
 import { api } from '../services/api.js'
 import { SkeletonBadgeGrid } from '../components/Skeleton.jsx'
 import { ErrorState } from '../components/States.jsx'
@@ -9,6 +10,7 @@ const EARNED_KEY = 'ns_badges_earned'
 
 export default function BadgesPage() {
   const navigate = useNavigate()
+  const [gridRef] = useAutoAnimate()
   const [badges, setBadges] = useState([])
   const [loadingBadges, setLoadingBadges] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -42,7 +44,7 @@ export default function BadgesPage() {
         {loadError && !loadingBadges && (
           <ErrorState message="Couldn't load badges." onRetry={load} />
         )}
-        <div className={styles.grid}>
+        <div ref={gridRef} className={styles.grid}>
           {!loadError && badges.map(b => {
             const unlocked = earnedSet.has(b.slug)
             return (
