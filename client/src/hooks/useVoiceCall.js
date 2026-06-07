@@ -1,17 +1,43 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSocket } from '../contexts/SocketContext.jsx'
 
-// Public STUN servers for NAT traversal. (A TURN server would improve success
-// on symmetric NATs but needs hosting — STUN covers most home/mobile networks.)
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-]
+// ICE servers: STUN locates peers; TURN relays media when a direct path can't
+// form (mobile data / symmetric NAT) — without TURN, calls "connect" but stay
+// silent for many users. Provide your own TURN via env for production reliability:
+//   VITE_TURN_URLS="turn:host:3478,turns:host:5349"  VITE_TURN_USERNAME=... VITE_TURN_CREDENTIAL=...
+// Falls back to the free Open Relay public TURN so calls work out of the box.
+function buildIceServers() {
+  const servers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ]
+  const turnUrls = import.meta.env.VITE_TURN_URLS
+  if (turnUrls) {
+    servers.push({
+      urls: turnUrls.split(',').map(s => s.trim()).filter(Boolean),
+      username: import.meta.env.VITE_TURN_USERNAME || '',
+      credential: import.meta.env.VITE_TURN_CREDENTIAL || '',
+    })
+  } else {
+    // Free public TURN fallback (best-effort; set your own for production).
+    const u = 'openrelayproject'
+    servers.push(
+      { urls: 'turn:openrelay.metered.ca:80', username: u, credential: u },
+      { urls: 'turn:openrelay.metered.ca:443', username: u, credential: u },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: u, credential: u },
+    )
+  }
+  return servers
+}
+
+const ICE_SERVERS = buildIceServers()
+const CONNECT_TIMEOUT_MS = 15000
 
 // Peer-to-peer voice call over WebRTC, signalled through the room socket.
 // callState: 'idle' | 'calling' | 'connecting' | 'connected'
-// Direct-connect: an incoming offer auto-accepts (no manual Accept/Decline);
-// the only unavoidable friction is the browser's one-time mic-permission prompt.
+// Direct-connect: an incoming offer auto-accepts (no manual Accept/Decline).
+// 'connected' is only reported once ICE actually links the media — not when the
+// SDP handshake completes — so the UI no longer claims a call that has no audio.
 export function useVoiceCall(roomId) {
   const { socket } = useSocket()
   const [callState, setCallState] = useState('idle')
@@ -25,8 +51,10 @@ export function useVoiceCall(roomId) {
   const remoteAudioRef = useRef(null)   // attach to an <audio autoPlay/>
   const pendingOffer   = useRef(null)
   const pendingIce     = useRef([])
+  const connectTimer   = useRef(null)
 
   const cleanup = useCallback(() => {
+    clearTimeout(connectTimer.current)
     try { pcRef.current?.close() } catch { /* noop */ }
     pcRef.current = null
     localStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -38,6 +66,32 @@ export function useVoiceCall(roomId) {
     setRemoteMuted(false)
   }, [])
 
+  // Terminal failure — tell the peer, tear down, show why.
+  const failCall = useCallback((msg) => {
+    socket?.emit('call:end', { roomId })
+    cleanup()
+    setCallState('idle')
+    setError(msg)
+  }, [socket, roomId, cleanup])
+
+  // Mark the media path as live (idempotent) and stop the connect watchdog.
+  const markConnected = useCallback(() => {
+    clearTimeout(connectTimer.current)
+    setError(null)
+    setCallState('connected')
+  }, [])
+
+  // Play remote audio; if the browser blocks autoplay (iOS Safari), retry on the
+  // next user gesture instead of failing silently.
+  const playRemote = useCallback(() => {
+    const el = remoteAudioRef.current
+    if (!el) return
+    el.play?.().catch(() => {
+      const resume = () => { el.play?.().catch(() => {}); document.removeEventListener('pointerdown', resume) }
+      document.addEventListener('pointerdown', resume, { once: true })
+    })
+  }, [])
+
   const createPc = useCallback(() => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
     pc.onicecandidate = (e) => {
@@ -46,17 +100,33 @@ export function useVoiceCall(roomId) {
     pc.ontrack = (e) => {
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = e.streams[0]
-        remoteAudioRef.current.play?.().catch(() => {})
+        playRemote()
       }
     }
     pc.onconnectionstatechange = () => {
-      if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
-        // leave it to the user/end signal; failures surface as no audio
-      }
+      const st = pc.connectionState
+      if (st === 'connected') markConnected()
+      else if (st === 'failed') failCall('Call failed — your network blocked the connection')
+    }
+    // Fallback for browsers that drive iceConnectionState more reliably.
+    pc.oniceconnectionstatechange = () => {
+      const st = pc.iceConnectionState
+      if (st === 'connected' || st === 'completed') markConnected()
+      else if (st === 'failed') failCall('Call failed — your network blocked the connection')
     }
     pcRef.current = pc
     return pc
-  }, [socket, roomId])
+  }, [socket, roomId, markConnected, failCall, playRemote])
+
+  // Start the watchdog: if media hasn't linked in time, fail cleanly.
+  const armConnectWatch = useCallback(() => {
+    clearTimeout(connectTimer.current)
+    connectTimer.current = setTimeout(() => {
+      if (pcRef.current && pcRef.current.connectionState !== 'connected') {
+        failCall("Couldn't connect the call — try again")
+      }
+    }, CONNECT_TIMEOUT_MS)
+  }, [failCall])
 
   const getMic = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
@@ -76,13 +146,14 @@ export function useVoiceCall(roomId) {
       await pc.setLocalDescription(offer)
       socket.emit('call:offer', { roomId, sdp: offer })
       setCallState('calling')
+      armConnectWatch()
     } catch (e) {
       cleanup(); setCallState('idle')
       setError(e?.name === 'NotAllowedError' ? 'Microphone permission denied' : 'Could not start call')
     }
-  }, [socket, roomId, getMic, createPc, cleanup])
+  }, [socket, roomId, getMic, createPc, cleanup, armConnectWatch])
 
-  // Callee: accept the pending offer.
+  // Callee: accept the pending offer (auto-invoked on incoming offer).
   const acceptCall = useCallback(async () => {
     if (!socket || !pendingOffer.current) return
     setError(null)
@@ -97,12 +168,13 @@ export function useVoiceCall(roomId) {
       await pc.setLocalDescription(answer)
       socket.emit('call:answer', { roomId, sdp: answer })
       pendingOffer.current = null
-      setCallState('connected')
+      setCallState('connecting')
+      armConnectWatch()
     } catch (e) {
       cleanup(); setCallState('idle'); socket.emit('call:end', { roomId })
       setError(e?.name === 'NotAllowedError' ? 'Microphone permission denied' : 'Could not join call')
     }
-  }, [socket, roomId, getMic, createPc, cleanup])
+  }, [socket, roomId, getMic, createPc, cleanup, armConnectWatch])
 
   const declineCall = useCallback(() => {
     socket?.emit('call:decline', { roomId })
@@ -147,7 +219,7 @@ export function useVoiceCall(roomId) {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp))
       for (const c of pendingIce.current) { try { await pc.addIceCandidate(c) } catch { /* noop */ } }
       pendingIce.current = []
-      setCallState('connected')
+      setCallState('connecting') // wait for ICE to actually link before 'connected'
     }
     const onIce = async ({ candidate }) => {
       const pc = pcRef.current

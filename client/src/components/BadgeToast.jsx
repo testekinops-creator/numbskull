@@ -44,7 +44,7 @@ export default function BadgeToast() {
   if (!b) return null
 
   return createPortal(
-    <div className={`${styles.toast} anim-bounce-land`} role="status" aria-live="polite">
+    <div className={styles.toast} role="status" aria-live="polite">
       <span className={styles.icon}>{b.icon}</span>
       <div className={styles.text}>
         <span className={styles.label}>Badge unlocked!</span>

@@ -1,5 +1,4 @@
 .trigger {
-  position: relative;
   width: 44px;
   height: 44px;
   flex-shrink: 0;
@@ -11,54 +10,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.12s var(--ease-spring), background 0.2s, box-shadow 0.2s;
+  transition: transform 0.12s var(--ease-spring), background 0.2s;
 }
 .trigger:hover { transform: translateY(-2px); background: var(--color-surface-3); }
 .trigger:active { transform: scale(0.94); }
 
-/* Brief confirmation when a reaction is fired via long-press. */
-.sent { box-shadow: 0 0 0 2px var(--color-juice, #00f5ff), 0 0 18px var(--color-juice-glow, rgba(0,245,255,0.5)); }
-.sentRing {
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 2px solid var(--color-juice, #00f5ff);
-  animation: sentPulse 0.4s ease-out forwards;
-  pointer-events: none;
-}
-@keyframes sentPulse {
-  0%   { transform: scale(0.85); opacity: 0.9; }
-  100% { transform: scale(1.5); opacity: 0; }
-}
-
-.hint {
-  margin: 0 0 var(--space-3);
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  line-height: var(--leading-normal);
-}
-.hint b { color: var(--color-juice, #00f5ff); }
-
+/* Light backdrop: closes on outside tap but keeps the game visible. */
 .backdrop {
   position: fixed;
   inset: 0;
   z-index: 1090;
-  background: rgba(8, 6, 24, 0.4);
+  background: rgba(8, 6, 24, 0.25);
 }
 
 .sheet {
   position: fixed;
-  left: 50%;
+  /* Centre with margin auto (NOT transform) so anim-slide-up can't shift it
+     sideways and clip it off-screen. */
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   bottom: 0;
-  transform: translateX(-50%);
   z-index: 1100;
   width: min(440px, 96vw);
   max-height: 56vh;
   overflow-y: auto;
   padding: var(--space-3) var(--space-4) calc(var(--space-5) + var(--safe-bottom, 0px));
   border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
-  background: rgba(38, 33, 92, 0.92);
+  background: rgba(38, 33, 92, 0.95);
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -72,6 +51,13 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.2);
   margin: 0 auto var(--space-3);
+}
+
+.hint {
+  margin: 0 0 var(--space-3);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
 }
 
 .grid {
@@ -94,7 +80,11 @@
 }
 .emoji:hover { transform: scale(1.18); background: rgba(255, 255, 255, 0.1); }
 .emoji:active { transform: scale(0.92); }
-.emoji.active {
-  background: color-mix(in srgb, var(--color-juice, #00f5ff) 22%, transparent);
-  box-shadow: inset 0 0 0 1.5px var(--color-juice, #00f5ff);
+
+/* Quick pop confirmation when a reaction is fired. */
+.emoji.pop { animation: emojiPop 0.35s var(--ease-spring); }
+@keyframes emojiPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.5); background: rgba(0, 245, 255, 0.18); }
+  100% { transform: scale(1); }
 }
