@@ -10,10 +10,18 @@ import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine } from '../game/engines/SudokuEngine.js'
+import {
+  WHEEL, VOWEL_COST, EXTRA_TURN_BONUS, pickPuzzle, spinWheel,
+  countOf, isAllRevealed, maskAnswer, normalizeSolve, isVowel, isConsonant, distinctLetters,
+} from '../game/engines/SpinBattleEngine.js'
 import { recordResult } from '../game/MonthlyLeaderboard.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN'])
+
+// Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
+const SPIN_BEST_OF = 3
+const SPIN_ROUND_PAUSE = 2800
 
 // Per-question timers for Math Battle (separate from the 30s XOX TurnTimer).
 const mathTimers = new Map()
@@ -317,6 +325,137 @@ export function registerMatchHandlers(io, socket) {
     } catch (err) { ack?.({ ok: false, error: err.message }) }
   })
 
+  // ── Spin Battle: spin the wheel ───────────────────────────────────────────
+  socket.on('spin:spin', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || m.roundOver || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+      if (m.canGuess) return ack?.({ ok: false, error: 'Call a consonant or solve first' })
+
+      const { index, wedge } = spinWheel()
+      let effect, passed = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        if (typeof wedge === 'number') { mm.lastWedge = wedge; mm.canGuess = true; effect = 'points' }
+        else if (wedge === 'BANKRUPT') { mm.bank[playerId] = 0; mm.lastWedge = null; effect = 'bankrupt'; passed = true }
+        else if (wedge === 'LOSE_TURN') { mm.lastWedge = null; effect = 'lose_turn'; passed = true }
+        else { mm.bank[playerId] = (mm.bank[playerId] || 0) + EXTRA_TURN_BONUS; mm.lastWedge = null; effect = 'extra_turn' }
+        if (passed) mm.turnId = r.players.find(p => p.id !== playerId)?.id || mm.turnId
+      })
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('spin:update', {
+        event: 'spin', by: playerId, index, wedge, effect, passed,
+        match: _publicMatch(updated.match),
+      })
+      ack?.({ ok: true })
+    } catch (err) { logger.error({ err }, 'spin:spin error'); ack?.({ ok: false, error: err.message }) }
+  })
+
+  // ── Spin Battle: call a consonant ─────────────────────────────────────────
+  socket.on('spin:guess', async ({ roomId, letter } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || m.roundOver || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+      letter = String(letter || '').toUpperCase()
+      if (!isConsonant(letter)) return ack?.({ ok: false, error: 'Pick a consonant' })
+      if (!m.canGuess || typeof m.lastWedge !== 'number') return ack?.({ ok: false, error: 'Spin first' })
+      if (m.revealed.includes(letter)) return ack?.({ ok: false, error: 'Already guessed' })
+
+      let correct = false, count = 0, points = 0, roundWon = false, passed = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        count = countOf(mm.answer, letter)
+        const wedge = mm.lastWedge
+        mm.canGuess = false; mm.lastWedge = null
+        if (count > 0) {
+          mm.revealed.push(letter)
+          points = wedge * count
+          mm.bank[playerId] = (mm.bank[playerId] || 0) + points
+          correct = true
+          if (isAllRevealed(mm.answer, mm.revealed)) roundWon = true
+        } else {
+          mm.turnId = r.players.find(p => p.id !== playerId)?.id || mm.turnId
+          passed = true
+        }
+      })
+      ack?.({ ok: true, correct })
+      if (roundWon) return _afterSpinRoundWin(io, roomId, playerId)
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('spin:update', {
+        event: 'guess', by: playerId, letter, correct, count, points, passed,
+        match: _publicMatch(updated.match),
+      })
+    } catch (err) { logger.error({ err }, 'spin:guess error'); ack?.({ ok: false, error: err.message }) }
+  })
+
+  // ── Spin Battle: buy a vowel ──────────────────────────────────────────────
+  socket.on('spin:vowel', async ({ roomId, letter } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || m.roundOver || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+      letter = String(letter || '').toUpperCase()
+      if (m.canGuess) return ack?.({ ok: false, error: 'Call a consonant or solve first' })
+      if (!isVowel(letter)) return ack?.({ ok: false, error: 'Pick a vowel' })
+      if (m.revealed.includes(letter)) return ack?.({ ok: false, error: 'Already revealed' })
+      if ((m.bank[playerId] || 0) < m.vowelCost) return ack?.({ ok: false, error: 'Not enough points for a vowel' })
+
+      let correct = false, count = 0, roundWon = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        mm.bank[playerId] = (mm.bank[playerId] || 0) - mm.vowelCost
+        mm.lastWedge = null
+        count = countOf(mm.answer, letter)
+        if (count > 0) {
+          mm.revealed.push(letter)
+          correct = true
+          if (isAllRevealed(mm.answer, mm.revealed)) roundWon = true
+        }
+      })
+      ack?.({ ok: true, correct })
+      if (roundWon) return _afterSpinRoundWin(io, roomId, playerId)
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('spin:update', {
+        event: 'vowel', by: playerId, letter, correct, count,
+        match: _publicMatch(updated.match),
+      })
+    } catch (err) { logger.error({ err }, 'spin:vowel error'); ack?.({ ok: false, error: err.message }) }
+  })
+
+  // ── Spin Battle: attempt to solve ─────────────────────────────────────────
+  socket.on('spin:solve', async ({ roomId, attempt } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || m.roundOver || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+
+      let solved = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        solved = normalizeSolve(attempt) === normalizeSolve(mm.answer)
+        if (solved) {
+          for (const ch of distinctLetters(mm.answer)) if (!mm.revealed.includes(ch)) mm.revealed.push(ch)
+        } else {
+          mm.canGuess = false; mm.lastWedge = null
+          mm.turnId = r.players.find(p => p.id !== playerId)?.id || mm.turnId
+        }
+      })
+      ack?.({ ok: true, solved })
+      if (solved) return _afterSpinRoundWin(io, roomId, playerId)
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('spin:update', {
+        event: 'solve', by: playerId, solved: false, passed: true,
+        match: _publicMatch(updated.match),
+      })
+    } catch (err) { logger.error({ err }, 'spin:solve error'); ack?.({ ok: false, error: err.message }) }
+  })
+
   // ── Forfeit (explicit "I give up") ────────────────────────────────────────
   socket.on('match:forfeit', async ({ roomId } = {}, ack) => {
     try {
@@ -404,6 +543,35 @@ async function _startMatch(io, roomId) {
     })
   }
 
+  if (room.mode === 'SPIN') {
+    const [a, b] = room.players
+    // Alternate who spins first each match/rematch.
+    const seq = room.gameSeq || 0
+    const firstId = seq % 2 === 0 ? a.id : b.id
+    const picked = pickPuzzle(room.difficulty || 'medium')
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.gameSeq = seq + 1
+      r.match = {
+        kind:      'SPIN',
+        answer:    picked.text,           // server-only
+        category:  picked.category,
+        revealed:  [],
+        wheel:     [...WHEEL],
+        vowelCost: VOWEL_COST,
+        bank:      { [a.id]: 0, [b.id]: 0 },
+        roundWins: { [a.id]: 0, [b.id]: 0 },
+        round:     1,
+        bestOf:    SPIN_BEST_OF,
+        turnId:    firstId,
+        canGuess:  false,
+        lastWedge: null,
+        roundOver: false,
+      }
+    })
+  }
+
   const updated = await roomManager.get(roomId)
   for (const p of updated.players) {
     const s = _findSocket(io, p.id)
@@ -412,6 +580,51 @@ async function _startMatch(io, roomId) {
 
   if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
+}
+
+// ── Spin Battle: round / match progression ─────────────────────────────────
+async function _afterSpinRoundWin(io, roomId, winnerId) {
+  let matchOver = false, roundWins = 0
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    if (!mm || mm.roundOver) return
+    mm.roundOver = true
+    mm.roundWins[winnerId] = (mm.roundWins[winnerId] || 0) + 1
+    roundWins = mm.roundWins[winnerId]
+    if (roundWins >= Math.ceil(mm.bestOf / 2)) matchOver = true
+  })
+  const updated = await roomManager.get(roomId)
+  if (!updated?.match) return
+  io.to(roomId).emit('spin:update', {
+    event: 'roundover', winnerId, matchOver, match: _publicMatch(updated.match),
+  })
+  if (matchOver) {
+    await _endMatch(io, roomId, { winnerId, draw: false })
+  } else {
+    setTimeout(() => _nextSpinRound(io, roomId, winnerId), SPIN_ROUND_PAUSE)
+  }
+}
+
+async function _nextSpinRound(io, roomId, lastWinnerId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return
+  const picked = pickPuzzle(room.difficulty || 'medium')
+  // The player who lost the round starts the next one.
+  const firstId = room.players.find(p => p.id !== lastWinnerId)?.id || lastWinnerId
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    mm.answer = picked.text
+    mm.category = picked.category
+    mm.revealed = []
+    for (const p of r.players) mm.bank[p.id] = 0
+    mm.turnId = firstId
+    mm.canGuess = false
+    mm.lastWedge = null
+    mm.roundOver = false
+    mm.round = (mm.round || 1) + 1
+  })
+  const updated = await roomManager.get(roomId)
+  io.to(roomId).emit('spin:round', { round: updated.match.round, match: _publicMatch(updated.match) })
 }
 
 // Build a client-safe question (no answer) from the stored questions array.
@@ -548,6 +761,26 @@ function _publicMatch(match) {
       scores:   match.scores,
       question: match.question,
       resolved: match.resolved,
+    }
+  }
+  if (match.kind === 'SPIN') {
+    // Strip the answer (reveal it only once the round is decided).
+    return {
+      kind:      'SPIN',
+      masked:    maskAnswer(match.answer, match.revealed),
+      category:  match.category,
+      revealed:  match.revealed,
+      wheel:     match.wheel,
+      vowelCost: match.vowelCost,
+      bank:      match.bank,
+      roundWins: match.roundWins,
+      round:     match.round,
+      bestOf:    match.bestOf,
+      turnId:    match.turnId,
+      canGuess:  match.canGuess,
+      lastWedge: match.lastWedge,
+      roundOver: match.roundOver,
+      ...(match.roundOver ? { answer: match.answer } : {}),
     }
   }
   if (match.kind === 'SUDOKU') {
