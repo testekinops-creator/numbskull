@@ -42,6 +42,7 @@ const NumberTowersPage    = lazy(() => import('./pages/NumberTowersPage.jsx'))
 const SettingsPage        = lazy(() => import('./pages/SettingsPage.jsx'))
 const XoxAiPage           = lazy(() => import('./pages/XoxAiPage.jsx'))
 const MathBattleAiPage    = lazy(() => import('./pages/MathBattleAiPage.jsx'))
+const SpinBattleAiPage    = lazy(() => import('./pages/SpinBattleAiPage.jsx'))
 const NotFoundPage        = lazy(() => import('./pages/NotFoundPage.jsx'))
 
 function PageFallback() {
@@ -73,6 +74,7 @@ function AppInner() {
           {/* New-mode AI pages must precede the generic /play/:mode */}
           <Route path="/play/XOX"           element={<ProtectedRoute><XoxAiPage /></ProtectedRoute>} />
           <Route path="/play/MATH"          element={<ProtectedRoute><MathBattleAiPage /></ProtectedRoute>} />
+          <Route path="/play/SPIN"          element={<ProtectedRoute><SpinBattleAiPage /></ProtectedRoute>} />
           <Route path="/play/:mode"         element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
           <Route path="/lobby"              element={<ProtectedRoute><LobbyPage /></ProtectedRoute>} />
           <Route path="/room/:roomId"       element={<ProtectedRoute><RoomPage /></ProtectedRoute>} />

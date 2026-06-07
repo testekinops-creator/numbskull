@@ -44,6 +44,14 @@ const GAMES = [
     desc: 'Co-op the same grid in real time. Right cells score, wrong ones cost.',
     accent: 'var(--color-juice)',
   },
+  {
+    mode: 'SPIN',
+    icon: '🎡',
+    name: 'Spin Battle',
+    desc: 'Spin the wheel, call letters, solve the phrase. Word-puzzle roulette.',
+    accent: 'var(--color-pink)',
+    solo: true,
+  },
 ]
 
 export default function HomeListPage() {
@@ -57,7 +65,9 @@ export default function HomeListPage() {
   const tier = getTierFromGames(games)
 
   function playGame(mode) {
-    // Go straight to multiplayer lobby with this mode preselected
+    // Solo-only modes go straight to their page; the rest open the MP lobby.
+    const game = GAMES.find(g => g.mode === mode)
+    if (game?.solo) { navigate(`/play/${mode}`); return }
     navigate('/lobby', { state: { mode } })
   }
 
