@@ -258,6 +258,9 @@ async function _endRound(io, roomId, winnerId) {
   }
   io.to(roomId).emit('game:round_over', {
     winnerId,
+    // Reveal both secrets at game over so the loser learns the number/code they
+    // failed to crack (their opponent's secret).
+    secrets: { ...(updated.round?.secrets || {}) },
     scores: updated.players.map(p => ({ id: p.id, score: p.score })),
   })
 }

@@ -143,6 +143,7 @@ function reducer(state, action) {
         myTurn:   false,
         won:      action.winnerId ? action.winnerId === action.playerId : null,
         winnerId: action.winnerId || null,
+        revealedSecrets: action.secrets || null,   // { playerId: secret } — shown at game over
       }
     }
 
@@ -447,9 +448,9 @@ export function RoomProvider({ children }) {
     })
 
     // game:round_over carries { winnerId, scores } — pass them through
-    socket.on('game:round_over', ({ winnerId, scores } = {}) => {
+    socket.on('game:round_over', ({ winnerId, scores, secrets } = {}) => {
       clearInterval(timerRef.current)
-      dispatch({ type: 'ROUND_OVER', winnerId, scores, playerId })
+      dispatch({ type: 'ROUND_OVER', winnerId, scores, secrets, playerId })
     })
 
     // Forfeit: the person who forfeited loses; winnerId tells us who won

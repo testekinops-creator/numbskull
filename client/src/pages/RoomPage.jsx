@@ -471,6 +471,20 @@ function GuessRoom() {
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
 
+            {/* Reveal the opponent's secret — so the loser learns what they
+                couldn't crack (shown to both players). */}
+            {opponent && state.revealedSecrets?.[opponent.id] && (
+              <p
+                className="anim-msg"
+                style={{ textAlign: 'center', margin: '6px 0 0', color: 'var(--color-text-secondary)' }}
+              >
+                {opponent.name || 'Opponent'}'s {mode === 'GTN' ? 'number' : 'code'} was{' '}
+                <b style={{ color: 'var(--color-juice)', letterSpacing: '0.1em', fontSize: '1.1em' }}>
+                  {state.revealedSecrets[opponent.id]}
+                </b>
+              </p>
+            )}
+
             {/* Rematch prompt — 4 states */}
             <RematchPrompt
               rematchStatus={state.rematchStatus}
