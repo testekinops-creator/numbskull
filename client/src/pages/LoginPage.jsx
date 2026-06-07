@@ -21,7 +21,14 @@ export default function LoginPage() {
       localStorage.setItem('ns_name_set', '1')
       navigate('/home')
     } catch (err) {
-      setError(err.code === 'ACCOUNT_LOCKED' ? 'Account locked after too many attempts. Try in 15 minutes.' : 'Invalid email or password.')
+      // Distinguish wrong-credentials from server/connection problems so a valid
+      // login that fails for other reasons doesn't read as "wrong password".
+      let msg
+      if (err.code === 'ACCOUNT_LOCKED') msg = 'Account locked after too many attempts. Try again in 15 minutes.'
+      else if (err.code === 'INVALID_CREDENTIALS' || err.status === 401) msg = 'Incorrect email/username or password.'
+      else if (!err.status || err.status >= 500) msg = 'Couldn’t reach the server. Check your connection and try again.'
+      else msg = err.message || 'Login failed. Please try again.'
+      setError(msg)
     } finally {
       setBusy(false)
     }

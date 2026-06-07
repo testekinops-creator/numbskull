@@ -24,7 +24,12 @@ export default function RegisterPage() {
       localStorage.setItem('ns_name_set', '1')
       navigate('/home')
     } catch (err) {
-      setError(err.message || 'Registration failed')
+      let msg
+      if (err.code === 'EMAIL_EXISTS') msg = 'That email is already registered — try logging in.'
+      else if (err.code === 'USERNAME_EXISTS') msg = 'That username is taken — pick another.'
+      else if (!err.status || err.status >= 500) msg = 'Couldn’t reach the server. Check your connection and try again.'
+      else msg = err.message || 'Registration failed.'
+      setError(msg)
     } finally {
       setBusy(false)
     }
