@@ -364,6 +364,7 @@ export function registerMatchHandlers(io, socket) {
         event: 'spin', by: playerId, index, wedge, effect, passed, stealAmount, skipped,
         match: _publicMatch(updated.match),
       })
+      _armSpinTimer(io, roomId, updated.match.turnId)
       ack?.({ ok: true })
     } catch (err) { logger.error({ err }, 'spin:spin error'); ack?.({ ok: false, error: err.message }) }
   })
@@ -404,6 +405,7 @@ export function registerMatchHandlers(io, socket) {
         event: 'guess', by: playerId, letter, correct, count, points, passed, skipped,
         match: _publicMatch(updated.match),
       })
+      _armSpinTimer(io, roomId, updated.match.turnId)
     } catch (err) { logger.error({ err }, 'spin:guess error'); ack?.({ ok: false, error: err.message }) }
   })
 
@@ -439,6 +441,7 @@ export function registerMatchHandlers(io, socket) {
         event: 'vowel', by: playerId, letter, correct, count,
         match: _publicMatch(updated.match),
       })
+      _armSpinTimer(io, roomId, updated.match.turnId)
     } catch (err) { logger.error({ err }, 'spin:vowel error'); ack?.({ ok: false, error: err.message }) }
   })
 
@@ -469,6 +472,7 @@ export function registerMatchHandlers(io, socket) {
         event: 'solve', by: playerId, solved: false, passed: true, skipped,
         match: _publicMatch(updated.match),
       })
+      _armSpinTimer(io, roomId, updated.match.turnId)
     } catch (err) { logger.error({ err }, 'spin:solve error'); ack?.({ ok: false, error: err.message }) }
   })
 
@@ -598,6 +602,7 @@ async function _startMatch(io, roomId) {
 
   if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
+  if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
 }
 
 // Pass the turn, honouring FREEZE: if the opponent is frozen, consume the freeze
@@ -609,8 +614,25 @@ function _spinNextTurn(mm, players, fromId) {
   return { turnId: oppId, skipped: false }
 }
 
+// Anti-stall: (re)arm a 30s timer for whoever's turn it is. If they don't act in
+// time, they lose the current round (fair for best-of-3). Re-armed after every
+// action; cleared on round/match end.
+function _armSpinTimer(io, roomId, turnId) {
+  clearTimer(roomId)
+  getTimer(roomId, async (rid) => {
+    const room = await roomManager.get(rid)
+    if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return
+    const mm = room.match
+    if (!mm || mm.roundOver || mm.turnId !== turnId) return
+    const winnerId = room.players.find(p => p.id !== turnId)?.id || null
+    io.to(rid).emit('match:timeout', { playerId: turnId })
+    if (winnerId) await _afterSpinRoundWin(io, rid, winnerId)
+  }).start()
+}
+
 // ── Spin Battle: round / match progression ─────────────────────────────────
 async function _afterSpinRoundWin(io, roomId, winnerId) {
+  clearTimer(roomId)   // round decided → stop the anti-stall timer
   let matchOver = false, roundWins = 0
   await roomManager.update(roomId, r => {
     const mm = r.match
@@ -653,6 +675,7 @@ async function _nextSpinRound(io, roomId, lastWinnerId) {
   })
   const updated = await roomManager.get(roomId)
   io.to(roomId).emit('spin:round', { round: updated.match.round, match: _publicMatch(updated.match) })
+  _armSpinTimer(io, roomId, updated.match.turnId)
 }
 
 // Build a client-safe question (no answer) from the stored questions array.
