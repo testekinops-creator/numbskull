@@ -188,6 +188,8 @@ export function useVoiceCall(roomId) {
     setCallState('idle')
   }, [socket, roomId, cleanup])
 
+  const clearError = useCallback(() => setError(null), [])
+
   const toggleMute = useCallback(() => {
     const track = localStreamRef.current?.getAudioTracks()[0]
     if (track) { track.enabled = !track.enabled; setMuted(!track.enabled) }
@@ -249,7 +251,7 @@ export function useVoiceCall(roomId) {
   useEffect(() => () => cleanup(), [cleanup])  // end call when leaving the room
 
   return {
-    callState, muted, remoteMuted, callerName, error, remoteAudioRef,
+    callState, muted, remoteMuted, callerName, error, clearError, remoteAudioRef,
     startCall, acceptCall, declineCall, endCall, toggleMute, toggleRemoteMute,
   }
 }

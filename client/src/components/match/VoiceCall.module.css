@@ -154,6 +154,30 @@
   align-self: center;
 }
 
+/* Floating error toast — centred via margin/inset (not transform) so anim-slide-up
+   can't shift it; constrained width so long messages wrap instead of overflowing. */
+.errToast {
+  position: fixed;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  bottom: calc(var(--safe-bottom, 0px) + 84px);
+  z-index: 1180;
+  width: max-content;
+  max-width: 88vw;
+  text-align: center;
+  padding: 10px 16px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--text-sm, 0.85rem);
+  font-weight: var(--weight-semibold, 600);
+  color: #fff;
+  background: rgba(20, 16, 48, 0.96);
+  border: 1px solid color-mix(in srgb, var(--color-pink, #ff3e8a) 60%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 18px rgba(255, 62, 138, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pulse, .ring { animation: none; }
 }

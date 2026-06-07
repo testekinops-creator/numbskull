@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useVoiceCall } from '../../hooks/useVoiceCall.js'
 import { PhoneIcon, PhoneOffIcon, MicIcon, MicOffIcon, SpeakerIcon, SpeakerOffIcon } from '../icons/Icons.jsx'
@@ -9,9 +10,16 @@ import styles from './VoiceCall.module.css'
 // portaled to <body> — status + mic mute + opponent-audio mute + hang up.
 export default function VoiceCall({ roomId, opponentName }) {
   const {
-    callState, muted, remoteMuted, error,
+    callState, muted, remoteMuted, error, clearError,
     remoteAudioRef, startCall, endCall, toggleMute, toggleRemoteMute,
   } = useVoiceCall(roomId)
+
+  // Auto-dismiss errors (shown as a floating toast, never inline in the cluster).
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => clearError(), 4500)
+    return () => clearTimeout(t)
+  }, [error, clearError])
 
   const active = callState === 'calling' || callState === 'connecting' || callState === 'connected'
 
@@ -61,7 +69,12 @@ export default function VoiceCall({ roomId, opponentName }) {
         document.body,
       )}
 
-      {error && callState === 'idle' && <span className={styles.err} role="status">{error}</span>}
+      {/* Errors float as a portaled toast — never inline in the cluster, so they
+          can't widen the row and push the players' name/READY off the card. */}
+      {error && createPortal(
+        <div className={`${styles.errToast} anim-slide-up`} role="status">{error}</div>,
+        document.body,
+      )}
     </>
   )
 }
