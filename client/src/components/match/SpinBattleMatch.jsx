@@ -54,6 +54,9 @@ export default function SpinBattleMatch({
     feedback = spin.effect === 'bankrupt' ? `💀 ${who} hit Bankrupt!`
       : spin.effect === 'lose_turn' ? `${who} lost a turn`
       : spin.effect === 'extra_turn' ? `🎁 ${who} got +200!`
+      : spin.effect === 'double' ? `🔥 ${who} hit Double (×2)!`
+      : spin.effect === 'jackpot' ? `💰 ${who} hit the Jackpot (+1000)!`
+      : spin.effect === 'steal' ? `🦹 ${who} stole ${spin.stealAmount || 0}!`
       : `${who} spun ${wedgeWord(spin.wedge)} — pick a consonant`
   } else if (spin?.event === 'guess') {
     feedback = spin.correct ? `${who} found ${spin.count}× "${spin.letter}" (+${spin.points})`

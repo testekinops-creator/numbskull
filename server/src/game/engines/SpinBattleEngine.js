@@ -6,11 +6,15 @@
 
 import { SPIN_PUZZLES } from '../data/spinPuzzles.js'
 
-// 8-segment wheel. Index order is intentionally mixed for a nicer-looking wheel.
-export const WHEEL = [200, 'BANKRUPT', 600, 'LOSE_TURN', 400, 1000, 'EXTRA_TURN', 800]
+// 11-segment wheel. Index order is intentionally mixed for a nicer-looking
+// wheel. Specials: BANKRUPT (wipe bank), LOSE_TURN (pass), EXTRA_TURN (+200),
+// DOUBLE (×2 bank), JACKPOT (+1000), STEAL (take from opponent / solo bonus).
+export const WHEEL = [200, 'BANKRUPT', 600, 'STEAL', 400, 'DOUBLE', 1000, 'LOSE_TURN', 800, 'JACKPOT', 'EXTRA_TURN']
 
 export const VOWEL_COST = 250
 export const EXTRA_TURN_BONUS = 200
+export const JACKPOT_BONUS = 1000
+export const STEAL_AMOUNT = 400
 export const MAX_STRIKES = 5
 
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U'])
@@ -117,6 +121,7 @@ export class SpinBattleEngine {
 
     const { index, wedge } = spinWheel()
     let effect
+    this.lastWedge = null
 
     if (typeof wedge === 'number') {
       this.lastWedge = wedge
@@ -124,15 +129,21 @@ export class SpinBattleEngine {
       effect = 'points'
     } else if (wedge === 'BANKRUPT') {
       this.bank = 0
-      this.lastWedge = null
       effect = 'bankrupt'
     } else if (wedge === 'LOSE_TURN') {
-      this.lastWedge = null
       effect = 'lose_turn'
-    } else { // EXTRA_TURN
+    } else if (wedge === 'EXTRA_TURN') {
       this.bank += EXTRA_TURN_BONUS
-      this.lastWedge = null
       effect = 'extra_turn'
+    } else if (wedge === 'DOUBLE') {
+      this.bank *= 2
+      effect = 'double'
+    } else if (wedge === 'JACKPOT') {
+      this.bank += JACKPOT_BONUS
+      effect = 'jackpot'
+    } else { // STEAL — solo has no opponent, so it's a straight bonus
+      this.bank += STEAL_AMOUNT
+      effect = 'steal'
     }
     return { index, wedge, effect, ...this.publicState() }
   }

@@ -94,6 +94,9 @@ export default function SpinBattleAiPage() {
     else if (data.effect === 'bankrupt')   { playTone(0.12); setFeedback('💀 Bankrupt — bank wiped!') }
     else if (data.effect === 'lose_turn')  { playTone(0.3);  setFeedback('Lose a turn — spin again.') }
     else if (data.effect === 'extra_turn') { playTone(0.8);  setFeedback('🎁 Bonus +200! Spin again.') }
+    else if (data.effect === 'double')     { playTone(0.9);  setFeedback('🔥 Double! Bank ×2 — spin again.') }
+    else if (data.effect === 'jackpot')    { playTone(0.95); setFeedback('💰 Jackpot! +1000 — spin again.') }
+    else if (data.effect === 'steal')      { playTone(0.85); setFeedback('🦹 Steal! +400 — spin again.') }
   }
 
   async function onGuess(letter) {

@@ -113,18 +113,36 @@ describe('SpinBattleEngine', () => {
     void all
   })
 
+  // Force the wheel to land on a specific wedge (mid-segment → float-safe).
+  function forceWedge(label, fn) {
+    const idx = WHEEL.indexOf(label)
+    const orig = Math.random
+    Math.random = () => (idx + 0.5) / WHEEL.length
+    try { return fn(e.spin()) } finally { Math.random = orig }
+  }
+
   it('bankrupt wedge wipes the bank', () => {
     e.bank = 5000
-    const idx = WHEEL.indexOf('BANKRUPT')
-    const orig = Math.random
-    Math.random = () => idx / WHEEL.length   // force the wheel to land on BANKRUPT
-    try {
-      const r = e.spin()
-      expect(r.effect).toBe('bankrupt')
-      expect(e.bank).toBe(0)
-    } finally {
-      Math.random = orig
-    }
+    forceWedge('BANKRUPT', r => { expect(r.effect).toBe('bankrupt'); expect(e.bank).toBe(0) })
+  })
+
+  it('double wedge doubles the bank', () => {
+    e.bank = 600
+    forceWedge('DOUBLE', r => { expect(r.effect).toBe('double'); expect(e.bank).toBe(1200) })
+  })
+
+  it('jackpot wedge adds a flat bonus', () => {
+    e.bank = 200
+    forceWedge('JACKPOT', r => { expect(r.effect).toBe('jackpot'); expect(e.bank).toBe(1200) })
+  })
+
+  it('steal wedge is a solo bonus', () => {
+    e.bank = 100
+    forceWedge('STEAL', r => { expect(r.effect).toBe('steal'); expect(e.bank).toBe(500) })
+  })
+
+  it('a number wedge arms a consonant', () => {
+    forceWedge(800, r => { expect(r.effect).toBe('points'); expect(e.canGuess).toBe(true); expect(e.lastWedge).toBe(800) })
   })
 
   it('public state hides the answer until the game is over', () => {

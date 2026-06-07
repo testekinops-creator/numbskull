@@ -11,7 +11,7 @@ import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine } from '../game/engines/SudokuEngine.js'
 import {
-  WHEEL, VOWEL_COST, EXTRA_TURN_BONUS, pickPuzzle, spinWheel,
+  WHEEL, VOWEL_COST, EXTRA_TURN_BONUS, JACKPOT_BONUS, STEAL_AMOUNT, pickPuzzle, spinWheel,
   countOf, isAllRevealed, maskAnswer, normalizeSolve, isVowel, isConsonant, distinctLetters,
 } from '../game/engines/SpinBattleEngine.js'
 import { recordResult } from '../game/MonthlyLeaderboard.js'
@@ -335,18 +335,28 @@ export function registerMatchHandlers(io, socket) {
       if (m.canGuess) return ack?.({ ok: false, error: 'Call a consonant or solve first' })
 
       const { index, wedge } = spinWheel()
-      let effect, passed = false
+      let effect, passed = false, stealAmount = 0
       await roomManager.update(roomId, r => {
         const mm = r.match
+        mm.lastWedge = null
+        const oppId = r.players.find(p => p.id !== playerId)?.id
         if (typeof wedge === 'number') { mm.lastWedge = wedge; mm.canGuess = true; effect = 'points' }
-        else if (wedge === 'BANKRUPT') { mm.bank[playerId] = 0; mm.lastWedge = null; effect = 'bankrupt'; passed = true }
-        else if (wedge === 'LOSE_TURN') { mm.lastWedge = null; effect = 'lose_turn'; passed = true }
-        else { mm.bank[playerId] = (mm.bank[playerId] || 0) + EXTRA_TURN_BONUS; mm.lastWedge = null; effect = 'extra_turn' }
-        if (passed) mm.turnId = r.players.find(p => p.id !== playerId)?.id || mm.turnId
+        else if (wedge === 'BANKRUPT') { mm.bank[playerId] = 0; effect = 'bankrupt'; passed = true }
+        else if (wedge === 'LOSE_TURN') { effect = 'lose_turn'; passed = true }
+        else if (wedge === 'EXTRA_TURN') { mm.bank[playerId] = (mm.bank[playerId] || 0) + EXTRA_TURN_BONUS; effect = 'extra_turn' }
+        else if (wedge === 'DOUBLE') { mm.bank[playerId] = (mm.bank[playerId] || 0) * 2; effect = 'double' }
+        else if (wedge === 'JACKPOT') { mm.bank[playerId] = (mm.bank[playerId] || 0) + JACKPOT_BONUS; effect = 'jackpot' }
+        else { // STEAL — take from the opponent's round bank
+          stealAmount = Math.min(STEAL_AMOUNT, oppId ? (mm.bank[oppId] || 0) : 0)
+          if (oppId) mm.bank[oppId] = (mm.bank[oppId] || 0) - stealAmount
+          mm.bank[playerId] = (mm.bank[playerId] || 0) + stealAmount
+          effect = 'steal'
+        }
+        if (passed) mm.turnId = oppId || mm.turnId
       })
       const updated = await roomManager.get(roomId)
       io.to(roomId).emit('spin:update', {
-        event: 'spin', by: playerId, index, wedge, effect, passed,
+        event: 'spin', by: playerId, index, wedge, effect, passed, stealAmount,
         match: _publicMatch(updated.match),
       })
       ack?.({ ok: true })

@@ -21,6 +21,9 @@ function displayLabel(v) {
   if (v === 'BANKRUPT') return 'BANK'
   if (v === 'LOSE_TURN') return 'LOSE'
   if (v === 'EXTRA_TURN') return '+200'
+  if (v === 'DOUBLE') return '2×'
+  if (v === 'JACKPOT') return 'JACK'
+  if (v === 'STEAL') return 'STEAL'
   return String(v)
 }
 
@@ -28,6 +31,9 @@ function fillFor(v, i) {
   if (v === 'BANKRUPT') return '#140f28'
   if (v === 'LOSE_TURN') return '#ff3e8a'
   if (v === 'EXTRA_TURN') return '#7c5cff'
+  if (v === 'DOUBLE') return '#00e676'
+  if (v === 'JACKPOT') return '#ffb300'
+  if (v === 'STEAL') return '#ff7043'
   return i % 2 === 0 ? '#00c2d6' : '#0a8aa0'
 }
 
