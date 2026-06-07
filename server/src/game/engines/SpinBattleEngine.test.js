@@ -145,6 +145,24 @@ describe('SpinBattleEngine', () => {
     forceWedge(800, r => { expect(r.effect).toBe('points'); expect(e.canGuess).toBe(true); expect(e.lastWedge).toBe(800) })
   })
 
+  it('shield wedge raises a shield', () => {
+    forceWedge('SHIELD', r => { expect(r.effect).toBe('shield'); expect(e.shield).toBe(true) })
+  })
+
+  it('a shield blocks the next bankrupt and is consumed', () => {
+    e.bank = 1500; e.shield = true
+    forceWedge('BANKRUPT', r => {
+      expect(r.effect).toBe('bankrupt_blocked')
+      expect(e.bank).toBe(1500)   // preserved
+      expect(e.shield).toBe(false) // consumed
+    })
+  })
+
+  it('freeze is a solo bonus', () => {
+    e.bank = 100
+    forceWedge('FREEZE', r => { expect(r.effect).toBe('freeze'); expect(e.bank).toBe(350) })
+  })
+
   it('public state hides the answer until the game is over', () => {
     expect(e.publicState().answer).toBeUndefined()
     e.solve('RED FOX')

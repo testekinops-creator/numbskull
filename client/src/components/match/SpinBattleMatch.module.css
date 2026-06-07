@@ -71,4 +71,6 @@
   color: var(--color-text-muted, #6b638a);
 }
 
+.status { font-size: 0.7rem; }
+
 .yourTurn { color: var(--color-juice, #00f5ff); }

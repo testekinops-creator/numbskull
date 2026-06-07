@@ -24,6 +24,8 @@ function displayLabel(v) {
   if (v === 'DOUBLE') return '2×'
   if (v === 'JACKPOT') return 'JACK'
   if (v === 'STEAL') return 'STEAL'
+  if (v === 'SHIELD') return 'SHLD'
+  if (v === 'FREEZE') return 'FRZ'
   return String(v)
 }
 
@@ -34,6 +36,8 @@ function fillFor(v, i) {
   if (v === 'DOUBLE') return '#00e676'
   if (v === 'JACKPOT') return '#ffb300'
   if (v === 'STEAL') return '#ff7043'
+  if (v === 'SHIELD') return '#42a5f5'
+  if (v === 'FREEZE') return '#80deea'
   return i % 2 === 0 ? '#00c2d6' : '#0a8aa0'
 }
 

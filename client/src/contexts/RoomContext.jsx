@@ -172,7 +172,7 @@ function reducer(state, action) {
           index: p.index ?? state.spin?.index ?? 0,
           wedge: p.wedge, effect: p.effect, stealAmount: p.stealAmount,
           letter: p.letter, correct: p.correct, count: p.count, points: p.points,
-          passed: p.passed, solved: p.solved,
+          passed: p.passed, solved: p.solved, skipped: p.skipped,
           winnerId: p.winnerId, matchOver: p.matchOver,
           ts: Date.now(),
         },

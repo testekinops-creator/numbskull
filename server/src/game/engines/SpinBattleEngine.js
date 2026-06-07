@@ -6,15 +6,17 @@
 
 import { SPIN_PUZZLES } from '../data/spinPuzzles.js'
 
-// 11-segment wheel. Index order is intentionally mixed for a nicer-looking
+// 13-segment wheel. Index order is intentionally mixed for a nicer-looking
 // wheel. Specials: BANKRUPT (wipe bank), LOSE_TURN (pass), EXTRA_TURN (+200),
-// DOUBLE (×2 bank), JACKPOT (+1000), STEAL (take from opponent / solo bonus).
-export const WHEEL = [200, 'BANKRUPT', 600, 'STEAL', 400, 'DOUBLE', 1000, 'LOSE_TURN', 800, 'JACKPOT', 'EXTRA_TURN']
+// DOUBLE (×2 bank), JACKPOT (+1000), STEAL (take from opponent / solo bonus),
+// SHIELD (block the next Bankrupt), FREEZE (skip opponent's next turn / solo bonus).
+export const WHEEL = [200, 'BANKRUPT', 600, 'STEAL', 400, 'DOUBLE', 1000, 'SHIELD', 800, 'JACKPOT', 'LOSE_TURN', 'FREEZE', 'EXTRA_TURN']
 
 export const VOWEL_COST = 250
 export const EXTRA_TURN_BONUS = 200
 export const JACKPOT_BONUS = 1000
 export const STEAL_AMOUNT = 400
+export const FREEZE_SOLO_BONUS = 250
 export const MAX_STRIKES = 5
 
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U'])
@@ -85,6 +87,7 @@ export class SpinBattleEngine {
     this.maxStrikes = MAX_STRIKES
     this.canGuess = false           // a live points-wedge is waiting for a consonant
     this.lastWedge = null
+    this.shield = false             // blocks the next Bankrupt
     this.over = false
     this.won = false
     this.range = null               // parity with other engines (start returns engine.range)
@@ -103,6 +106,7 @@ export class SpinBattleEngine {
       maxStrikes: this.maxStrikes,
       canGuess: this.canGuess,
       lastWedge: this.lastWedge,
+      shield: this.shield,
       wheel: this.wheel,
       vowelCost: VOWEL_COST,
       revealed: [...this.revealed],
@@ -128,8 +132,8 @@ export class SpinBattleEngine {
       this.canGuess = true
       effect = 'points'
     } else if (wedge === 'BANKRUPT') {
-      this.bank = 0
-      effect = 'bankrupt'
+      if (this.shield) { this.shield = false; effect = 'bankrupt_blocked' }
+      else { this.bank = 0; effect = 'bankrupt' }
     } else if (wedge === 'LOSE_TURN') {
       effect = 'lose_turn'
     } else if (wedge === 'EXTRA_TURN') {
@@ -141,9 +145,15 @@ export class SpinBattleEngine {
     } else if (wedge === 'JACKPOT') {
       this.bank += JACKPOT_BONUS
       effect = 'jackpot'
-    } else { // STEAL — solo has no opponent, so it's a straight bonus
+    } else if (wedge === 'STEAL') { // solo has no opponent → straight bonus
       this.bank += STEAL_AMOUNT
       effect = 'steal'
+    } else if (wedge === 'SHIELD') {
+      this.shield = true
+      effect = 'shield'
+    } else { // FREEZE — nobody to freeze in solo → small bonus
+      this.bank += FREEZE_SOLO_BONUS
+      effect = 'freeze'
     }
     return { index, wedge, effect, ...this.publicState() }
   }

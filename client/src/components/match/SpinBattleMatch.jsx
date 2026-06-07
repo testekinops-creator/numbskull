@@ -52,19 +52,23 @@ export default function SpinBattleMatch({
   if (spinning) feedback = `${who} ${who === 'You' ? 'are' : 'is'} spinning…`
   else if (spin?.event === 'spin') {
     feedback = spin.effect === 'bankrupt' ? `💀 ${who} hit Bankrupt!`
+      : spin.effect === 'bankrupt_blocked' ? `🛡️ ${who}'s Shield blocked Bankrupt!`
       : spin.effect === 'lose_turn' ? `${who} lost a turn`
       : spin.effect === 'extra_turn' ? `🎁 ${who} got +200!`
       : spin.effect === 'double' ? `🔥 ${who} hit Double (×2)!`
       : spin.effect === 'jackpot' ? `💰 ${who} hit the Jackpot (+1000)!`
       : spin.effect === 'steal' ? `🦹 ${who} stole ${spin.stealAmount || 0}!`
+      : spin.effect === 'shield' ? `🛡️ ${who} got a Shield!`
+      : spin.effect === 'freeze' ? `❄️ ${who} froze ${spin.by === you ? oppName : 'your'} next turn!`
       : `${who} spun ${wedgeWord(spin.wedge)} — pick a consonant`
+    if (spin.skipped) feedback += ' (frozen — go again!)'
   } else if (spin?.event === 'guess') {
     feedback = spin.correct ? `${who} found ${spin.count}× "${spin.letter}" (+${spin.points})`
-      : `No "${spin.letter}" — turn passes`
+      : `No "${spin.letter}" — turn passes${spin.skipped ? ' (opponent frozen!)' : ''}`
   } else if (spin?.event === 'vowel') {
     feedback = spin.correct ? `${who} bought "${spin.letter}" (×${spin.count})` : `No "${spin.letter}"`
   } else if (spin?.event === 'solve') {
-    feedback = `${who} guessed wrong — turn passes`
+    feedback = `${who} guessed wrong — turn passes${spin.skipped ? ' (opponent frozen!)' : ''}`
   } else if (spin?.event === 'roundover') {
     const winName = spin.winnerId === you ? 'You' : oppName
     feedback = `🎉 ${winName} won the round!`
@@ -82,13 +86,19 @@ export default function SpinBattleMatch({
   const dots = (count) => Array.from({ length: Math.ceil(match.bestOf / 2) }).map((_, i) => (
     <span key={i} className={`${m.roundDot} ${i < count ? m.roundDotWon : ''}`} />
   ))
+  const status = (pid) => (
+    <span className={m.status}>
+      {match.shield?.[pid] && <span title="Shield — blocks next Bankrupt">🛡️</span>}
+      {match.frozenId === pid && <span title="Frozen — turn will be skipped">❄️</span>}
+    </span>
+  )
 
   return (
     <div className={s.wrap}>
       {/* Scoreboard */}
       <div className={m.scoreboard}>
         <div className={`${m.side} ${myTurn ? m.sideActive : ''}`}>
-          <span className={m.sideName}>You</span>
+          <span className={m.sideName}>You {status(you)}</span>
           <span className={m.sideBank}><CountUp end={match.bank?.[you] || 0} duration={0.4} preserveValue /></span>
           <span className={m.rounds}>{dots(match.roundWins?.[you] || 0)}</span>
         </div>
@@ -97,7 +107,7 @@ export default function SpinBattleMatch({
           <span className={m.vs}>VS</span>
         </div>
         <div className={`${m.side} ${!myTurn ? m.sideActive : ''}`}>
-          <span className={m.sideName}>{oppName}</span>
+          <span className={m.sideName}>{oppName} {oppId && status(oppId)}</span>
           <span className={m.sideBank}><CountUp end={oppId ? (match.bank?.[oppId] || 0) : 0} duration={0.4} preserveValue /></span>
           <span className={m.rounds}>{dots(oppId ? (match.roundWins?.[oppId] || 0) : 0)}</span>
         </div>

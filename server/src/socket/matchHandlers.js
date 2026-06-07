@@ -335,28 +335,33 @@ export function registerMatchHandlers(io, socket) {
       if (m.canGuess) return ack?.({ ok: false, error: 'Call a consonant or solve first' })
 
       const { index, wedge } = spinWheel()
-      let effect, passed = false, stealAmount = 0
+      let effect, passed = false, stealAmount = 0, skipped = false
       await roomManager.update(roomId, r => {
         const mm = r.match
         mm.lastWedge = null
         const oppId = r.players.find(p => p.id !== playerId)?.id
         if (typeof wedge === 'number') { mm.lastWedge = wedge; mm.canGuess = true; effect = 'points' }
-        else if (wedge === 'BANKRUPT') { mm.bank[playerId] = 0; effect = 'bankrupt'; passed = true }
+        else if (wedge === 'BANKRUPT') {
+          if (mm.shield?.[playerId]) { mm.shield[playerId] = false; effect = 'bankrupt_blocked' }
+          else { mm.bank[playerId] = 0; effect = 'bankrupt'; passed = true }
+        }
         else if (wedge === 'LOSE_TURN') { effect = 'lose_turn'; passed = true }
         else if (wedge === 'EXTRA_TURN') { mm.bank[playerId] = (mm.bank[playerId] || 0) + EXTRA_TURN_BONUS; effect = 'extra_turn' }
         else if (wedge === 'DOUBLE') { mm.bank[playerId] = (mm.bank[playerId] || 0) * 2; effect = 'double' }
         else if (wedge === 'JACKPOT') { mm.bank[playerId] = (mm.bank[playerId] || 0) + JACKPOT_BONUS; effect = 'jackpot' }
-        else { // STEAL — take from the opponent's round bank
+        else if (wedge === 'STEAL') { // take from the opponent's round bank
           stealAmount = Math.min(STEAL_AMOUNT, oppId ? (mm.bank[oppId] || 0) : 0)
           if (oppId) mm.bank[oppId] = (mm.bank[oppId] || 0) - stealAmount
           mm.bank[playerId] = (mm.bank[playerId] || 0) + stealAmount
           effect = 'steal'
         }
-        if (passed) mm.turnId = oppId || mm.turnId
+        else if (wedge === 'SHIELD') { if (mm.shield) mm.shield[playerId] = true; effect = 'shield' }
+        else { mm.frozenId = oppId || null; effect = 'freeze' } // FREEZE — skip opp's next turn
+        if (passed) { const nt = _spinNextTurn(mm, r.players, playerId); mm.turnId = nt.turnId; skipped = nt.skipped }
       })
       const updated = await roomManager.get(roomId)
       io.to(roomId).emit('spin:update', {
-        event: 'spin', by: playerId, index, wedge, effect, passed, stealAmount,
+        event: 'spin', by: playerId, index, wedge, effect, passed, stealAmount, skipped,
         match: _publicMatch(updated.match),
       })
       ack?.({ ok: true })
@@ -375,7 +380,7 @@ export function registerMatchHandlers(io, socket) {
       if (!m.canGuess || typeof m.lastWedge !== 'number') return ack?.({ ok: false, error: 'Spin first' })
       if (m.revealed.includes(letter)) return ack?.({ ok: false, error: 'Already guessed' })
 
-      let correct = false, count = 0, points = 0, roundWon = false, passed = false
+      let correct = false, count = 0, points = 0, roundWon = false, passed = false, skipped = false
       await roomManager.update(roomId, r => {
         const mm = r.match
         count = countOf(mm.answer, letter)
@@ -388,15 +393,15 @@ export function registerMatchHandlers(io, socket) {
           correct = true
           if (isAllRevealed(mm.answer, mm.revealed)) roundWon = true
         } else {
-          mm.turnId = r.players.find(p => p.id !== playerId)?.id || mm.turnId
-          passed = true
+          const nt = _spinNextTurn(mm, r.players, playerId)
+          mm.turnId = nt.turnId; passed = true; skipped = nt.skipped
         }
       })
       ack?.({ ok: true, correct })
       if (roundWon) return _afterSpinRoundWin(io, roomId, playerId)
       const updated = await roomManager.get(roomId)
       io.to(roomId).emit('spin:update', {
-        event: 'guess', by: playerId, letter, correct, count, points, passed,
+        event: 'guess', by: playerId, letter, correct, count, points, passed, skipped,
         match: _publicMatch(updated.match),
       })
     } catch (err) { logger.error({ err }, 'spin:guess error'); ack?.({ ok: false, error: err.message }) }
@@ -445,7 +450,7 @@ export function registerMatchHandlers(io, socket) {
       const m = room.match
       if (!m || m.roundOver || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
 
-      let solved = false
+      let solved = false, skipped = false
       await roomManager.update(roomId, r => {
         const mm = r.match
         solved = normalizeSolve(attempt) === normalizeSolve(mm.answer)
@@ -453,14 +458,15 @@ export function registerMatchHandlers(io, socket) {
           for (const ch of distinctLetters(mm.answer)) if (!mm.revealed.includes(ch)) mm.revealed.push(ch)
         } else {
           mm.canGuess = false; mm.lastWedge = null
-          mm.turnId = r.players.find(p => p.id !== playerId)?.id || mm.turnId
+          const nt = _spinNextTurn(mm, r.players, playerId)
+          mm.turnId = nt.turnId; skipped = nt.skipped
         }
       })
       ack?.({ ok: true, solved })
       if (solved) return _afterSpinRoundWin(io, roomId, playerId)
       const updated = await roomManager.get(roomId)
       io.to(roomId).emit('spin:update', {
-        event: 'solve', by: playerId, solved: false, passed: true,
+        event: 'solve', by: playerId, solved: false, passed: true, skipped,
         match: _publicMatch(updated.match),
       })
     } catch (err) { logger.error({ err }, 'spin:solve error'); ack?.({ ok: false, error: err.message }) }
@@ -572,6 +578,8 @@ async function _startMatch(io, roomId) {
         vowelCost: VOWEL_COST,
         bank:      { [a.id]: 0, [b.id]: 0 },
         roundWins: { [a.id]: 0, [b.id]: 0 },
+        shield:    { [a.id]: false, [b.id]: false },
+        frozenId:  null,
         round:     1,
         bestOf:    SPIN_BEST_OF,
         turnId:    firstId,
@@ -590,6 +598,15 @@ async function _startMatch(io, roomId) {
 
   if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
+}
+
+// Pass the turn, honouring FREEZE: if the opponent is frozen, consume the freeze
+// and the turn stays with the current player (the opponent's turn is skipped).
+function _spinNextTurn(mm, players, fromId) {
+  const oppId = players.find(p => p.id !== fromId)?.id
+  if (!oppId) return { turnId: fromId, skipped: false }
+  if (mm.frozenId === oppId) { mm.frozenId = null; return { turnId: fromId, skipped: true } }
+  return { turnId: oppId, skipped: false }
 }
 
 // ── Spin Battle: round / match progression ─────────────────────────────────
@@ -626,7 +643,8 @@ async function _nextSpinRound(io, roomId, lastWinnerId) {
     mm.answer = picked.text
     mm.category = picked.category
     mm.revealed = []
-    for (const p of r.players) mm.bank[p.id] = 0
+    for (const p of r.players) { mm.bank[p.id] = 0; if (mm.shield) mm.shield[p.id] = false }
+    mm.frozenId = null
     mm.turnId = firstId
     mm.canGuess = false
     mm.lastWedge = null
@@ -784,6 +802,8 @@ function _publicMatch(match) {
       vowelCost: match.vowelCost,
       bank:      match.bank,
       roundWins: match.roundWins,
+      shield:    match.shield,
+      frozenId:  match.frozenId,
       round:     match.round,
       bestOf:    match.bestOf,
       turnId:    match.turnId,

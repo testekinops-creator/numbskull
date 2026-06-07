@@ -97,6 +97,9 @@ export default function SpinBattleAiPage() {
     else if (data.effect === 'double')     { playTone(0.9);  setFeedback('🔥 Double! Bank ×2 — spin again.') }
     else if (data.effect === 'jackpot')    { playTone(0.95); setFeedback('💰 Jackpot! +1000 — spin again.') }
     else if (data.effect === 'steal')      { playTone(0.85); setFeedback('🦹 Steal! +400 — spin again.') }
+    else if (data.effect === 'shield')     { playTone(0.8);  setFeedback('🛡️ Shield up! Blocks the next Bankrupt.') }
+    else if (data.effect === 'bankrupt_blocked') { playTone(0.7); setFeedback('🛡️ Shield saved you from Bankrupt!') }
+    else if (data.effect === 'freeze')     { playTone(0.75); setFeedback('❄️ +250 — nothing to freeze in solo.') }
   }
 
   async function onGuess(letter) {
