@@ -3,23 +3,41 @@ import { useSocket } from '../contexts/SocketContext.jsx'
 
 // ICE servers: STUN locates peers; TURN relays media when a direct path can't
 // form (mobile data / symmetric NAT) — without TURN, calls "connect" but stay
-// silent for many users. Provide your own TURN via env for production reliability:
-//   VITE_TURN_URLS="turn:host:3478,turns:host:5349"  VITE_TURN_USERNAME=... VITE_TURN_CREDENTIAL=...
-// Falls back to the free Open Relay public TURN so calls work out of the box.
+// silent for many users.
+//
+// MULTIPLE TURN PROVIDERS = automatic failover. List up to 3 providers (each
+// with its own credentials). The browser gathers relay candidates from all of
+// them; if one provider's free quota is exhausted (or it's down) it rejects the
+// allocation and ICE simply uses a relay from the next — no manual switching.
+// Configure via Vercel env (provider 1 = no suffix, then _2, _3):
+//   VITE_TURN_URLS / VITE_TURN_USERNAME / VITE_TURN_CREDENTIAL
+//   VITE_TURN_URLS_2 / VITE_TURN_USERNAME_2 / VITE_TURN_CREDENTIAL_2
+//   VITE_TURN_URLS_3 / VITE_TURN_USERNAME_3 / VITE_TURN_CREDENTIAL_3
+// (URLs are comma-separated.) Falls back to free public TURN if none are set.
+//
+// NB: import.meta.env keys must be referenced statically so Vite inlines them.
 function buildIceServers() {
   const servers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
   ]
-  const turnUrls = import.meta.env.VITE_TURN_URLS
-  if (turnUrls) {
+  const providers = [
+    { urls: import.meta.env.VITE_TURN_URLS,   username: import.meta.env.VITE_TURN_USERNAME,   credential: import.meta.env.VITE_TURN_CREDENTIAL },
+    { urls: import.meta.env.VITE_TURN_URLS_2, username: import.meta.env.VITE_TURN_USERNAME_2, credential: import.meta.env.VITE_TURN_CREDENTIAL_2 },
+    { urls: import.meta.env.VITE_TURN_URLS_3, username: import.meta.env.VITE_TURN_USERNAME_3, credential: import.meta.env.VITE_TURN_CREDENTIAL_3 },
+  ]
+  let configured = 0
+  for (const p of providers) {
+    if (!p.urls) continue
     servers.push({
-      urls: turnUrls.split(',').map(s => s.trim()).filter(Boolean),
-      username: import.meta.env.VITE_TURN_USERNAME || '',
-      credential: import.meta.env.VITE_TURN_CREDENTIAL || '',
+      urls: p.urls.split(',').map(s => s.trim()).filter(Boolean),
+      username: p.username || '',
+      credential: p.credential || '',
     })
-  } else {
-    // Free public TURN fallback (best-effort; set your own for production).
+    configured++
+  }
+  if (!configured) {
+    // Free public TURN fallback (best-effort; set your own for reliability).
     const u = 'openrelayproject'
     servers.push(
       { urls: 'turn:openrelay.metered.ca:80', username: u, credential: u },
