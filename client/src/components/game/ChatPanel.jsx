@@ -7,7 +7,25 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
   const [listRef] = useAutoAnimate()
   const [text, setText]         = useState('')
   const [generating, setGen]    = useState(false)
+  const [kbInset, setKbInset]   = useState(0)   // keyboard height (mobile)
   const logRef = useRef(null)
+
+  // Mobile keyboard handling: when the on-screen keyboard opens it shrinks the
+  // visual viewport but NOT the layout viewport, so a `position: fixed` sheet
+  // ends up hidden behind the keyboard. Track the covered height and lift the
+  // sheet by it so the input + Send button stay visible. Reset when closed.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!open || !vv) { setKbInset(0); return }
+    const update = () => setKbInset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop))
+    update()
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [open])
 
   // Auto-scroll to newest message
   useEffect(() => {
@@ -53,7 +71,7 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className={`${styles.sheet} ${open ? styles.sheetOpen : ''}`} role="dialog" aria-label="Chat">
+      <div className={`${styles.sheet} ${open ? styles.sheetOpen : ''}`} style={{ bottom: kbInset }} role="dialog" aria-label="Chat">
         <div className={styles.handle} />
 
         <div className={styles.header}>

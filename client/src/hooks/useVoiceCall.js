@@ -63,6 +63,7 @@ export function useVoiceCall(roomId) {
   const [remoteMuted, setRemoteMuted] = useState(false) // opponent audio muted (local-only)
   const [callerName, setCallerName] = useState(null)
   const [error, setError] = useState(null)
+  const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false) // iOS autoplay blocked → tap to hear
 
   const pcRef          = useRef(null)
   const localStreamRef = useRef(null)
@@ -82,6 +83,7 @@ export function useVoiceCall(roomId) {
     if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = null; remoteAudioRef.current.muted = false }
     setMuted(false)
     setRemoteMuted(false)
+    setNeedsAudioUnlock(false)
   }, [])
 
   // Terminal failure — tell the peer, tear down, show why.
@@ -99,16 +101,28 @@ export function useVoiceCall(roomId) {
     setCallState('connected')
   }, [])
 
-  // Play remote audio; if the browser blocks autoplay (iOS Safari), retry on the
-  // next user gesture instead of failing silently.
+  // Play remote audio. iOS Safari blocks autoplay outside a user gesture — and a
+  // callee that auto-accepts an offer has no gesture — so on failure we (1) flag
+  // the UI to show a visible "tap to hear" prompt and (2) retry on the next tap
+  // anywhere, rather than staying silent with the call looking connected.
   const playRemote = useCallback(() => {
     const el = remoteAudioRef.current
     if (!el) return
-    el.play?.().catch(() => {
-      const resume = () => { el.play?.().catch(() => {}); document.removeEventListener('pointerdown', resume) }
-      document.addEventListener('pointerdown', resume, { once: true })
-    })
+    el.muted = false
+    el.play?.()
+      .then(() => setNeedsAudioUnlock(false))
+      .catch(() => {
+        setNeedsAudioUnlock(true)
+        const resume = () => {
+          el.play?.().then(() => setNeedsAudioUnlock(false)).catch(() => {})
+          document.removeEventListener('pointerdown', resume)
+        }
+        document.addEventListener('pointerdown', resume, { once: true })
+      })
   }, [])
+
+  // Explicit unlock from a button tap (counts as a user gesture on iOS).
+  const unlockAudio = useCallback(() => { playRemote() }, [playRemote])
 
   const createPc = useCallback(() => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
@@ -147,7 +161,12 @@ export function useVoiceCall(roomId) {
   }, [failCall])
 
   const getMic = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    // Explicit constraints give consistent, clean audio across iOS/Android (and
+    // avoid some Android devices defaulting to a noisy/raw capture).
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    })
     localStreamRef.current = stream
     return stream
   }, [])
@@ -268,8 +287,17 @@ export function useVoiceCall(roomId) {
 
   useEffect(() => () => cleanup(), [cleanup])  // end call when leaving the room
 
+  // iOS/Android suspend media when the tab is backgrounded; nudge playback to
+  // resume (and re-prompt if needed) when the user returns to a live call.
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible' && callState === 'connected') playRemote() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [callState, playRemote])
+
   return {
     callState, muted, remoteMuted, callerName, error, clearError, remoteAudioRef,
+    needsAudioUnlock, unlockAudio,
     startCall, acceptCall, declineCall, endCall, toggleMute, toggleRemoteMute,
   }
 }

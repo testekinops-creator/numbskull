@@ -24,11 +24,12 @@
   border-top: 1px solid rgba(0,245,255,0.18);
   z-index: calc(var(--z-overlay) + 1);
   transform: translateY(100%);
-  transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1), bottom 0.2s ease;
   box-shadow: 0 -8px 40px rgba(0,0,0,0.55);
   display: flex;
   flex-direction: column;
   max-height: 80dvh;
+  overflow-x: hidden;   /* never let a child cause a horizontal shift */
 }
 .sheetOpen { transform: translateY(0); }
 
@@ -153,21 +154,25 @@
 .inputRow {
   display: flex;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-5) var(--space-5);
+  /* Add the safe-area inset so the row clears the home indicator / nav bar. */
+  padding: var(--space-3) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
 }
 .input {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;            /* allow the input to shrink so Send is never pushed off */
   height: 46px;
   background: var(--color-surface-2);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: var(--radius-full);
   padding: 0 var(--space-4);
   color: var(--color-text-primary);
-  font-size: var(--text-sm);
+  /* 16px: iOS zooms in (and shifts the page sideways) on inputs under 16px. */
+  font-size: 16px;
   outline: none;
 }
 .input:focus { border-color: var(--color-juice); }
 .sendBtn {
+  flex-shrink: 0;          /* keep the Send button fully visible */
   height: 46px;
   padding: 0 var(--space-5);
   border-radius: var(--radius-full);

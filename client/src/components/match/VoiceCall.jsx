@@ -10,7 +10,7 @@ import styles from './VoiceCall.module.css'
 // portaled to <body> — status + mic mute + opponent-audio mute + hang up.
 export default function VoiceCall({ roomId, opponentName }) {
   const {
-    callState, muted, remoteMuted, error, clearError,
+    callState, muted, remoteMuted, error, clearError, needsAudioUnlock, unlockAudio,
     remoteAudioRef, startCall, endCall, toggleMute, toggleRemoteMute,
   } = useVoiceCall(roomId)
 
@@ -66,6 +66,15 @@ export default function VoiceCall({ roomId, opponentName }) {
             </button>
           </div>
         </div>,
+        document.body,
+      )}
+
+      {/* iOS blocked autoplay → a visible, tappable prompt so the call isn't
+          silently muted. Tapping counts as the gesture iOS needs to play audio. */}
+      {needsAudioUnlock && callState === 'connected' && createPortal(
+        <button className={`${styles.audioUnlock} anim-slide-up`} onClick={unlockAudio}>
+          🔊 Tap to hear {opponentName || 'opponent'}
+        </button>,
         document.body,
       )}
 
