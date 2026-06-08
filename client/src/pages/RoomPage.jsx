@@ -19,6 +19,7 @@ import RoomToasts from '../components/game/RoomToasts.jsx'
 import MultiplayerTutorial from '../components/tutorial/MultiplayerTutorial.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
+import { useDelayedFlag } from '../hooks/useDelayedFlag.js'
 import { getSkullExpression } from '../utils/personality.js'
 import MatchRoom from '../components/match/MatchRoom.jsx'
 import RulesFab from '../components/match/RulesFab.jsx'
@@ -41,15 +42,26 @@ export default function RoomPage() {
   const room = state.room
   const mode = room?.mode
 
-  const triedRef = useRef(false)
+  // Learn the room's mode by reconnecting. This must be RESILIENT: a refresh can
+  // briefly drop/re-establish the socket (and races with the server's duplicate-
+  // tab handling), so we retry on every (re)connect instead of giving up after
+  // one shot — and we only leave for home when the room is genuinely gone, never
+  // on a transient timeout (which would strand a recoverable game).
+  const roomRef = useRef(false)
+  useEffect(() => { roomRef.current = !!room }, [room])
   useEffect(() => {
-    if (!socket || !roomId || room || triedRef.current) return
-    triedRef.current = true
-    ;(async () => {
+    if (!socket || !roomId) return
+    let cancelled = false
+    const attempt = async () => {
+      if (cancelled || roomRef.current) return
       const r = await reconnectRoom(roomId)
-      if (!r?.ok) navigate('/home')
-    })()
-  }, [socket, roomId, room]) // eslint-disable-line react-hooks/exhaustive-deps
+      if (cancelled || roomRef.current) return
+      if (r?.gone) navigate('/home')   // room truly over → leave; else keep retrying
+    }
+    attempt()
+    socket.on('connect', attempt)
+    return () => { cancelled = true; socket.off('connect', attempt) }
+  }, [socket, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!room) {
     return (
@@ -83,6 +95,8 @@ function GuessRoom() {
   const [guess, setGuess] = useState('')
   const [secretError, setSecretError] = useState('')
   const [guessError, setGuessError] = useState('')
+  // Ignore a brief opponent drop (e.g. a page refresh) — only alarm after ~2.5s.
+  const showOppLost = useDelayedFlag(connected && state.opponentConnLost, 2500)
   const inputRef = useRef(null)
   // Keep the secret visible during gameplay after Ready is clicked
   const mySecretRef = useRef('')
@@ -126,12 +140,9 @@ function GuessRoom() {
 
     const doReconnect = async () => {
       const r = await reconnectRoom(roomId)
-      if (!r?.ok) {
-        navigate('/home')
-        return
-      }
+      if (r?.gone) { navigate('/home'); return }   // only leave if the room is truly over
       // Restore my secret so the secret banner shows after a refresh
-      if (r.snapshot?.mySecret) mySecretRef.current = r.snapshot.mySecret
+      if (r?.snapshot?.mySecret) mySecretRef.current = r.snapshot.mySecret
     }
 
     doReconnect()
@@ -271,8 +282,8 @@ function GuessRoom() {
           📡 You’re offline — reconnecting…
         </div>
       )}
-      {/* Opponent dropped (within grace) */}
-      {connected && state.opponentConnLost && (
+      {/* Opponent dropped (within grace) — debounced so a quick refresh is silent */}
+      {showOppLost && (
         <div className={`${styles.connBanner} ${styles.connOppLost}`}>
           ⚠️ {opponent?.name || 'Opponent'} lost connection — waiting for them to return…
         </div>

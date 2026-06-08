@@ -23,6 +23,7 @@ import SpinBattleMatch from './SpinBattleMatch.jsx'
 import RulesFab from './RulesFab.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
+import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
 import { getModeRoast } from '../../utils/roasts.js'
 import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
@@ -51,6 +52,8 @@ export default function MatchRoom({ roomId, mode }) {
   const [resultRevealed, setResultRevealed] = useState(false)
   const [starting, setStarting] = useState(false)
   const [startErr, setStartErr] = useState('')
+  // Ignore a brief opponent drop (e.g. a page refresh) — only alarm after ~2.5s.
+  const showOppLost = useDelayedFlag(connected && state.opponentConnLost, 2500)
 
   async function doHostStart() {
     setStartErr(''); setStarting(true)
@@ -78,7 +81,7 @@ export default function MatchRoom({ roomId, mode }) {
     if (!socket || !roomId) return
     const doReconnect = async () => {
       const r = await reconnectRoom(roomId)
-      if (!r?.ok) navigate('/home')
+      if (r?.gone) navigate('/home')   // only leave if the room is truly over
     }
     doReconnect()
     socket.on('connect', doReconnect)
@@ -242,7 +245,7 @@ export default function MatchRoom({ roomId, mode }) {
           📡 You’re offline — reconnecting…
         </div>
       )}
-      {connected && state.opponentConnLost && (
+      {showOppLost && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOppLost}`}>
           ⚠️ {opponent?.name || 'Opponent'} lost connection — waiting for them to return…
         </div>

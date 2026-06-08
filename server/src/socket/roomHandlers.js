@@ -131,9 +131,11 @@ export function registerRoomHandlers(io, socket) {
     _cancelDisconnectClose(playerId, roomId)
 
     const room = await roomManager.get(roomId)
-    if (!room) return ack?.({ ok: false, error: 'Room expired' })
+    // `gone: true` = the room is genuinely over (so the client should leave). A
+    // missing `gone` (e.g. a timeout) means "try again", not "go home".
+    if (!room) return ack?.({ ok: false, gone: true, error: 'Room expired' })
     const inRoom = room.players.find(p => p.id === playerId)
-    if (!inRoom) return ack?.({ ok: false, error: 'Not a player in this room' })
+    if (!inRoom) return ack?.({ ok: false, gone: true, error: 'Not a player in this room' })
     socket.join(roomId)
     io.to(roomId).emit('player:reconnected', { playerId, playerName })
 
