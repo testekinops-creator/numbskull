@@ -20,6 +20,7 @@ import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
+import RulesModal from './RulesModal.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { getModeRoast } from '../../utils/roasts.js'
@@ -50,6 +51,7 @@ export default function MatchRoom({ roomId, mode }) {
   const [resultRevealed, setResultRevealed] = useState(false)
   const [starting, setStarting] = useState(false)
   const [startErr, setStartErr] = useState('')
+  const [showRules, setShowRules] = useState(false)
 
   async function doHostStart() {
     setStartErr(''); setStarting(true)
@@ -235,6 +237,8 @@ export default function MatchRoom({ roomId, mode }) {
   return (
     <div className="screen">
       <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : 'match'} />
+      <button className={roomStyles.rulesFab} onClick={() => setShowRules(true)} aria-label="How to play" title="How to play">?</button>
+      {showRules && <RulesModal mode={mode} onClose={() => setShowRules(false)} />}
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…

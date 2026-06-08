@@ -30,6 +30,7 @@ const INITIAL = {
   roast:                null,
   error:                null,
   matchmaking:          false,
+  matchmakingTimedOut:  false,
   won:                  null,
   winnerId:             null,
   draw:                 false,
@@ -206,20 +207,31 @@ function reducer(state, action) {
           letter: p.letter, correct: p.correct, count: p.count, points: p.points,
           passed: p.passed, solved: p.solved, skipped: p.skipped,
           winnerId: p.winnerId, matchOver: p.matchOver,
+          // Round-over: revealed answer + a local deadline for the synced countdown.
+          answer: p.event === 'roundover' ? p.answer : state.spin?.answer,
+          roundEndsAt: p.event === 'roundover' && p.countdownMs ? Date.now() + p.countdownMs : null,
           ts: Date.now(),
         },
       }
     }
 
+    // Spin Battle: my own wrong consonant (private — only I receive this).
+    case 'SPIN_WRONG': {
+      if (!state.match) return state
+      const cur = state.match.myWrongLetters || []
+      if (cur.includes(action.letter)) return state
+      return { ...state, match: { ...state.match, myWrongLetters: [...cur, action.letter] } }
+    }
+
     // Spin Battle: a fresh round started.
     case 'SPIN_ROUND': {
       const p = action.payload || {}
-      const match = p.match ? { ...state.match, ...p.match } : state.match
+      const match = p.match ? { ...state.match, ...p.match, myWrongLetters: [] } : state.match
       return {
         ...state,
         match,
         myTurn: match?.turnId === action.playerId,
-        spin: { ...(state.spin || {}), event: 'newround', round: p.round, ts: Date.now() },
+        spin: { ...(state.spin || {}), event: 'newround', round: p.round, answer: null, roundEndsAt: null, ts: Date.now() },
       }
     }
 
@@ -411,7 +423,10 @@ function reducer(state, action) {
     }
 
     case 'MATCHMAKING':
-      return { ...state, matchmaking: action.value }
+      return { ...state, matchmaking: action.value, matchmakingTimedOut: false }
+
+    case 'MATCHMAKING_TIMEOUT':
+      return { ...state, matchmaking: false, matchmakingTimedOut: true }
 
     case 'ERROR':
       return { ...state, error: action.error }
@@ -444,6 +459,11 @@ export function RoomProvider({ children }) {
     socket.on('room:quickmatch_found', room => {
       dispatch({ type: 'MATCHMAKING', value: false })
       dispatch({ type: 'ROOM_UPDATED', room })
+    })
+
+    // No opponent found within the queue timeout → stop searching, offer retry.
+    socket.on('room:quickmatch_timeout', () => {
+      dispatch({ type: 'MATCHMAKING_TIMEOUT' })
     })
 
     socket.on('game:start', room =>
@@ -515,6 +535,9 @@ export function RoomProvider({ children }) {
     socket.on('spin:round', (payload = {}) => {
       dispatch({ type: 'SPIN_ROUND', payload, playerId })
     })
+    socket.on('spin:wrong', ({ letter } = {}) => {
+      if (letter) dispatch({ type: 'SPIN_WRONG', letter })
+    })
 
     socket.on('match:turn', ({ turnId } = {}) => {
       clearInterval(timerRef.current)
@@ -581,6 +604,7 @@ export function RoomProvider({ children }) {
       socket.off('room:updated')
       socket.off('room:closed')   // same event name, handler is updated
       socket.off('room:quickmatch_found')
+      socket.off('room:quickmatch_timeout')
       socket.off('game:start')
       socket.off('game:turn')
       socket.off('game:guess_result')
@@ -596,6 +620,7 @@ export function RoomProvider({ children }) {
       socket.off('sudoku:unlock')
       socket.off('spin:update')
       socket.off('spin:round')
+      socket.off('spin:wrong')
       socket.off('match:turn')
       socket.off('match:over')
       socket.off('match:timeout')

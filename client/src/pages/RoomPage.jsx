@@ -21,6 +21,7 @@ import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getSkullExpression } from '../utils/personality.js'
 import MatchRoom from '../components/match/MatchRoom.jsx'
+import RulesModal from '../components/match/RulesModal.jsx'
 import styles from './RoomPage.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
@@ -82,6 +83,7 @@ function GuessRoom() {
   const [guess, setGuess] = useState('')
   const [secretError, setSecretError] = useState('')
   const [guessError, setGuessError] = useState('')
+  const [showRules, setShowRules] = useState(false)
   const inputRef = useRef(null)
   // Keep the secret visible during gameplay after Ready is clicked
   const mySecretRef = useRef('')
@@ -263,6 +265,8 @@ function GuessRoom() {
   return (
     <div className="screen">
       <MultiplayerTutorial variant="guess" />
+      <button className={styles.rulesFab} onClick={() => setShowRules(true)} aria-label="How to play" title="How to play">?</button>
+      {showRules && <RulesModal mode={mode} onClose={() => setShowRules(false)} />}
       {/* You are offline (your own socket dropped) — debounced */}
       {showOffline && (
         <div className={`${styles.connBanner} ${styles.connOffline}`}>

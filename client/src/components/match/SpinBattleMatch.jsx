@@ -24,6 +24,7 @@ export default function SpinBattleMatch({
   const [spinning, setSpinning] = useState(false)
   const [showSolve, setShowSolve] = useState(false)
   const [solveText, setSolveText] = useState('')
+  const [now, setNow] = useState(Date.now())
   const [rosterRef] = useAutoAnimate()
 
   // Animate the wheel whenever ANY player spins (nonce bumps on event 'spin').
@@ -34,6 +35,17 @@ export default function SpinBattleMatch({
       return () => clearTimeout(t)
     }
   }, [spin?.nonce]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Between-rounds countdown — tick from the server-provided local deadline so
+  // both players see identical seconds (and it survives a reconnect).
+  const roundEndsAt = spin?.roundEndsAt || null
+  useEffect(() => {
+    if (!roundEndsAt) return
+    setNow(Date.now())
+    const id = setInterval(() => setNow(Date.now()), 250)
+    return () => clearInterval(id)
+  }, [roundEndsAt])
+  const countdownSec = roundEndsAt ? Math.max(0, Math.ceil((roundEndsAt - now) / 1000)) : 0
 
   if (!match) return null
   const everyone = players && players.length
@@ -46,6 +58,7 @@ export default function SpinBattleMatch({
   const oppName = others[0]?.name || 'Opponent'
   const myTurn = match.turnId === you
   const revealed = new Set(match.revealed || [])
+  const myWrong = new Set(match.myWrongLetters || [])   // private — only my own misses
   const roundOver = match.roundOver
 
   const active = myTurn && !spinning && !roundOver
@@ -63,9 +76,9 @@ export default function SpinBattleMatch({
       : spin.effect === 'bankrupt_blocked' ? `🛡️ ${who}'s Shield blocked Bankrupt!`
       : spin.effect === 'lose_turn' ? `${who} lost a turn`
       : spin.effect === 'extra_turn' ? `🎁 ${who} got +200!`
-      : spin.effect === 'double' ? `🔥 ${who} hit Double (×2)!`
+      : spin.effect === 'double' ? ((match.bank?.[spin.by] || 0) > 0 ? `🔥 ${who} hit Double (×2)!` : `🔥 ${who} hit Double — but the bank was empty`)
       : spin.effect === 'jackpot' ? `💰 ${who} hit the Jackpot (+1000)!`
-      : spin.effect === 'steal' ? `🦹 ${who} stole ${spin.stealAmount || 0}!`
+      : spin.effect === 'steal' ? (spin.stealAmount ? `🦹 ${who} stole ${spin.stealAmount}!` : `🦹 ${who} spun Steal — nothing to take!`)
       : spin.effect === 'shield' ? `🛡️ ${who} got a Shield!`
       : spin.effect === 'freeze' ? `❄️ ${who} froze ${spin.by === you ? oppName : 'your'} next turn!`
       : `${who} spun ${wedgeWord(spin.wedge)} — pick a consonant`
@@ -141,6 +154,16 @@ export default function SpinBattleMatch({
 
       <p key={`${feedback}-${spin?.ts || 0}`} className={`${s.feedback} ${myTurn ? m.yourTurn : ''}`} role="status">{feedback}</p>
 
+      {roundOver && roundEndsAt && (
+        <div className={m.roundOverBanner} role="status">
+          {spin?.answer && <p className={m.roundAnswer}>Answer: <b>{spin.answer}</b></p>}
+          <p className={m.roundCountdown}>Next round in <b>{countdownSec}s</b></p>
+          <div className={m.countdownTrack}>
+            <div className={m.countdownFill} style={{ width: `${Math.min(100, (countdownSec / 8) * 100)}%` }} />
+          </div>
+        </div>
+      )}
+
       <SpinWheel
         segments={match.wheel}
         targetIndex={spin?.index || 0}
@@ -148,7 +171,11 @@ export default function SpinBattleMatch({
         spinning={spinning}
       />
 
-      <button className={`btn btn-juice btn-lg ${s.spinBtn}`} onClick={onSpin} disabled={!canSpin}>
+      <button
+        className={`btn btn-juice btn-lg ${s.spinBtn} ${canSpin && !spinning ? s.spinReady : ''}`}
+        onClick={onSpin}
+        disabled={!canSpin}
+      >
         {spinning ? 'Spinning…' : myTurn ? '🎡 SPIN' : 'Opponent’s turn'}
       </button>
 
@@ -156,9 +183,10 @@ export default function SpinBattleMatch({
         {CONSONANTS.map(letter => (
           <button
             key={letter}
-            className={`${s.key} ${revealed.has(letter) ? s.keyDone : ''}`}
+            className={`${s.key} ${revealed.has(letter) ? s.keyDone : ''} ${myWrong.has(letter) ? s.keyWrong : ''}`}
             onClick={() => onGuess?.(letter)}
-            disabled={!canConsonant || revealed.has(letter)}
+            disabled={!canConsonant || revealed.has(letter) || myWrong.has(letter)}
+            title={myWrong.has(letter) ? 'You already tried this (only you can see this)' : undefined}
           >
             {letter}
           </button>

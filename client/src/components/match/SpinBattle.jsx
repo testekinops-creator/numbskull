@@ -64,7 +64,7 @@ export default function SpinBattle({
 
       {/* Primary action */}
       <button
-        className={`btn btn-juice btn-lg ${styles.spinBtn}`}
+        className={`btn btn-juice btn-lg ${styles.spinBtn} ${idle && !spinning ? styles.spinReady : ''}`}
         onClick={onSpin}
         disabled={!idle}
       >

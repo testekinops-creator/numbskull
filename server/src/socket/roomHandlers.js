@@ -59,16 +59,20 @@ export function registerRoomHandlers(io, socket) {
     try {
       // Remove stale (disconnected) entries before pairing.
       quickMatch.prune(pid => !!_findSocket(io, pid))
-      const result = await quickMatch.enqueue(playerId, playerName, mode, difficulty)
+      // Account-stable key: a registered user can't self-match across two devices.
+      const accountKey = socket.handshake.auth?.userId || playerId
+      const result = await quickMatch.enqueue(playerId, playerName, mode, difficulty, accountKey)
       if (result.matched) {
         const room = result.room
 
         // Join Player B (the one who triggered the match)
         socket.join(room.id)
+        _clearQuickmatchTimeout(playerId)
 
         // Find Player A (the one who was waiting in queue) and join them too
         const hostId = room.hostId
         if (hostId && hostId !== playerId) {
+          _clearQuickmatchTimeout(hostId)     // they're matched → cancel their timeout
           const hostSocket = _findSocket(io, hostId)
           if (hostSocket) {
             hostSocket.join(room.id)
@@ -81,7 +85,9 @@ export function registerRoomHandlers(io, socket) {
         io.to(room.id).emit('room:updated', sanitize(room, null))
         ack?.({ ok: true, matched: true, room: sanitize(room, playerId) })
       } else {
-        ack?.({ ok: true, matched: false })
+        // Waiting in queue → arm a timeout so nobody searches forever.
+        _armQuickmatchTimeout(io, socket, playerId)
+        ack?.({ ok: true, matched: false, waiting: true })
       }
     } catch (err) {
       ack?.({ ok: false, error: err.message })
@@ -91,6 +97,7 @@ export function registerRoomHandlers(io, socket) {
   // ── Cancel quick match ────────────────────────────────────────────────────
   socket.on('room:quickmatch_cancel', (_, ack) => {
     quickMatch.dequeue(playerId)
+    _clearQuickmatchTimeout(playerId)
     ack?.({ ok: true })
   })
 
@@ -146,6 +153,12 @@ export function registerRoomHandlers(io, socket) {
       // New game modes (XOX/MATH/SUDOKU) rebuild from room.match; null for GTN/BC
       match:    publicMatchFor(room),
     }
+    // SPIN carries per-viewer private state: this player's own wrong letters and
+    // the remaining round-countdown (server-relative → both clients stay synced).
+    if (snapshot.match?.kind === 'SPIN') {
+      snapshot.match.myWrongLetters = room.match?.wrongGuesses?.[playerId] || []
+      snapshot.match.countdownMs = room.match?.nextRoundAt ? Math.max(0, room.match.nextRoundAt - Date.now()) : 0
+    }
     ack?.({ ok: true, room: snapshot.room, snapshot })
   })
 
@@ -161,7 +174,27 @@ export function registerRoomHandlers(io, socket) {
 
   socket.on('disconnect', () => {
     quickMatch.dequeue(playerId)
+    _clearQuickmatchTimeout(playerId)
   })
+}
+
+// ── Quick-match queue timeout (no opponent found → stop searching) ───────────
+const quickmatchTimers = new Map()  // playerId -> timeout
+const QUICKMATCH_TIMEOUT_MS = Number(process.env.QUICKMATCH_TIMEOUT_MS) || 60_000
+
+function _armQuickmatchTimeout(io, socket, playerId) {
+  _clearQuickmatchTimeout(playerId)
+  const t = setTimeout(() => {
+    quickmatchTimers.delete(playerId)
+    quickMatch.dequeue(playerId)
+    socket.emit('room:quickmatch_timeout')
+  }, QUICKMATCH_TIMEOUT_MS)
+  quickmatchTimers.set(playerId, t)
+}
+
+function _clearQuickmatchTimeout(playerId) {
+  const t = quickmatchTimers.get(playerId)
+  if (t) { clearTimeout(t); quickmatchTimers.delete(playerId) }
 }
 
 // ── Disconnect grace timers (survive page refresh) ───────────────────────────

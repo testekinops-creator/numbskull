@@ -54,6 +54,16 @@ export default function LobbyPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // Elapsed search time, shown while waiting for an opponent.
+  const [searchSecs, setSearchSecs] = useState(0)
+  useEffect(() => {
+    if (!state.matchmaking) return
+    setSearchSecs(0)
+    const id = setInterval(() => setSearchSecs(s => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [state.matchmaking])
+  const fmtSecs = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+
   function playVsAI() {
     navigate(`/play/${mode}`)
   }
@@ -189,8 +199,16 @@ export default function LobbyPage() {
                   {state.matchmaking ? (
                     <>
                       <div className={styles.spinner} aria-label="Finding opponent" />
-                      <p className={styles.waitText}>Looking for an opponent…</p>
+                      <p className={styles.waitText}>Looking for an opponent… <b>{fmtSecs(searchSecs)}</b></p>
                       <button className="btn btn-ghost" onClick={cancelQuickMatch}>Cancel</button>
+                    </>
+                  ) : state.matchmakingTimedOut ? (
+                    <>
+                      <p className={styles.hint}>😴 No opponent showed up. Want to try again, or create a room and share the code?</p>
+                      <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
+                        Try Again
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setMpTab('create')}>Create a room instead</button>
                     </>
                   ) : (
                     <>

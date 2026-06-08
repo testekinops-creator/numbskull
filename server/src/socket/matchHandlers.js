@@ -21,7 +21,9 @@ export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN'])
 
 // Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
 const SPIN_BEST_OF = 3
-const SPIN_ROUND_PAUSE = 2800
+// Visible, synchronized between-rounds countdown (tunable ≤ 60000). Both players
+// see identical values because the server broadcasts remaining ms, not a clock.
+const SPIN_ROUND_COUNTDOWN_MS = 8000
 
 // Per-question timers for Math Battle (separate from the 30s XOX TurnTimer).
 const mathTimers = new Map()
@@ -411,6 +413,7 @@ export function registerMatchHandlers(io, socket) {
       if (!isConsonant(letter)) return ack?.({ ok: false, error: 'Pick a consonant' })
       if (!m.canGuess || typeof m.lastWedge !== 'number') return ack?.({ ok: false, error: 'Spin first' })
       if (m.revealed.includes(letter)) return ack?.({ ok: false, error: 'Already guessed' })
+      if ((m.wrongGuesses?.[playerId] || []).includes(letter)) return ack?.({ ok: false, error: 'You already tried that letter' })
 
       let correct = false, count = 0, points = 0, roundWon = false, passed = false, skipped = false
       await roomManager.update(roomId, r => {
@@ -425,6 +428,9 @@ export function registerMatchHandlers(io, socket) {
           correct = true
           if (isAllRevealed(mm.answer, mm.revealed)) roundWon = true
         } else {
+          if (mm.wrongGuesses?.[playerId] && !mm.wrongGuesses[playerId].includes(letter)) {
+            mm.wrongGuesses[playerId].push(letter)   // private to this player
+          }
           const nt = _spinNextTurn(mm, r.players, playerId)
           mm.turnId = nt.turnId; passed = true; skipped = nt.skipped
         }
@@ -432,10 +438,13 @@ export function registerMatchHandlers(io, socket) {
       ack?.({ ok: true, correct })
       if (roundWon) return _afterSpinRoundWin(io, roomId, playerId)
       const updated = await roomManager.get(roomId)
+      // A wrong letter is PRIVATE: opponents see only that the turn passed, while
+      // the guesser alone learns which letter missed (kept off the broadcast).
       io.to(roomId).emit('spin:update', {
-        event: 'guess', by: playerId, letter, correct, count, points, passed, skipped,
+        event: 'guess', by: playerId, letter: correct ? letter : null, correct, count, points, passed, skipped,
         match: _publicMatch(updated.match),
       })
+      if (!correct) socket.emit('spin:wrong', { letter, round: updated.match.round })
       _armSpinTimer(io, roomId, updated.match.turnId)
     } catch (err) { logger.error({ err }, 'spin:guess error'); ack?.({ ok: false, error: err.message }) }
   })
@@ -618,12 +627,14 @@ async function _startMatch(io, roomId) {
         answer:    picked.text,           // server-only
         category:  picked.category,
         revealed:  [],
+        wrongGuesses: Object.fromEntries(ids.map(id => [id, []])),  // private per-player wrong consonants
         wheel:     [...WHEEL],
         vowelCost: VOWEL_COST,
         bank:      zero(),
         roundWins: zero(),
         shield:    falses(),
         frozenId:  null,
+        nextRoundAt: null,         // server deadline for the visible round countdown
         round:     1,
         bestOf:    SPIN_BEST_OF,
         roundsToWin: r.players.length === 2 ? 2 : 2,  // first to 2 round wins
@@ -703,11 +714,16 @@ async function _afterSpinRoundWin(io, roomId, winnerId) {
     mm.roundOver = true
     mm.roundWins[winnerId] = (mm.roundWins[winnerId] || 0) + 1
     if (mm.roundWins[winnerId] >= (mm.roundsToWin || 2)) matchOver = true
+    // Arm the visible between-rounds countdown (skip if the match just ended).
+    mm.nextRoundAt = matchOver ? null : Date.now() + SPIN_ROUND_COUNTDOWN_MS
   })
   const updated = await roomManager.get(roomId)
   if (!updated?.match) return
   io.to(roomId).emit('spin:update', {
-    event: 'roundover', winnerId, matchOver, match: _publicMatch(updated.match),
+    event: 'roundover', winnerId, matchOver,
+    answer: updated.match.answer,                       // reveal it on the banner
+    countdownMs: matchOver ? 0 : SPIN_ROUND_COUNTDOWN_MS,
+    match: _publicMatch(updated.match),
   })
   if (matchOver) {
     const mm = updated.match
@@ -722,7 +738,7 @@ async function _afterSpinRoundWin(io, roomId, winnerId) {
     }))
     await _endMatch(io, roomId, { winnerId, draw: false, ranking })
   } else {
-    setTimeout(() => _nextSpinRound(io, roomId, winnerId), SPIN_ROUND_PAUSE)
+    setTimeout(() => _nextSpinRound(io, roomId, winnerId), SPIN_ROUND_COUNTDOWN_MS)
   }
 }
 
@@ -739,6 +755,8 @@ async function _nextSpinRound(io, roomId, lastWinnerId) {
     mm.revealed = []
     for (const p of r.players) { mm.bank[p.id] = 0; if (mm.shield) mm.shield[p.id] = false }
     mm.frozenId = null
+    mm.nextRoundAt = null
+    for (const p of r.players) { if (mm.wrongGuesses) mm.wrongGuesses[p.id] = [] }  // fresh round → clear private misses
     mm.turnId = firstId
     mm.canGuess = false
     mm.lastWedge = null
@@ -949,13 +967,23 @@ function _startMoveTimer(io, roomId, currentTurnId) {
   io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: 30_000 })
 }
 
-// ── Views (no hidden info for XOX, so a single broadcast view is fine) ─────────
+// ── Views ──────────────────────────────────────────────────────────────────
+// XOX has no hidden info, but SPIN carries per-viewer private state (a player's
+// own wrong letters) + a live round countdown, so the view is built per viewer.
 function _matchView(room, viewerId) {
-  return {
-    room:  _roomSummary(room),
-    match: _publicMatch(room.match),
-    you:   viewerId,
+  const match = _publicMatch(room.match)
+  if (match?.kind === 'SPIN') {
+    match.myWrongLetters = room.match.wrongGuesses?.[viewerId] || []
+    match.countdownMs = _spinCountdownMs(room.match)
   }
+  return { room: _roomSummary(room), match, you: viewerId }
+}
+
+// Remaining ms on the between-rounds countdown (0 when none is active). Computed
+// from the server deadline so every client ticks down from a trusted value.
+function _spinCountdownMs(match) {
+  if (!match?.nextRoundAt) return 0
+  return Math.max(0, match.nextRoundAt - Date.now())
 }
 
 function _publicMatch(match) {

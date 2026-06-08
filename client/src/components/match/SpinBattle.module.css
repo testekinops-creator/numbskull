@@ -61,6 +61,37 @@
 
 .spinBtn { width: 100%; max-width: 260px; }
 
+/* Active-turn invitation: a gentle breathing glow + micro-pulse + light sweep.
+   Removed the instant a spin starts (class is only applied while it's spinnable). */
+.spinReady {
+  position: relative;
+  overflow: hidden;
+  animation: spinBreathe 1.8s ease-in-out infinite;
+}
+.spinReady::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  animation: spinSweep 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes spinBreathe {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 var(--color-juice-glow, rgba(0, 245, 255, 0.5)); }
+  50%      { transform: scale(1.02); box-shadow: 0 0 22px 4px var(--color-juice-glow, rgba(0, 245, 255, 0.55)); }
+}
+@keyframes spinSweep {
+  0%   { left: -60%; }
+  60%  { left: 120%; }
+  100% { left: 120%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinReady { animation: none; }
+  .spinReady::after { display: none; }
+}
+
 .keyboard {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -84,6 +115,14 @@
 .key:not(:disabled):active { transform: scale(0.92); }
 .key:disabled { opacity: 0.35; cursor: default; }
 .keyDone { opacity: 0.25; background: transparent; }
+/* My own missed consonant — private to me (opponents never see it). Higher
+   specificity than .key:disabled so the strike/colour wins on disabled keys. */
+.key.keyWrong {
+  opacity: 0.85;
+  background: color-mix(in srgb, var(--color-pink, #ff3e8a) 20%, transparent);
+  color: var(--color-pink, #ff3e8a);
+  text-decoration: line-through;
+}
 
 .vowelRow {
   width: 100%;
