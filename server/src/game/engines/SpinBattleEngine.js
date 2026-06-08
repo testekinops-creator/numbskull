@@ -26,6 +26,20 @@ export function isConsonant(letter) { return /^[A-Z]$/.test(String(letter || '')
 function rnd(n) { return Math.floor(Math.random() * n) }
 function lettersOnly(t) { return t.replace(/[^A-Z]/g, '') }
 
+// Recency window — the last N served answers are skipped so a puzzle can't
+// repeat within a short period (global across solo + every multiplayer room).
+// Kept comfortably below each difficulty pool so there's always a fresh choice.
+const RECENT_WINDOW = 12
+const _recentAnswers = []
+
+function _rememberAnswer(text) {
+  _recentAnswers.push(text)
+  while (_recentAnswers.length > RECENT_WINDOW) _recentAnswers.shift()
+}
+
+// Test hook: clear the recency window so tests start from a clean slate.
+export function _resetPuzzleRecency() { _recentAnswers.length = 0 }
+
 export function pickPuzzle(difficulty = 'medium') {
   const fits = (t) => {
     const n = lettersOnly(t).length
@@ -35,8 +49,15 @@ export function pickPuzzle(difficulty = 'medium') {
   }
   let pool = SPIN_PUZZLES.filter(p => fits(p.text.toUpperCase()))
   if (!pool.length) pool = SPIN_PUZZLES
-  const p = pool[rnd(pool.length)]
-  return { text: p.text.toUpperCase(), category: p.category }
+  // Skip recently-served answers; if that empties a small pool, allow repeats so
+  // we never fail to return a puzzle.
+  const recent = new Set(_recentAnswers)
+  let fresh = pool.filter(p => !recent.has(p.text.toUpperCase()))
+  if (!fresh.length) fresh = pool
+  const p = fresh[rnd(fresh.length)]
+  const text = p.text.toUpperCase()
+  _rememberAnswer(text)
+  return { text, category: p.category }
 }
 
 export function spinWheel() {
