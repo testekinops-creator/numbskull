@@ -158,6 +158,7 @@ export function registerRoomHandlers(io, socket) {
     if (snapshot.match?.kind === 'SPIN') {
       snapshot.match.myWrongLetters = room.match?.wrongGuesses?.[playerId] || []
       snapshot.match.countdownMs = room.match?.nextRoundAt ? Math.max(0, room.match.nextRoundAt - Date.now()) : 0
+      snapshot.match.turnCountdownMs = room.match?.turnEndsAt ? Math.max(0, room.match.turnEndsAt - Date.now()) : 0
     }
     ack?.({ ok: true, room: snapshot.room, snapshot })
   })

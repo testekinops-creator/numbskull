@@ -36,15 +36,19 @@ export default function SpinBattleMatch({
     }
   }, [spin?.nonce]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Between-rounds countdown — tick from the server-provided local deadline so
-  // both players see identical seconds (and it survives a reconnect).
+  // Synced countdowns (server provides the local deadline / remaining ms, so both
+  // players see identical seconds and they survive a reconnect):
+  //  • turnEndsAt    — the active player's 60s window to act
+  //  • roundEndsAt   — the between-rounds pause before the next round
   const roundEndsAt = spin?.roundEndsAt || null
+  const turnEndsAt = spin?.turnEndsAt || null
+  const tickDeadline = roundEndsAt || turnEndsAt
   useEffect(() => {
-    if (!roundEndsAt) return
+    if (!tickDeadline) return
     setNow(Date.now())
     const id = setInterval(() => setNow(Date.now()), 250)
     return () => clearInterval(id)
-  }, [roundEndsAt])
+  }, [tickDeadline])
   const countdownSec = roundEndsAt ? Math.max(0, Math.ceil((roundEndsAt - now) / 1000)) : 0
 
   if (!match) return null
@@ -60,6 +64,9 @@ export default function SpinBattleMatch({
   const revealed = new Set(match.revealed || [])
   const myWrong = new Set(match.myWrongLetters || [])   // private — only my own misses
   const roundOver = match.roundOver
+  // Active-turn countdown (hidden during the between-rounds pause).
+  const turnSec = turnEndsAt && !roundOver ? Math.max(0, Math.ceil((turnEndsAt - now) / 1000)) : 0
+  const turnTotal = 60
 
   const active = myTurn && !spinning && !roundOver
   const canSpin = active && !match.canGuess
@@ -153,6 +160,21 @@ export default function SpinBattleMatch({
       <PuzzleBoard masked={match.masked} category={match.category} />
 
       <p key={`${feedback}-${spin?.ts || 0}`} className={`${s.feedback} ${myTurn ? m.yourTurn : ''}`} role="status">{feedback}</p>
+
+      {turnSec > 0 && !roundOver && (
+        <div className={m.turnTimer}>
+          <div className={m.turnTimerHead}>
+            <span>{myTurn ? '⏱️ Your turn' : `⏱️ ${nameOf(match.turnId)}`}</span>
+            <span className={`${m.turnSecs} ${turnSec <= 10 ? m.turnSecsLow : ''}`}>{turnSec}s</span>
+          </div>
+          <div className={m.turnTrack}>
+            <div
+              className={`${m.turnFill} ${turnSec <= 10 ? m.turnFillLow : ''}`}
+              style={{ width: `${Math.min(100, (turnSec / turnTotal) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {roundOver && roundEndsAt && (
         <div className={m.roundOverBanner} role="status">

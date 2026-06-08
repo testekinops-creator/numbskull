@@ -7,11 +7,11 @@ export class TurnTimer {
     this._handle = null
   }
 
-  start() {
+  start(ms = TURN_LIMIT_MS) {
     this.clear()
     this._handle = setTimeout(() => {
       this._onExpire(this._roomId)
-    }, TURN_LIMIT_MS)
+    }, ms)
   }
 
   clear() {

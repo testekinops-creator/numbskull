@@ -21,6 +21,8 @@ export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN'])
 
 // Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
 const SPIN_BEST_OF = 3
+// A player's window to act on their turn — shown as a visible synced countdown.
+const SPIN_TURN_MS = 60_000
 // Visible, synchronized between-rounds countdown (tunable ≤ 60000). Both players
 // see identical values because the server broadcasts remaining ms, not a clock.
 const SPIN_ROUND_COUNTDOWN_MS = 8000
@@ -686,11 +688,14 @@ function _spinNextTurn(mm, players, fromId) {
   return { turnId: next, skipped }
 }
 
-// Anti-stall: (re)arm a 30s timer for whoever's turn it is. If they don't act in
-// time, they lose the current round (fair for best-of-3). Re-armed after every
-// action; cleared on round/match end.
-function _armSpinTimer(io, roomId, turnId) {
+// Anti-stall: (re)arm the 60s turn timer for whoever's turn it is, and broadcast
+// a deadline so BOTH players see an identical visible countdown. If the player
+// doesn't act in time they lose the round. Re-armed after every action; the
+// stored turnEndsAt also lets a reconnecting client resume the same countdown.
+async function _armSpinTimer(io, roomId, turnId) {
   clearTimer(roomId)
+  await roomManager.update(roomId, r => { if (r.match) r.match.turnEndsAt = Date.now() + SPIN_TURN_MS })
+  io.to(roomId).emit('spin:turn', { turnId, turnCountdownMs: SPIN_TURN_MS })
   getTimer(roomId, async (rid) => {
     const room = await roomManager.get(rid)
     if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return
@@ -699,7 +704,7 @@ function _armSpinTimer(io, roomId, turnId) {
     const winnerId = room.players.find(p => p.id !== turnId)?.id || null
     io.to(rid).emit('match:timeout', { playerId: turnId })
     if (winnerId) await _afterSpinRoundWin(io, rid, winnerId)
-  }).start()
+  }).start(SPIN_TURN_MS)
 }
 
 // ── Spin Battle: round / match progression ─────────────────────────────────
@@ -975,6 +980,7 @@ function _matchView(room, viewerId) {
   if (match?.kind === 'SPIN') {
     match.myWrongLetters = room.match.wrongGuesses?.[viewerId] || []
     match.countdownMs = _spinCountdownMs(room.match)
+    match.turnCountdownMs = room.match.turnEndsAt ? Math.max(0, room.match.turnEndsAt - Date.now()) : 0
   }
   return { room: _roomSummary(room), match, you: viewerId }
 }

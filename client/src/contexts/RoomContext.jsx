@@ -170,7 +170,9 @@ function reducer(state, action) {
         room:  action.room ? { ...state.room, ...action.room } : state.room,
         phase: 'PLAYING',
         match: action.match,
-        spin:  null,
+        spin:  action.match?.kind === 'SPIN' && action.match.turnCountdownMs
+          ? { turnEndsAt: Date.now() + action.match.turnCountdownMs }
+          : null,
         xoxRound: null,
         won: null, winnerId: null, draw: false,
         rematchStatus: 'idle', rematchRequesterName: null,
@@ -210,8 +212,17 @@ function reducer(state, action) {
           // Round-over: revealed answer + a local deadline for the synced countdown.
           answer: p.event === 'roundover' ? p.answer : state.spin?.answer,
           roundEndsAt: p.event === 'roundover' && p.countdownMs ? Date.now() + p.countdownMs : null,
+          turnEndsAt: state.spin?.turnEndsAt,   // carried; re-set by spin:turn
           ts: Date.now(),
         },
+      }
+    }
+
+    // Spin Battle: the active player's turn timer was (re)armed → visible countdown.
+    case 'SPIN_TURN': {
+      return {
+        ...state,
+        spin: { ...(state.spin || {}), turnEndsAt: action.turnCountdownMs ? Date.now() + action.turnCountdownMs : null },
       }
     }
 
@@ -231,7 +242,7 @@ function reducer(state, action) {
         ...state,
         match,
         myTurn: match?.turnId === action.playerId,
-        spin: { ...(state.spin || {}), event: 'newround', round: p.round, answer: null, roundEndsAt: null, ts: Date.now() },
+        spin: { ...(state.spin || {}), event: 'newround', round: p.round, answer: null, roundEndsAt: null, turnEndsAt: null, ts: Date.now() },
       }
     }
 
@@ -416,6 +427,10 @@ function reducer(state, action) {
           ? (m && m.draw ? null : (s.winnerId ? s.winnerId === action.playerId : null))
           : state.won,
         winnerId: s.winnerId || null,
+        // Spin Battle: resume the turn countdown from the server's remaining ms.
+        spin: m?.kind === 'SPIN' && m.turnCountdownMs
+          ? { ...(state.spin || {}), turnEndsAt: Date.now() + m.turnCountdownMs }
+          : state.spin,
         roomClosedByOpponent: false,
         opponentLeftMessage: null,
         opponentConnLost: false,
@@ -538,6 +553,9 @@ export function RoomProvider({ children }) {
     socket.on('spin:wrong', ({ letter } = {}) => {
       if (letter) dispatch({ type: 'SPIN_WRONG', letter })
     })
+    socket.on('spin:turn', ({ turnCountdownMs } = {}) => {
+      dispatch({ type: 'SPIN_TURN', turnCountdownMs })
+    })
 
     socket.on('match:turn', ({ turnId } = {}) => {
       clearInterval(timerRef.current)
@@ -621,6 +639,7 @@ export function RoomProvider({ children }) {
       socket.off('spin:update')
       socket.off('spin:round')
       socket.off('spin:wrong')
+      socket.off('spin:turn')
       socket.off('match:turn')
       socket.off('match:over')
       socket.off('match:timeout')
