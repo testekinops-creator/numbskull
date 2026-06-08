@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { api } from '../services/api.js'
 import { recordGameForBadges } from '../services/badges.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import RematchPrompt from '../components/game/RematchPrompt.jsx'
@@ -544,7 +545,7 @@ function GuessRoom() {
       {state.opponentLeftMessage && (
         <div className={styles.leftOverlay} role="alert">
           <div className={`${styles.leftCard} anim-bounce-land`}>
-            <SkullMascot expression="grudging" size={72} />
+            <GameLogo variant="static" size={72} />
             <h2 className={styles.leftTitle}>{state.opponentLeftMessage}</h2>
             <p className={styles.leftSub}>Taking you back home…</p>
           </div>

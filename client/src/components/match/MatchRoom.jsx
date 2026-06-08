@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx'
 import { api } from '../../services/api.js'
 import { recordGameForBadges } from '../../services/badges.js'
 import SkullMascot from '../skull/SkullMascot.jsx'
+import GameLogo from '../GameLogo.jsx'
 import GameOverCard from '../game/GameOverCard.jsx'
 import RematchPrompt from '../game/RematchPrompt.jsx'
 import TurnTimer from '../game/TurnTimer.jsx'
@@ -511,7 +512,7 @@ export default function MatchRoom({ roomId, mode }) {
       {state.opponentLeftMessage && (
         <div className={roomStyles.leftOverlay} role="alert">
           <div className={`${roomStyles.leftCard} anim-bounce-land`}>
-            <SkullMascot expression="grudging" size={72} />
+            <GameLogo variant="static" size={72} />
             <h2 className={roomStyles.leftTitle}>{state.opponentLeftMessage}</h2>
             <p className={roomStyles.leftSub}>Taking you back home…</p>
           </div>

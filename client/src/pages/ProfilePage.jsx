@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import { getTierFromGames } from '../utils/personality.js'
 import styles from './ProfilePage.module.css'
 
@@ -31,7 +31,7 @@ export default function ProfilePage() {
         <div className={`panel ${styles.page}`}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
           <div className={styles.guestBanner}>
-            <SkullMascot expression="judging" size={80} />
+            <GameLogo variant="static" size={80} />
             <h2>You're playing as a guest.</h2>
             <p className={styles.nudgeText}>
               Register to save your stats, earn badges, challenge friends, and appear on leaderboards. Your current progress will carry over.
@@ -57,7 +57,7 @@ export default function ProfilePage() {
         </div>
 
         <div className={styles.avatar}>
-          <SkullMascot expression="impressed" size={96} />
+          <GameLogo variant="static" size={96} />
           <div className={styles.identity}>
             <h1 className={styles.username}>{displayName}</h1>
             <span className={`badge badge-pink`}>{tier}</span>

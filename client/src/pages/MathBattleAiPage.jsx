@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { useSound } from '../hooks/useSound.js'
@@ -129,7 +130,7 @@ export default function MathBattleAiPage() {
 
         {phase === 'SETUP' && (
           <div className={`${styles.setup} anim-slide-up`}>
-            <SkullMascot expression="annoyed" size={92} glow />
+            <GameLogo variant="static" size={92} />
             <h1 className={styles.setupTitle}>Solo Practice</h1>
             <p className={styles.setupHint}>
               {gameMode === 'endless'

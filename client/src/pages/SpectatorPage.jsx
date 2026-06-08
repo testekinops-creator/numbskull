@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRoom } from '../contexts/RoomContext.jsx'
 import { useSocket } from '../contexts/SocketContext.jsx'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import styles from './SpectatorPage.module.css'
 
@@ -88,7 +88,7 @@ export default function SpectatorPage() {
         </div>
 
         <div className={styles.skullRow}>
-          <SkullMascot expression="neutral" size={72} glow={false} />
+          <GameLogo variant="static" size={72} />
           {state.roast && <p className={styles.roast}>"{state.roast}"</p>}
         </div>
 

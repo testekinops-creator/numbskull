@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import GlitchWordmark from '../components/GlitchWordmark.jsx'
 import styles from './AuthGatePage.module.css'
 
@@ -35,7 +35,7 @@ export default function AuthGatePage() {
       <div className={`${styles.card} anim-slide-up`}>
 
         <div className={styles.skullWrap}>
-          <SkullMascot expression="judging" size={100} glow />
+          <GameLogo variant="static" size={100} />
         </div>
 
         <div className={styles.copy}>

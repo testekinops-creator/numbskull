@@ -1,0 +1,66 @@
+/* Falling digital-rain backdrop. Subtle (low opacity) + radial-faded in the
+   centre so the logo / PLAY button stay perfectly readable on top. */
+.rain {
+  --matrix: var(--color-juice, #00f5ff);   /* brand cyan; set to #00ff41 for classic green */
+  position: absolute;
+  /* A NARROW vertical band centred behind the crown — no horizontal overspill to
+     the sides, extends up, cut above the jaw. */
+  top: -104px;
+  right: 26px;
+  bottom: 46px;
+  left: 26px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.92;
+  /* Narrow ellipse biased upward → a tight column of numbers behind the crown. */
+  -webkit-mask-image: radial-gradient(46% 58% at 50% 36%, #000 0%, #000 44%, transparent 76%);
+  mask-image: radial-gradient(46% 58% at 50% 36%, #000 0%, #000 44%, transparent 76%);
+}
+
+.col {
+  position: absolute;
+  /* Start below the patch; the animation lifts each stream UPWARD. */
+  bottom: -130%;
+  top: auto;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 15px;
+  letter-spacing: -1.5px;   /* digits close but not overlapping */
+  white-space: nowrap;
+  user-select: none;
+  background: linear-gradient(
+    to bottom,
+    #ffffff 0%,
+    #ffffff 5%,
+    var(--matrix) 12%,
+    var(--matrix) 26%,
+    color-mix(in srgb, var(--matrix) 70%, #000) 50%,
+    color-mix(in srgb, var(--matrix) 40%, #000) 72%,
+    transparent 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation-name: matrixRise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes matrixRise {
+  0%   { transform: translateY(0);     opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(-235%); opacity: 0; }
+}
+
+/* Calm screens for users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .rain { display: none; }
+}
+
+/* Slightly smaller glyphs on phones. */
+@media (max-width: 480px) {
+  .col { font-size: 13px; letter-spacing: -1.5px; }
+}

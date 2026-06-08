@@ -22,6 +22,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  z-index: 2;
 }
 
 .iconBtn {
@@ -44,13 +45,28 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-2);
   text-align: center;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .skullWrap {
-  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.6));
+  /* Anchor for the contained digital-rain backdrop that sits behind the skull. */
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* The PNG carries its own transparent padding, so trim the box and pull the
+     wordmark up to sit just under the visible skull (no big floating gap). */
+  margin-bottom: -22px;
+}
+
+/* Logo rides above the rain halo. */
+.logoFront {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55));
 }
 
 .branding {
@@ -58,6 +74,8 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  position: relative;
+  z-index: 1;
 }
 
 .tagline {
@@ -74,6 +92,8 @@
   align-items: center;
   width: 100%;
   max-width: 320px;
+  position: relative;
+  z-index: 1;
 }
 
 .playBtn {
@@ -112,6 +132,8 @@
   gap: var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+  position: relative;
+  z-index: 1;
 }
 .statValue { font-family: var(--font-display); font-weight: var(--weight-bold); color: var(--color-text-secondary); }
 .statLabel { color: var(--color-text-muted); }

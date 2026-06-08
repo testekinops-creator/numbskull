@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import MoreDrawer from '../components/MoreDrawer.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
@@ -89,7 +89,7 @@ export default function HomeListPage() {
 
       {/* Greeting */}
       <div className={styles.hero}>
-        <SkullMascot expression="grudging" size={88} glow />
+        <GameLogo variant="static" size={88} />
         <div className={styles.greeting}>
           <h1 className={styles.hello}>
             Ready, <span className={styles.name}>{name}</span>?

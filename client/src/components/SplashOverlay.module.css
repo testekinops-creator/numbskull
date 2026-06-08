@@ -18,21 +18,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-2);
 }
 
-/* Skull drops in from above */
+/* GameLogo runs its own spring intro; this is just a layout box that trims the
+   PNG's transparent padding so the wordmark sits close beneath the skull. */
 .skull {
-  opacity: 0;
-  transform: translateY(-60px) scale(0.6);
-}
-
-.skullEnter {
-  animation: skullDrop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
-}
-
-@keyframes skullDrop {
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  margin-bottom: -16px;
 }
 
 /* Wordmark fades up */

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import styles from './AuthPage.module.css'
 
 export default function LoginPage() {
@@ -41,7 +41,7 @@ export default function LoginPage() {
           ← Back
         </button>
         <div className={styles.top}>
-          <SkullMascot expression="judging" size={72} />
+          <GameLogo variant="static" size={72} />
           <h1 className={styles.title}>Welcome Back</h1>
           <p className={styles.sub}>I've been waiting. Judging.</p>
         </div>

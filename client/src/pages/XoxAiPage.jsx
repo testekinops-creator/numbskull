@@ -5,6 +5,7 @@ import { recordGameForBadges } from '../services/badges.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
@@ -115,7 +116,7 @@ export default function XoxAiPage() {
         {/* SETUP */}
         {phase === 'SETUP' && (
           <div className={`${styles.setup} anim-slide-up`}>
-            <SkullMascot expression="grudging" size={92} glow />
+            <GameLogo variant="static" size={92} />
             <h1 className={styles.setupTitle}>Tic-Tac-Toe</h1>
             <p className={styles.setupHint}>Pick your mark and how badly you want to lose.</p>
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import styles from './AuthPage.module.css'
 
 export default function RegisterPage() {
@@ -42,7 +42,7 @@ export default function RegisterPage() {
           ← Back
         </button>
         <div className={styles.top}>
-          <SkullMascot expression="neutral" size={72} />
+          <GameLogo variant="static" size={72} />
           <h1 className={styles.title}>Create Account</h1>
           <p className={styles.sub}>Save your stats. Challenge friends. Never lose your wins.</p>
         </div>

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import styles from './NotFoundPage.module.css'
 
 export default function NotFoundPage() {
@@ -7,9 +7,7 @@ export default function NotFoundPage() {
   return (
     <div className="screen">
       <div className={`panel ${styles.page} anim-slide-up`}>
-        <div className="glow-breathe">
-          <SkullMascot expression="judging" size={120} glow />
-        </div>
+        <GameLogo variant="static" size={120} />
         <h1 className={styles.code}>404</h1>
         <p className={styles.text}>The skull searched everywhere and found nothing here.</p>
         <button className="btn btn-juice btn-lg" onClick={() => navigate('/')}>Go Home</button>

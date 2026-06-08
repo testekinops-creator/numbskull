@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import RoastReportCard from '../components/engagement/RoastReportCard.jsx'
 import { ErrorState } from '../components/States.jsx'
 import styles from './DailyChallengePage.module.css'
@@ -99,7 +100,7 @@ export default function DailyChallengePage() {
         <div className={`panel ${styles.page}`}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
           <div className={styles.doneBanner}>
-            <SkullMascot expression="grudging" size={72} />
+            <GameLogo variant="static" size={72} />
             <h2>You already played today.</h2>
             <p className={styles.hint}>Come back tomorrow. I'll be here. Judging you.</p>
             <button className="btn btn-ghost" onClick={() => navigate('/leaderboard/daily')}>

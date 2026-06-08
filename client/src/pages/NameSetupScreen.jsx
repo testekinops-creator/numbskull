@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import styles from './NameSetupScreen.module.css'
 
@@ -30,8 +30,7 @@ export default function NameSetupScreen() {
   return (
     <div className={styles.screen}>
       <div className={`${styles.card} anim-slide-up`}>
-        {/* Skull — judging expression, you haven't proved yourself yet */}
-        <SkullMascot expression="judging" size={100} glow />
+        <GameLogo variant="static" size={100} />
 
         <div className={styles.copy}>
           <h1 className={styles.title}>What do I call you?</h1>

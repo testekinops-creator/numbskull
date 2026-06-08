@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
+import MatrixRain from '../components/MatrixRain.jsx'
 import GlitchWordmark from '../components/GlitchWordmark.jsx'
 import PlayButton from '../components/PlayButton.jsx'
 import SplashOverlay, { shouldShowSplash } from '../components/SplashOverlay.jsx'
@@ -62,9 +63,10 @@ export default function TitleScreen() {
 
       {/* Hero */}
       <div className={styles.hero}>
-        <div className={`${styles.skullWrap} anim-logo-enter`}>
-          <div className="glow-breathe">
-            <SkullMascot expression="neutral" size={160} glow />
+        <div className={styles.skullWrap}>
+          <MatrixRain columns={26} />
+          <div className={styles.logoFront}>
+            <GameLogo size={184} />
           </div>
         </div>
         <div className={styles.branding}>

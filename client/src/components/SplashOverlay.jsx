@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import SkullMascot from './skull/SkullMascot.jsx'
+import GameLogo from './GameLogo.jsx'
 import GlitchWordmark from './GlitchWordmark.jsx'
 import styles from './SplashOverlay.module.css'
 
@@ -21,8 +21,8 @@ export default function SplashOverlay({ onDone }) {
   return (
     <div className={`${styles.overlay} ${phase === 'exit' ? styles.exit : ''}`}>
       <div className={styles.inner}>
-        <div className={`${styles.skull} ${phase !== 'exit' ? styles.skullEnter : ''}`}>
-          <SkullMascot expression="neutral" size={140} glow />
+        <div className={styles.skull}>
+          <GameLogo size={132} tilt={false} />
         </div>
         <div className={`${styles.wordmark} ${phase !== 'exit' ? styles.wordmarkEnter : ''}`}>
           <GlitchWordmark size="xl" />

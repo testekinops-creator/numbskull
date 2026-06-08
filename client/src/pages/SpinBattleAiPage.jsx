@@ -6,6 +6,7 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { recordGameForBadges } from '../services/badges.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameLogo from '../components/GameLogo.jsx'
 import SpinBattle from '../components/match/SpinBattle.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { SPIN_MS } from '../components/match/SpinWheel.jsx'
@@ -154,7 +155,7 @@ export default function SpinBattleAiPage() {
 
         {phase === 'SETUP' && (
           <div className={`${styles.setup} anim-slide-up`}>
-            <SkullMascot expression="grudging" size={92} glow />
+            <GameLogo variant="static" size={92} />
             <h1 className={styles.setupTitle}>Spin Battle</h1>
             <p className={styles.setupHint}>Spin the wheel, call consonants for points, buy vowels, and solve the hidden phrase — before five strikes end you.</p>
 
