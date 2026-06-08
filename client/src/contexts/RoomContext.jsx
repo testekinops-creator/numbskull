@@ -37,6 +37,9 @@ const INITIAL = {
   match:                null,
   // Spin Battle: last wheel/guess event (drives the wheel animation + feedback)
   spin:                 null,
+  // XOX best-of-3: transient round-over banner (between games of the series)
+  xoxRound:             null,
+  seriesScore:          null,   // final series tally shown at match over
   // Rematch state machine: idle | requesting | incoming | declined
   rematchStatus:        'idle',
   rematchRequesterName: null,  // name of who sent the request
@@ -149,6 +152,15 @@ function reducer(state, action) {
 
     // ── New game modes (XOX / Math / Sudoku) ───────────────────────────────
     // Match started — server sends { room (summary), match (public state) }
+    case 'XOX_ROUNDOVER': {
+      const p = action.payload || {}
+      return {
+        ...state,
+        match: state.match ? { ...state.match, board: p.board ?? state.match.board, series: p.series ?? state.match.series } : state.match,
+        xoxRound: { winnerId: p.winnerId || null, draw: !!p.draw, matchOver: !!p.matchOver, gameNo: p.gameNo, series: p.series || null },
+      }
+    }
+
     case 'MATCH_START':
       return {
         ...state,
@@ -156,6 +168,7 @@ function reducer(state, action) {
         phase: 'PLAYING',
         match: action.match,
         spin:  null,
+        xoxRound: null,
         won: null, winnerId: null, draw: false,
         rematchStatus: 'idle', rematchRequesterName: null,
         roomClosedByOpponent: false,
@@ -230,6 +243,8 @@ function reducer(state, action) {
         won:      action.draw ? null : (action.winnerId ? action.winnerId === action.playerId : null),
         winnerId: action.winnerId || null,
         ranking:  action.ranking || null,
+        seriesScore: action.series || null,
+        xoxRound: null,
       }
     }
 
@@ -467,6 +482,9 @@ export function RoomProvider({ children }) {
     socket.on('xox:update', ({ board, turnId } = {}) => {
       dispatch({ type: 'MATCH_STATE', patch: { board, turnId }, playerId })
     })
+    socket.on('xox:roundover', (payload = {}) => {
+      dispatch({ type: 'XOX_ROUNDOVER', payload, playerId })
+    })
 
     socket.on('math:question', (payload = {}) => {
       dispatch({ type: 'MATH_QUESTION', payload, playerId })
@@ -499,9 +517,9 @@ export function RoomProvider({ children }) {
       timerRef.current = setInterval(() => dispatch({ type: 'TIMER_TICK' }), 1000)
     })
 
-    socket.on('match:over', ({ winnerId, draw, scores, ranking } = {}) => {
+    socket.on('match:over', ({ winnerId, draw, scores, ranking, series } = {}) => {
       clearInterval(timerRef.current)
-      dispatch({ type: 'MATCH_OVER', winnerId: winnerId || null, draw: !!draw, scores, ranking: ranking || null, playerId })
+      dispatch({ type: 'MATCH_OVER', winnerId: winnerId || null, draw: !!draw, scores, ranking: ranking || null, series: series || null, playerId })
     })
 
     socket.on('match:timeout', () => clearInterval(timerRef.current))
@@ -565,6 +583,7 @@ export function RoomProvider({ children }) {
       socket.off('game:forfeit')
       socket.off('match:start')
       socket.off('xox:update')
+      socket.off('xox:roundover')
       socket.off('math:question')
       socket.off('math:resolved')
       socket.off('sudoku:update')

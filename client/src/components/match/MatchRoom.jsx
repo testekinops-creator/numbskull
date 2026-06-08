@@ -344,11 +344,30 @@ export default function MatchRoom({ roomId, mode }) {
           <div className={styles.playArea}>
             {mode === 'XOX' && (
               <>
-                <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} />
-                <p key={state.myTurn ? 'me' : 'opp'} className={`${styles.turnLabel} anim-msg`}>
-                  {state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'} is playing…`}
-                </p>
-                <XoxBoard board={match.board} onCell={handleCell} disabled={!state.myTurn} />
+                {match.series && (
+                  <p className={styles.seriesLine}>
+                    Best of {(match.roundsToWin || 2) * 2 - 1} · Round {match.gameNo || 1} ·{' '}
+                    <b>You {match.series[playerId] || 0}</b> — <b>{opponent ? (match.series[opponent.id] || 0) : 0} {opponent?.name || 'Opp'}</b>
+                  </p>
+                )}
+                {state.xoxRound && !state.xoxRound.matchOver ? (
+                  <>
+                    <div className={`${styles.resultBanner} anim-bounce-land`}>
+                      {state.xoxRound.draw
+                        ? 'Round drawn — replay!'
+                        : `${state.xoxRound.winnerId === playerId ? 'You' : (opponent?.name || 'Opponent')} won round ${state.xoxRound.gameNo} — next round…`}
+                    </div>
+                    <XoxBoard board={match.board} disabled />
+                  </>
+                ) : (
+                  <>
+                    <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} />
+                    <p key={state.myTurn ? 'me' : 'opp'} className={`${styles.turnLabel} anim-msg`}>
+                      {state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'} is playing…`}
+                    </p>
+                    <XoxBoard board={match.board} onCell={handleCell} disabled={!state.myTurn} />
+                  </>
+                )}
               </>
             )}
             {mode === 'MATH' && match.question && (
@@ -441,6 +460,11 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'SUDOKU' && match && (
               <p className={styles.sudokuEndStats}>
                 ✅ {match.correctCount}/{match.fillTarget} cells correct · ❌ {match.wrongCount} wrong attempts
+              </p>
+            )}
+            {mode === 'XOX' && state.seriesScore && (
+              <p className={styles.seriesLine}>
+                Series: <b>{state.seriesScore[playerId] || 0}</b> — <b>{opponent ? (state.seriesScore[opponent.id] || 0) : 0}</b>
               </p>
             )}
             <RematchPrompt

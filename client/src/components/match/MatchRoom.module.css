@@ -47,6 +47,14 @@
 .trophyPos { color: var(--color-success, #00e676); }
 .trophyNeg { color: var(--color-pink, #ff3e8a); }
 
+.seriesLine {
+  text-align: center;
+  font-size: var(--text-sm, 0.85rem);
+  color: var(--color-text-secondary, #9b93c0);
+  margin: 0;
+}
+.seriesLine b { color: var(--color-juice, #00f5ff); }
+
 .turnLabel {
   font-weight: 700;
   font-size: 1.05rem;

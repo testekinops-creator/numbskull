@@ -162,7 +162,7 @@ export function registerMatchHandlers(io, socket) {
       })
       ack?.({ ok: true })
 
-      if (over) await _endMatch(io, roomId, { winnerId, draw })
+      if (over) await _endXoxRound(io, roomId, { winnerId, draw })
       else _startMoveTimer(io, roomId, updated.match.turnId)
     } catch (err) {
       logger.error({ err }, 'xox:move error')
@@ -531,6 +531,10 @@ async function _startMatch(io, roomId) {
         turnId:  xId,
         winnerId: null,
         draw:    false,
+        // Best-of-3 series: first to 2 game-wins takes the match; draws replay.
+        series:  { [a.id]: 0, [b.id]: 0 },
+        roundsToWin: 2,
+        gameNo:  1,
       }
     })
   }
@@ -795,6 +799,76 @@ export async function endMatch(io, roomId, { winnerId = null, draw = false } = {
   return _endMatch(io, roomId, { winnerId, draw })
 }
 
+// ── XOX best-of-3 series ────────────────────────────────────────────────────
+const XOX_INTERMISSION_MS = 2600
+
+async function _endXoxRound(io, roomId, { winnerId, draw }) {
+  clearTimer(roomId)
+  let matchOver = false
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    if (!mm) return
+    if (!draw && winnerId) {
+      mm.series[winnerId] = (mm.series[winnerId] || 0) + 1
+      if (mm.series[winnerId] >= (mm.roundsToWin || 2)) matchOver = true
+    }
+  })
+  const updated = await roomManager.get(roomId)
+  const mm = updated?.match
+  if (!mm) return
+  io.to(roomId).emit('xox:roundover', {
+    winnerId: draw ? null : winnerId, draw, matchOver,
+    series: mm.series, gameNo: mm.gameNo, board: mm.board,
+  })
+  if (matchOver) await _finishXoxMatch(io, roomId, winnerId)
+  else setTimeout(() => _nextXoxGame(io, roomId), XOX_INTERMISSION_MS)
+}
+
+async function _nextXoxGame(io, roomId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'XOX' || room.phase !== 'PLAYING') return
+  const [a, b] = room.players
+  const seq = room.gameSeq || 0
+  const xId = seq % 2 === 0 ? a.id : b.id
+  const oId = seq % 2 === 0 ? b.id : a.id
+  await roomManager.update(roomId, r => {
+    r.gameSeq = seq + 1
+    const series = r.match.series
+    const gameNo = (r.match.gameNo || 1) + 1
+    r.match = {
+      kind: 'XOX', board: Array(9).fill(null), symbols: { [xId]: 'X', [oId]: 'O' },
+      turnId: xId, winnerId: null, draw: false, series, roundsToWin: r.match.roundsToWin || 2, gameNo,
+    }
+  })
+  const updated = await roomManager.get(roomId)
+  for (const p of updated.players) {
+    const s = _findSocket(io, p.id)
+    s?.emit('match:start', _matchView(updated, p.id))
+  }
+  _startMoveTimer(io, roomId, updated.match.turnId)
+}
+
+async function _finishXoxMatch(io, roomId, winnerId) {
+  clearTimer(roomId)
+  cancelRoomGrace(roomId)
+  await roomManager.update(roomId, r => {
+    r.phase = 'GAME_OVER'
+    r.winnerId = winnerId
+    const w = r.players.find(p => p.id === winnerId)
+    if (w) w.score = (w.score || 0) + 1
+  })
+  const updated = await roomManager.get(roomId)
+  for (const p of updated.players) {
+    const s = _findSocket(io, p.id)
+    recordResult({ entrantId: s?.handshake.auth?.userId || p.id, name: p.name, won: p.id === winnerId })
+  }
+  io.to(roomId).emit('match:over', {
+    winnerId, draw: false,
+    series: updated.match?.series || null,
+    scores: updated.players.map(p => ({ id: p.id, score: p.score })),
+  })
+}
+
 async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = null }) {
   clearTimer(roomId)
   _clearMathTimer(roomId)
@@ -878,6 +952,9 @@ function _publicMatch(match) {
       turnId: match.turnId,
       winnerId: match.winnerId,
       draw: match.draw,
+      series: match.series || null,
+      gameNo: match.gameNo || 1,
+      roundsToWin: match.roundsToWin || 2,
     }
   }
   if (match.kind === 'MATH') {
