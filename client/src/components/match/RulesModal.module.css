@@ -11,6 +11,7 @@
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: rulesFade 0.2s ease-out;
+  overscroll-behavior: contain;   /* don't let scroll chain to the page behind */
 }
 
 .panel {
@@ -67,6 +68,8 @@
 
 .body {
   overflow-y: auto;
+  overscroll-behavior: contain;   /* scroll the rules, not the page behind */
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: var(--space-4, 16px);

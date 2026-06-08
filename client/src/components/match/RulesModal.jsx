@@ -80,11 +80,16 @@ const RULES = {
 }
 
 export default function RulesModal({ mode = 'SPIN', onClose }) {
-  // Close on Escape; lock background scroll while open.
+  // Close on Escape; lock background scroll so the room behind doesn't move.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
   }, [onClose])
 
   const r = RULES[mode] || RULES.SPIN
