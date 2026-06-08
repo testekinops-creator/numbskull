@@ -29,20 +29,43 @@ export function SocketProvider({ children }) {
       },
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 10,
+      reconnectionDelayMax: 5000,
+      // Never permanently give up — a phone can be locked for minutes and across
+      // many lock/unlock cycles; we want it to keep trying to come back.
+      reconnectionAttempts: Infinity,
       transports: ['websocket', 'polling'],
     })
+
+    const duplicateTab = { current: false }
 
     socket.on('connect', () => { setConnected(true); setReconnecting(false); everConnectedRef.current = true })
     socket.on('disconnect', () => { setConnected(false); if (everConnectedRef.current) setReconnecting(true) })
     socket.io.on('reconnect_attempt', () => { if (everConnectedRef.current) setReconnecting(true) })
     socket.io.on('reconnect', () => setReconnecting(false))
     socket.on('error:duplicate_tab', () => {
+      duplicateTab.current = true
       alert('You opened Numbskull in another tab. This tab has been disconnected.')
     })
 
+    // Mobile resilience: socket.io throttles its retry timers while the tab is
+    // hidden, so after unlocking the phone (or the network returning) we nudge it
+    // to reconnect right away instead of waiting out a throttled backoff.
+    const nudge = () => {
+      if (duplicateTab.current) return
+      if (document.visibilityState === 'visible' && !socket.connected) socket.connect()
+    }
+    document.addEventListener('visibilitychange', nudge)
+    window.addEventListener('online', nudge)
+    window.addEventListener('focus', nudge)
+
     socketRef.current = socket
-    return () => { socket.disconnect(); socketRef.current = null }
+    return () => {
+      document.removeEventListener('visibilitychange', nudge)
+      window.removeEventListener('online', nudge)
+      window.removeEventListener('focus', nudge)
+      socket.disconnect()
+      socketRef.current = null
+    }
   }, [playerId, displayName])
 
   return (

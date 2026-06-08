@@ -167,6 +167,10 @@ export function registerRoomHandlers(io, socket) {
   socket.on('disconnecting', () => {
     for (const r of socket.rooms) {
       if (r === socket.id) continue
+      // If the SAME player already reconnected on another socket (rapid phone
+      // lock/unlock), this is just the stale socket dying — ignore it so we don't
+      // flash a false "opponent dropped" or schedule a needless close.
+      if (_playerHasLiveSocket(io, playerId, r, socket.id)) continue
       // G4: tell the opponent this player dropped (they may come back during grace)
       socket.to(r).emit('player:disconnected', { playerId, playerName })
       _scheduleDisconnectClose(io, playerId, playerName, r)
@@ -198,9 +202,23 @@ function _clearQuickmatchTimeout(playerId) {
   if (t) { clearTimeout(t); quickmatchTimers.delete(playerId) }
 }
 
-// ── Disconnect grace timers (survive page refresh) ───────────────────────────
+// ── Disconnect grace timers (survive page refresh / phone lock) ──────────────
+// Mobile users routinely lock the screen mid-game, which drops the socket. We
+// keep their seat for a grace window and restore full state when they return.
+// 60s by default (tunable) — long enough to survive a lock/unlock.
 const disconnectTimers = new Map()  // `${playerId}:${roomId}` -> timeout
-const DISCONNECT_GRACE_MS = 10_000
+const DISCONNECT_GRACE_MS = Number(process.env.DISCONNECT_GRACE_MS) || 60_000
+
+// Is this player currently connected to the room on SOME live socket? After a
+// reconnect they hold a NEW socket id while the old (frozen) one may still be
+// lingering — so an optional excludeId lets the old socket ignore itself.
+function _playerHasLiveSocket(io, playerId, roomId, excludeId = null) {
+  for (const [, s] of io.sockets.sockets) {
+    if (s.id === excludeId) continue
+    if (s.handshake.auth?.playerId === playerId && s.rooms.has(roomId)) return true
+  }
+  return false
+}
 
 function _scheduleDisconnectClose(io, playerId, playerName, roomId) {
   const key = `${playerId}:${roomId}`
@@ -213,6 +231,8 @@ function _scheduleDisconnectClose(io, playerId, playerName, roomId) {
     if (room.phase === 'GAME_OVER') return
     const leaver = room.players.find(p => p.id === playerId)
     if (!leaver) return  // already removed
+    // Ghost-socket guard: if they reconnected on a new socket, don't evict them.
+    if (_playerHasLiveSocket(io, playerId, roomId)) return
     // Party rooms (>2): drop just this player and keep the room going.
     if ((room.maxPlayers || 2) > 2) return _removeFromParty(io, roomId, playerId, leaver.name || playerName, 'disconnected')
     await _closeRoomNotifying(io, room, roomId, leaver.name || playerName, 'disconnected')
