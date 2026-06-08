@@ -25,7 +25,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;       /* anchors the pencil-notes overlay */
   min-width: 0;
   box-sizing: border-box;  /* border included in the 1fr track → every cell aligns */
   aspect-ratio: 1 / 1;     /* square cells → grid auto-sizes to fit all 9 rows */
@@ -111,31 +110,6 @@
 
 .num:not(:disabled):hover { border-color: var(--color-juice, #00f5ff); transform: translateY(-1px); }
 .num:disabled, .clear:disabled { opacity: 0.4; cursor: default; }
-.notesActive {
-  border-color: var(--color-warning, #ffd740) !important;
-  color: var(--color-warning, #ffd740);
-  box-shadow: 0 0 12px rgba(255, 215, 64, 0.4);
-}
-
-/* Pencil-notes overlay — a 3×3 grid of small candidate numbers inside a cell. */
-.notes {
-  position: absolute;
-  inset: 1px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  pointer-events: none;
-}
-.note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display, sans-serif);
-  font-size: clamp(0.4rem, 1.7vw, 0.6rem);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--color-text-secondary, #9b93c0);
-}
 
 .clear {
   grid-column: span 5;
