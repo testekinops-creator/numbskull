@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { engineFactory, VALID_MODES } from '../game/engineFactory.js'
+import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { getRoastMessage } from '../game/personality.js'
 import { getActiveEvent, applyEventModifier } from '../game/SeasonalEvents.js'
 import { createError } from '../middleware/errorHandler.js'
@@ -61,6 +62,7 @@ const startSchema = z.object({
   totalGames: z.number().int().min(0).default(0),
   largeCount: z.number().int().min(0).max(4).optional(),
   symbol:     z.enum(['X', 'O']).optional(),   // XOX: which symbol the human plays
+  endless:    z.boolean().optional(),          // MATH: survival mode (no fixed total)
 })
 
 const guessSchema = z.object({
@@ -90,7 +92,7 @@ const sessions = new Map()
 
 gameRouter.post('/start', (req, res, next) => {
   try {
-    const { mode, difficulty, range, largeCount, symbol } = startSchema.parse(req.body)
+    const { mode, difficulty, range, largeCount, symbol, endless } = startSchema.parse(req.body)
     const event    = getActiveEvent()
     const baseOpts = { difficulty, range, largeCount, symbol }
     const opts     = applyEventModifier(baseOpts, event)
@@ -98,7 +100,7 @@ gameRouter.post('/start', (req, res, next) => {
     const sessionId = uid()
     const session  = { engine, mode, event: event?.id || null }
     // Math Battle tracks progression + per-side scores on the session.
-    if (mode === 'MATH') { session.mathIndex = 0; session.mathScores = { player: 0, ai: 0 } }
+    if (mode === 'MATH') { session.mathIndex = 0; session.mathScores = { player: 0, ai: 0 }; session.endless = !!endless }
     sessions.set(sessionId, session)
     setTimeout(() => sessions.delete(sessionId), 30 * 60 * 1000)
 
@@ -106,7 +108,7 @@ gameRouter.post('/start', (req, res, next) => {
     // already reflects the first move when the client renders.
     let state = engine.getState ? engine.getState() : {}
     if (mode === 'XOX')  state = engine.aiOpeningMove()
-    if (mode === 'MATH') state = { ...state, scores: { player: 0, ai: 0 } }
+    if (mode === 'MATH') state = { ...state, scores: { player: 0, ai: 0 }, endless: !!endless }
 
     res.json({ success: true, data: { sessionId, mode, range: engine.range, event: event?.id || null, ...state } })
   } catch (err) { next(err) }
@@ -186,6 +188,26 @@ gameRouter.post('/math/answer', (req, res, next) => {
     // The question already advanced — this answer lost the race.
     if (index !== session.mathIndex) {
       return res.json({ success: true, data: { stale: true, index: session.mathIndex, scores: { ...session.mathScores } } })
+    }
+
+    // ── Endless / Survival: one wrong (or timeout) ends the run ──────────────
+    if (session.endless) {
+      const ans = engine.questions[index]?.answer
+      // A timeout sends no choice — always a miss (never let Number(null)===0 slip through).
+      const isCorrect = choice != null && engine.check(index, choice).correct
+      if (!isCorrect) {
+        const score = session.mathScores.player
+        const roast = getRoastMessage(score >= 10 ? 'correct' : 'lose', totalGames)
+        sessions.delete(sessionId)
+        return res.json({ success: true, data: { by: 'player', correct: false, answer: ans, scores: { player: score }, next: null, over: true, won: false, endless: true, score, index, roast: roast?.message || null } })
+      }
+      session.mathScores.player += 1
+      session.mathIndex++
+      // Generate questions on demand so the run is truly endless.
+      while (engine.questions.length <= session.mathIndex) {
+        engine.questions.push(MathBattleEngine.makeQuestion(engine.difficulty))
+      }
+      return res.json({ success: true, data: { by: 'player', correct: true, answer: ans, scores: { player: session.mathScores.player }, next: engine.publicQuestion(session.mathIndex), over: false, endless: true, score: session.mathScores.player, index } })
     }
 
     const answer = engine.questions[index]?.answer

@@ -2,8 +2,20 @@ import { describe, it, expect } from 'vitest'
 import { MathBattleEngine } from './MathBattleEngine.js'
 
 // Recompute a prompt's answer independently, to verify generation is correct.
+// Handles all question types: arithmetic, squares, percentages, sequences.
 function evalPrompt(prompt) {
-  const [aStr, sym, bStr] = prompt.split(' ')
+  if (prompt.endsWith('²')) {                       // "N²"
+    const n = Number(prompt.slice(0, -1))
+    return n * n
+  }
+  const pct = prompt.match(/^(\d+)% of (\d+)$/)     // "p% of base"
+  if (pct) return Math.round(Number(pct[1]) * Number(pct[2]) / 100)
+  if (prompt.includes(', ')) {                      // "a, b, c, ?"
+    const nums = (prompt.match(/\d+/g) || []).map(Number)
+    const d = nums[1] - nums[0]
+    return nums[nums.length - 1] + d
+  }
+  const [aStr, sym, bStr] = prompt.split(' ')        // "a sym b"
   const a = Number(aStr), b = Number(bStr)
   switch (sym) {
     case '+': return a + b

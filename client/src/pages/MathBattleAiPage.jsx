@@ -23,6 +23,8 @@ export default function MathBattleAiPage() {
 
   const [phase, setPhase]           = useState('SETUP')   // SETUP | PLAYING | DONE
   const [difficulty, setDifficulty] = useState('medium')
+  const [gameMode, setGameMode]     = useState('standard') // standard (20 Q) | endless (survival)
+  const [best, setBest]             = useState(() => Number(localStorage.getItem('ns_math_endless_best') || 0))
   const [question, setQuestion]     = useState(null)
   const [correct, setCorrect]       = useState(0)
   const [total, setTotal]           = useState(20)
@@ -49,12 +51,13 @@ export default function MathBattleAiPage() {
     unlock()
     setBusy(true)
     try {
-      const data = await api.post('/game/start', { mode: 'MATH', difficulty, totalGames })
+      const endless = gameMode === 'endless'
+      const data = await api.post('/game/start', { mode: 'MATH', difficulty, totalGames, endless })
       sessionRef.current = data.sessionId
       lockedRef.current = false
       correctRef.current = 0
       setCorrect(0)
-      setTotal(data.total || 20)
+      setTotal(endless ? Infinity : (data.total || 20))
       setLiveQuestion(data.question)
       setLocked(false); setReveal(null); setMyChoice(null); setDoneRoast(null)
       setPhase('PLAYING')
@@ -88,9 +91,17 @@ export default function MathBattleAiPage() {
 
       if (data.over) {
         const c = correctRef.current
-        const evt = c >= Math.ceil(total * 0.7) ? 'win' : c <= Math.floor(total * 0.35) ? 'lose' : 'draw'
-        setDoneRoast(getModeRoast('MATH', evt))
-        c >= Math.ceil(total * 0.7) ? playWin() : playLose()
+        if (data.endless) {
+          // Survival run ended on the first miss — score is the streak so far.
+          const isBest = c > best
+          if (isBest) { setBest(c); localStorage.setItem('ns_math_endless_best', String(c)) }
+          setDoneRoast(data.roast || getModeRoast('MATH', isBest ? 'win' : 'lose'))
+          isBest && c > 0 ? playWin() : playLose()
+        } else {
+          const evt = c >= Math.ceil(total * 0.7) ? 'win' : c <= Math.floor(total * 0.35) ? 'lose' : 'draw'
+          setDoneRoast(getModeRoast('MATH', evt))
+          c >= Math.ceil(total * 0.7) ? playWin() : playLose()
+        }
         setTimeout(() => setPhase('DONE'), REVEAL_MS)
       } else {
         setTimeout(() => {
@@ -120,7 +131,30 @@ export default function MathBattleAiPage() {
           <div className={`${styles.setup} anim-slide-up`}>
             <SkullMascot expression="annoyed" size={92} glow />
             <h1 className={styles.setupTitle}>Solo Practice</h1>
-            <p className={styles.setupHint}>20 questions, just you. Beat the clock on each one and keep your streak sharp. No AI, no mercy — only maths.</p>
+            <p className={styles.setupHint}>
+              {gameMode === 'endless'
+                ? 'Survival: one wrong answer ends the run. How long can your streak last? No AI, no mercy — only maths.'
+                : '20 questions, just you. Beat the clock on each one and keep your streak sharp. No AI, no mercy — only maths.'}
+            </p>
+
+            <div className={styles.choiceLabel}>Mode</div>
+            <div className={styles.diffRow}>
+              <button
+                className={`${styles.diffBtn} ${gameMode === 'standard' ? styles.diffActive : ''}`}
+                onClick={() => setGameMode('standard')}
+              >
+                🎯 Standard
+              </button>
+              <button
+                className={`${styles.diffBtn} ${gameMode === 'endless' ? styles.diffActive : ''}`}
+                onClick={() => setGameMode('endless')}
+              >
+                ♾️ Endless
+              </button>
+            </div>
+            {gameMode === 'endless' && best > 0 && (
+              <p className={styles.diffNote}>Best streak: <b style={{ color: 'var(--color-juice)' }}>{best}</b></p>
+            )}
 
             <div className={styles.choiceLabel}>Difficulty</div>
             <div className={styles.diffRow}>
@@ -152,6 +186,7 @@ export default function MathBattleAiPage() {
             myScore={correct}
             oppName=""
             solo
+            endless={gameMode === 'endless'}
             onAnswer={(choice) => answer(choice, false)}
             locked={locked}
             myChoice={myChoice}
@@ -160,7 +195,23 @@ export default function MathBattleAiPage() {
           />
         )}
 
-        {phase === 'DONE' && (
+        {phase === 'DONE' && gameMode === 'endless' && (
+          <div className={`${styles.setup} anim-slide-up`}>
+            <SkullMascot expression={correct >= best && correct > 0 ? 'impressed' : 'annoyed'} size={92} glow={correct >= best && correct > 0} />
+            <h1 className={styles.setupTitle}>{correct >= best && correct > 0 ? '🏆 New best streak!' : 'Run over'}</h1>
+            <div className={styles.scoreBig}>{correct}</div>
+            <p className={styles.setupHint}>in a row · best {best}</p>
+            {doneRoast && <p className={styles.doneRoast}>&ldquo;{doneRoast}&rdquo;</p>}
+            <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={() => setPhase('SETUP')}>
+              Try again
+            </button>
+            <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => navigate('/home')}>
+              Home
+            </button>
+          </div>
+        )}
+
+        {phase === 'DONE' && gameMode !== 'endless' && (
           <div className={`${styles.setup} anim-slide-up`}>
             <SkullMascot expression={correct >= Math.ceil(total * 0.7) ? 'impressed' : 'annoyed'} size={92} glow={correct >= Math.ceil(total * 0.7)} />
             <h1 className={styles.setupTitle}>Practice complete</h1>

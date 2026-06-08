@@ -12,7 +12,7 @@ import styles from './MathBattle.module.css'
 //   durationMs: timer-bar length (AI buzz window, or 15s in multiplayer)
 export default function MathBattle({
   question, myScore = 0, oppScore = 0, oppName = 'Opponent',
-  onAnswer, locked, myChoice, reveal, durationMs = 15000, solo = false,
+  onAnswer, locked, myChoice, reveal, durationMs = 15000, solo = false, endless = false,
 }) {
   if (!question) return null
   const { index, prompt, options, total } = question
@@ -25,7 +25,7 @@ export default function MathBattle({
           <span className={styles.scoreLabel}>{solo ? 'Correct' : 'You'}</span>
           <span className={styles.scoreVal}><CountUp end={myScore} duration={0.5} preserveValue /></span>
         </div>
-        <div className={styles.qCount}>Q {Math.min(index + 1, total)} / {total}</div>
+        <div className={styles.qCount}>{endless ? `♾️ Q ${index + 1}` : `Q ${Math.min(index + 1, total)} / ${total}`}</div>
         {solo ? (
           <div style={{ minWidth: 64 }} aria-hidden="true" />
         ) : (

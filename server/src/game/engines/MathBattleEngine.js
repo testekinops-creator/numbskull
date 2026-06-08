@@ -35,20 +35,54 @@ export class MathBattleEngine {
     return qs
   }
 
+  // Mix of question types — weighted by difficulty (harder = more variety).
   static makeQuestion(difficulty) {
+    const types = difficulty === 'easy'
+      ? ['arith', 'arith', 'arith', 'square']
+      : difficulty === 'hard'
+        ? ['arith', 'arith', 'square', 'percent', 'sequence']
+        : ['arith', 'arith', 'arith', 'square', 'percent']
+    const type = types[rnd(0, types.length - 1)]
+    const make = type === 'square' ? MathBattleEngine._square
+      : type === 'percent' ? MathBattleEngine._percent
+      : type === 'sequence' ? MathBattleEngine._sequence
+      : MathBattleEngine._arith
+    const { prompt, answer } = make(difficulty)
+    return { prompt, options: MathBattleEngine.makeOptions(answer), answer }
+  }
+
+  static _arith(difficulty) {
     const op  = OPS[rnd(0, OPS.length - 1)]
     const big = difficulty === 'hard' ? 50 : difficulty === 'easy' ? 12 : 25
     const fac = difficulty === 'hard' ? 15 : difficulty === 'easy' ? 9  : 12
     let a, b, answer, sym
-
     switch (op) {
       case '+': a = rnd(1, big); b = rnd(1, big);  answer = a + b; sym = '+'; break
       case '-': a = rnd(1, big); b = rnd(0, a);    answer = a - b; sym = '−'; break  // never negative
       case '*': a = rnd(2, fac); b = rnd(2, fac);  answer = a * b; sym = '×'; break
       default:  b = rnd(2, fac); answer = rnd(2, fac); a = b * answer; sym = '÷'; break // exact division
     }
+    return { prompt: `${a} ${sym} ${b}`, answer }
+  }
 
-    return { prompt: `${a} ${sym} ${b}`, options: MathBattleEngine.makeOptions(answer), answer }
+  static _square(difficulty) {
+    const max = difficulty === 'hard' ? 20 : difficulty === 'easy' ? 9 : 13
+    const n = rnd(2, max)
+    return { prompt: `${n}²`, answer: n * n }
+  }
+
+  static _percent(difficulty) {
+    const p = [10, 20, 25, 50][rnd(0, 3)]
+    const mult = difficulty === 'hard' ? rnd(3, 16) : difficulty === 'easy' ? rnd(1, 5) : rnd(2, 9)
+    // Choose a base that keeps the answer a whole number for the chosen percent.
+    const base = (p === 25 ? 4 : p === 20 ? 5 : p === 10 ? 10 : 2) * mult * (p === 10 ? 1 : 5)
+    return { prompt: `${p}% of ${base}`, answer: Math.round(base * p / 100) }
+  }
+
+  static _sequence(difficulty) {
+    const d = rnd(2, difficulty === 'hard' ? 12 : 7)
+    const a = rnd(1, difficulty === 'hard' ? 20 : 9)
+    return { prompt: `${a}, ${a + d}, ${a + 2 * d}, ?`, answer: a + 3 * d }
   }
 
   // Four distinct options including the correct answer, all non-negative.
