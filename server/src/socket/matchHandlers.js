@@ -37,6 +37,9 @@ function _clearMathTimer(roomId) {
 // player after a short cooldown (safety valve).
 const SUDOKU_LOCK_TTL = 3_000
 const SUDOKU_WRONG_COOLDOWN = 8_000
+// Per-player cumulative mistake cap — hit it and you forfeit the duel.
+// Easier puzzles allow more slack; hard is unforgiving (fits the game's tone).
+const SUDOKU_MISTAKE_LIMIT = { easy: 8, medium: 6, hard: 5 }
 const sudokuLockTimers = new Map()  // `${roomId}:${index}` -> timeout
 
 function _clearSudokuLockTimer(roomId, index) {
@@ -275,6 +278,7 @@ export function registerMatchHandlers(io, socket) {
 
       const correct = m.solution[index] === val
       let over = false
+      let bustedBy = null   // playerId who hit the mistake limit (forfeits)
       await roomManager.update(roomId, r => {
         const mm = r.match
         const wasWrong = mm.status[index] === 'wrong'
@@ -291,8 +295,10 @@ export function registerMatchHandlers(io, socket) {
           mm.status[index] = 'wrong'
           mm.scores[playerId] = (mm.scores[playerId] || 0) - 1
           if (!wasWrong) mm.wrongCount++   // count each new wrong attempt
+          mm.mistakes[playerId] = (mm.mistakes[playerId] || 0) + 1   // every wrong submit counts
           mm.wrongOwner[index] = playerId
           mm.wrongTs[index] = now
+          if (mm.mistakes[playerId] >= mm.mistakeLimit) { over = true; bustedBy = playerId }
         }
       })
 
@@ -303,11 +309,18 @@ export function registerMatchHandlers(io, socket) {
 
       if (over) {
         const [a, b] = updated.players
-        const sa = updated.match.scores[a.id] || 0
-        const sb = updated.match.scores[b.id] || 0
-        const draw = sa === sb
-        const winnerId = draw ? null : (sa > sb ? a.id : b.id)
-        await _endMatch(io, roomId, { winnerId, draw })
+        let winnerId, draw
+        if (bustedBy) {
+          // Hit the mistake cap → instant loss; the other player wins.
+          draw = false
+          winnerId = updated.players.find(p => p.id !== bustedBy)?.id ?? null
+        } else {
+          const sa = updated.match.scores[a.id] || 0
+          const sb = updated.match.scores[b.id] || 0
+          draw = sa === sb
+          winnerId = draw ? null : (sa > sb ? a.id : b.id)
+        }
+        await _endMatch(io, roomId, { winnerId, draw, reason: bustedBy ? 'mistakes' : 'complete' })
       }
     } catch (err) {
       logger.error({ err }, 'sudoku:fill error')
@@ -578,6 +591,8 @@ async function _startMatch(io, roomId) {
         wrongTs:    Array(81).fill(null),
         editLock:   {},                      // index -> { by, ts }
         scores:     { [a.id]: 0, [b.id]: 0 },
+        mistakes:   { [a.id]: 0, [b.id]: 0 },   // cumulative — never decremented
+        mistakeLimit: SUDOKU_MISTAKE_LIMIT[room.difficulty] ?? SUDOKU_MISTAKE_LIMIT.medium,
         correctCount: 0,
         wrongCount:   0,
         fillTarget,
@@ -869,7 +884,7 @@ async function _finishXoxMatch(io, roomId, winnerId) {
   })
 }
 
-async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = null }) {
+async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = null, reason = null }) {
   clearTimer(roomId)
   _clearMathTimer(roomId)
   _clearRoomSudokuLockTimers(roomId)
@@ -892,6 +907,7 @@ async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = 
     winnerId,
     draw,
     ranking,   // N-player Spin Battle: [{ id, name, rank, roundWins, trophies }] or null
+    reason,    // e.g. 'mistakes' (Sudoku mistake-limit forfeit) | 'complete' | null
     scores: updated.players.map(p => ({ id: p.id, score: p.score })),
   })
 }
@@ -1003,6 +1019,8 @@ function _publicMatch(match) {
       wrongOwner:   match.wrongOwner,
       editLock,
       scores:       match.scores,
+      mistakes:     match.mistakes,
+      mistakeLimit: match.mistakeLimit,
       correctCount: match.correctCount,
       wrongCount:   match.wrongCount,
       fillTarget:   match.fillTarget,
@@ -1028,6 +1046,8 @@ function _sudokuCellUpdate(room, index, by) {
     wrongOwner:   m.wrongOwner[index],
     by,
     scores:       room.players.map(p => ({ id: p.id, score: m.scores[p.id] || 0 })),
+    mistakes:     m.mistakes,
+    mistakeLimit: m.mistakeLimit,
     correctCount: m.correctCount,
     wrongCount:   m.wrongCount,
   }

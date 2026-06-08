@@ -14,6 +14,20 @@ export default function SudokuBoard({ match, playerId, opponentId, onLock, onUnl
   if (!match?.grid) return null
   const { grid, given, status, wrongOwner, editLock = {} } = match
 
+  // ── Live assistance (purely client-side, no server involvement) ──────────
+  // 1) Conflicts: any filled value duplicated within its row / column / 3×3 box.
+  const conflicts = computeConflicts(grid)
+  // 2) Peers of the selected cell (same row/col/box) + cells sharing its value.
+  const selRow = selected != null ? Math.floor(selected / 9) : -1
+  const selCol = selected != null ? selected % 9 : -1
+  const selBox = selected != null ? Math.floor(selRow / 3) * 3 + Math.floor(selCol / 3) : -1
+  const selVal = selected != null ? grid[selected] : 0
+  function isPeer(i) {
+    if (selected == null || i === selected) return false
+    const r = Math.floor(i / 9), c = i % 9
+    return r === selRow || c === selCol || (Math.floor(r / 3) * 3 + Math.floor(c / 3)) === selBox
+  }
+
   function selectable(i) {
     if (given[i] || status[i] === 'correct') return false
     const lock = editLock[i]
@@ -47,6 +61,10 @@ export default function SudokuBoard({ match, playerId, opponentId, onLock, onUnl
           const isSel   = i === selected
           const oppLock = editLock[i] && editLock[i] !== playerId
           const col = i % 9, row = Math.floor(i / 9)
+          // Peer tint only on empty editable cells, so it never fights a filled
+          // cell's solid colour. same-number + conflict use rings (coexist).
+          const peerTint = isPeer(i) && !given[i] && status[i] === 'empty'
+          const sameNum  = selVal !== 0 && v === selVal && i !== selected
           const cls = [
             styles.cell,
             given[i] ? styles.given : '',
@@ -54,6 +72,9 @@ export default function SudokuBoard({ match, playerId, opponentId, onLock, onUnl
             status[i] === 'wrong' ? styles.wrong : '',
             isSel ? styles.selected : '',
             oppLock ? styles.oppLock : '',
+            peerTint ? styles.peer : '',
+            sameNum ? styles.sameNum : '',
+            conflicts.has(i) ? styles.conflict : '',
             // Single-line grid: cells draw only top+left; the grid frame draws
             // the outer right/bottom. First row/col skip their line (frame does
             // it); the 3×3 box separators thicken the internal line once.
@@ -94,4 +115,25 @@ export default function SudokuBoard({ match, playerId, opponentId, onLock, onUnl
       )}
     </div>
   )
+}
+
+// Indices of cells whose value is duplicated within their row, column, or box.
+function computeConflicts(grid) {
+  const conflict = new Set()
+  const scan = (cells) => {
+    const seen = {}
+    for (const i of cells) {
+      const v = grid[i]
+      if (!v) continue
+      if (seen[v] != null) { conflict.add(i); conflict.add(seen[v]) }
+      else seen[v] = i
+    }
+  }
+  for (let r = 0; r < 9; r++) scan(Array.from({ length: 9 }, (_, c) => r * 9 + c))           // rows
+  for (let c = 0; c < 9; c++) scan(Array.from({ length: 9 }, (_, r) => r * 9 + c))           // columns
+  for (let b = 0; b < 9; b++) {                                                              // 3×3 boxes
+    const br = Math.floor(b / 3) * 3, bc = (b % 3) * 3
+    scan(Array.from({ length: 9 }, (_, k) => (br + Math.floor(k / 3)) * 9 + (bc + k % 3)))
+  }
+  return conflict
 }

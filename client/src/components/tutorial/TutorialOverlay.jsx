@@ -70,6 +70,28 @@ const STEPS = {
       emoji: "🏆",
     },
   ],
+  SPIN: [
+    {
+      title: "Spin Battle",
+      body: "There's a hidden phrase up top, shown as blanks. Crack every letter — or just guess the whole thing — before five strikes wipe you out.",
+      emoji: "🎡",
+    },
+    {
+      title: "Spin, then call a consonant",
+      body: "Spin the wheel to set a point value, then call a consonant. Each one in the phrase pays that value × how many times it appears. Call one that isn't there and it's a strike.",
+      emoji: "🔤",
+    },
+    {
+      title: "Buy vowels · solve anytime",
+      body: "A, E, I, O, U cost from your bank — no spin needed. Think you've got it? Hit Solve and type the phrase. Right = you win; wrong = a strike.",
+      emoji: "💡",
+    },
+    {
+      title: "Watch the wedges",
+      body: "💀 Bankrupt wipes your bank. 🔥 Double / 💰 Jackpot / 🦹 Steal load you up. 🛡️ Shield blocks the next Bankrupt. Lose-a-turn just stings. Land smart, spend smart.",
+      emoji: "🎰",
+    },
+  ],
   SUDOKU: [
     {
       title: "Sudoku Duel",

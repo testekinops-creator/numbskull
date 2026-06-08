@@ -7,6 +7,7 @@ import { useSound } from '../hooks/useSound.js'
 import { recordGameForBadges } from '../services/badges.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import SpinBattle from '../components/match/SpinBattle.jsx'
+import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { SPIN_MS } from '../components/match/SpinWheel.jsx'
 import styles from './SpinBattleAiPage.module.css'
 
@@ -143,6 +144,7 @@ export default function SpinBattleAiPage() {
 
   return (
     <div className="screen">
+      <TutorialOverlay mode="SPIN" />
       <div className={`panel ${styles.page}`}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>

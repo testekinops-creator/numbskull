@@ -245,6 +245,7 @@ function reducer(state, action) {
         won:      action.draw ? null : (action.winnerId ? action.winnerId === action.playerId : null),
         winnerId: action.winnerId || null,
         ranking:  action.ranking || null,
+        overReason: action.reason || null,
         seriesScore: action.series || null,
         xoxRound: null,
       }
@@ -299,6 +300,8 @@ function reducer(state, action) {
           ...state.match,
           grid, status, wrongOwner, editLock,
           scores:       arrToScoreMap(p.scores, state.match.scores),
+          mistakes:     p.mistakes ?? state.match.mistakes,
+          mistakeLimit: p.mistakeLimit ?? state.match.mistakeLimit,
           correctCount: p.correctCount,
           wrongCount:   p.wrongCount,
         },
@@ -519,9 +522,9 @@ export function RoomProvider({ children }) {
       timerRef.current = setInterval(() => dispatch({ type: 'TIMER_TICK' }), 1000)
     })
 
-    socket.on('match:over', ({ winnerId, draw, scores, ranking, series } = {}) => {
+    socket.on('match:over', ({ winnerId, draw, scores, ranking, series, reason } = {}) => {
       clearInterval(timerRef.current)
-      dispatch({ type: 'MATCH_OVER', winnerId: winnerId || null, draw: !!draw, scores, ranking: ranking || null, series: series || null, playerId })
+      dispatch({ type: 'MATCH_OVER', winnerId: winnerId || null, draw: !!draw, scores, ranking: ranking || null, series: series || null, reason: reason || null, playerId })
     })
 
     socket.on('match:timeout', () => clearInterval(timerRef.current))

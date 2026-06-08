@@ -87,6 +87,24 @@
   );
 }
 
+/* ── Live assistance: peers, matching numbers, rule conflicts ───────────── */
+/* Faint tint on the selected cell's row / column / box (empty cells only). */
+.peer { background: rgba(255, 255, 255, 0.05); }
+
+/* Every cell sharing the selected cell's number — cyan ring. */
+.sameNum {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-juice, #00f5ff) 55%, transparent);
+}
+
+/* A value duplicated within its row / column / box — amber ring. */
+.conflict {
+  box-shadow: inset 0 0 0 2px #ffae3b;
+}
+/* A genuine rule conflict outranks the same-number hint. */
+.conflict.sameNum {
+  box-shadow: inset 0 0 0 2px #ffae3b;
+}
+
 /* Number pad */
 .pad {
   display: grid;

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import styles from './TutorialOverlay.module.css'  // reuse the single-player tutorial styling
 
 // First-time multiplayer onboarding. `variant`:
-//   'guess' → GTN/BC (you set a secret), 'match' → XOX/Math/Sudoku (no secret).
+//   'guess' → GTN/BC (you set a secret), 'match' → XOX/Math/Sudoku (no secret),
+//   'spin'  → Spin Battle (wheel + wedges need their own explainer).
 // Each variant shows once (separate localStorage flags).
 const STEPS = {
   guess: [
@@ -16,10 +17,16 @@ const STEPS = {
     { emoji: '🏆', title: 'Win the round', body: 'Outplay your opponent. Wins count toward the monthly leaderboard.' },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, 📞 to voice-call, and 🙋 to add a friend.' },
   ],
+  spin: [
+    { emoji: '🎡', title: 'Spin Battle — live', body: "You share one hidden phrase. On your turn, spin and call a consonant; correct letters bank points and keep your turn. Miss, and play passes." },
+    { emoji: '🔤', title: 'Letters, vowels & solving', body: "A consonant pays its wedge value × how many appear. Buy vowels from your bank anytime. Solve the phrase on your turn to win it outright." },
+    { emoji: '🎰', title: 'Wedges change everything', body: "💀 Bankrupt wipes your bank · 🛡️ Shield blocks it · 🔥/💰/🦹 load you up · ❄️ Freeze chills a rival's turn. Land smart." },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you play.' },
+  ],
 }
 
 export default function MultiplayerTutorial({ variant = 'guess', onDone }) {
-  const KEY = variant === 'match' ? 'ns_mp_tut_match' : 'ns_mp_tut_guess'
+  const KEY = `ns_mp_tut_${variant}`
   const [step, setStep] = useState(0)
   const [visible, setVisible] = useState(false)
 

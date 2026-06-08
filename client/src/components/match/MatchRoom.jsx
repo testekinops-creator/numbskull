@@ -234,7 +234,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   return (
     <div className="screen">
-      <MultiplayerTutorial variant="match" />
+      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : 'match'} />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…
@@ -386,9 +386,23 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'SUDOKU' && match.grid && (
               <>
                 <div className={styles.sudokuHud}>
-                  <span className={styles.hudScore}>You <b>{match.scores?.[playerId] ?? 0}</b></span>
-                  <span className={styles.hudMid}>✅ {match.correctCount}/{match.fillTarget} · ❌ {match.wrongCount}</span>
-                  <span className={styles.hudScore}>{opponent?.name || 'Opp'} <b>{opponent ? (match.scores?.[opponent.id] ?? 0) : 0}</b></span>
+                  <span className={styles.hudScore}>
+                    You <b>{match.scores?.[playerId] ?? 0}</b>
+                    {match.mistakeLimit != null && (
+                      <span className={`${styles.mistakeMeter} ${(match.mistakes?.[playerId] ?? 0) >= match.mistakeLimit - 1 ? styles.mistakeDanger : ''}`}>
+                        ❌{match.mistakes?.[playerId] ?? 0}/{match.mistakeLimit}
+                      </span>
+                    )}
+                  </span>
+                  <span className={styles.hudMid}>✅ {match.correctCount}/{match.fillTarget}</span>
+                  <span className={styles.hudScore}>
+                    {opponent?.name || 'Opp'} <b>{opponent ? (match.scores?.[opponent.id] ?? 0) : 0}</b>
+                    {match.mistakeLimit != null && opponent && (
+                      <span className={`${styles.mistakeMeter} ${(match.mistakes?.[opponent.id] ?? 0) >= match.mistakeLimit - 1 ? styles.mistakeDanger : ''}`}>
+                        ❌{match.mistakes?.[opponent.id] ?? 0}/{match.mistakeLimit}
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <SudokuBoard
                   match={match}
@@ -458,9 +472,16 @@ export default function MatchRoom({ roomId, mode }) {
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
             {mode === 'SUDOKU' && match && (
-              <p className={styles.sudokuEndStats}>
-                ✅ {match.correctCount}/{match.fillTarget} cells correct · ❌ {match.wrongCount} wrong attempts
-              </p>
+              <>
+                {state.overReason === 'mistakes' && (
+                  <p className={styles.sudokuEndStats}>
+                    💥 {state.won ? 'Your opponent' : 'You'} hit the {match.mistakeLimit}-mistake limit.
+                  </p>
+                )}
+                <p className={styles.sudokuEndStats}>
+                  ✅ {match.correctCount}/{match.fillTarget} cells correct · ❌ {match.wrongCount} wrong attempts
+                </p>
+              </>
             )}
             {mode === 'XOX' && state.seriesScore && (
               <p className={styles.seriesLine}>

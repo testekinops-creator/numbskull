@@ -84,6 +84,24 @@
   color: var(--color-text-muted, #9a9ab0);
 }
 
+/* Per-player cumulative mistake meter (Sudoku) */
+.mistakeMeter {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #9a9ab0);
+  white-space: nowrap;
+}
+.mistakeDanger {
+  color: #ff5470;
+  animation: mistakePulse 1s ease-in-out infinite;
+}
+@keyframes mistakePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
 .sudokuEndStats {
   text-align: center;
   color: var(--color-text-secondary, #c4c4d4);
