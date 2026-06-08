@@ -12,6 +12,10 @@ export class GuessTheNumberEngine {
     this.over = false
     this.won = false
     this.optimalMoves = computeOptimalMoves(this.range)
+    // Solo fail-state: a generous cap above the binary-search optimum so there's
+    // real tension but it stays winnable. (Multiplayer uses a fresh engine per
+    // guess, so this never triggers there.)
+    this.maxGuesses = Math.ceil(Math.log2(this.range)) + 4
   }
 
   evaluate(rawGuess) {
@@ -39,10 +43,23 @@ export class GuessTheNumberEngine {
     }
 
     const direction = guess < this.secret ? 'higher' : 'lower'
+
+    // Out of guesses → loss (solo). Reveal the secret so the player learns it.
+    if (this.guesses.length >= this.maxGuesses) {
+      this.over = true
+      return {
+        valid: true, correct: false, over: true, won: false,
+        guess, direction, proximity,
+        attempts: this.guesses.length,
+        secret: this.secret,
+      }
+    }
+
     return {
       valid: true, correct: false, over: false, won: false,
       guess, direction, proximity,
       attempts: this.guesses.length,
+      remaining: this.maxGuesses - this.guesses.length,
     }
   }
 
@@ -63,6 +80,8 @@ export class GuessTheNumberEngine {
     return {
       over: this.over, won: this.won,
       attempts: this.guesses.length,
+      maxGuesses: this.maxGuesses,
+      remaining: this.maxGuesses - this.guesses.length,
       guesses: [...this.guesses],
     }
   }

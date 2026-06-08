@@ -184,6 +184,14 @@ export default function GamePage() {
           </div>
         )}
 
+        {state.phase === 'PLAYING' && mode === 'GTN' && state.maxGuesses != null && (
+          <p key={state.attempts} className="anim-msg" style={{ textAlign: 'center', margin: '0 0 8px', color: 'var(--color-text-secondary)' }}>
+            <b style={{ color: (state.maxGuesses - state.attempts) <= 3 ? 'var(--color-pink)' : 'var(--color-juice)', fontSize: '1.2em' }}>
+              {Math.max(0, state.maxGuesses - state.attempts)}
+            </b> guesses left
+          </p>
+        )}
+
         {state.phase === 'PLAYING' && (
           <form className={styles.inputArea} onSubmit={handleSubmit}>
             <input

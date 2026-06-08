@@ -10,6 +10,7 @@ const INITIAL_STATE = {
   range: 100,
   sessionId: null,
   attempts: 0,
+  maxGuesses: null,
   guesses: [],
   lastResult: null,
   roast: null,
@@ -29,6 +30,7 @@ function reducer(state, action) {
         mode: action.mode,
         difficulty: action.difficulty,
         range: action.range,
+        maxGuesses: action.maxGuesses ?? null,
         sessionId: action.sessionId,
         totalGames: state.totalGames,
         gtnWins: state.gtnWins,
@@ -81,7 +83,7 @@ export function GameProvider({ children }) {
     dispatch({ type: 'RESET' })
     try {
       const data = await api.post('/game/start', { mode, difficulty, range })
-      dispatch({ type: 'START_GAME', mode, difficulty, range: data.range, sessionId: data.sessionId })
+      dispatch({ type: 'START_GAME', mode, difficulty, range: data.range, maxGuesses: data.maxGuesses, sessionId: data.sessionId })
     } catch (err) {
       dispatch({ type: 'SET_ERROR', error: err.message })
     }
