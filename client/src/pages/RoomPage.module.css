@@ -165,6 +165,23 @@
   padding: var(--space-4);
 }
 
+/* Best-of-3: between-rounds screen + series score line */
+.roundOver {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  text-align: center;
+  padding: var(--space-4, 16px) 0;
+}
+.seriesScore {
+  text-align: center;
+  margin: 0;
+  font-size: var(--text-sm, 0.9rem);
+  color: var(--color-text-secondary, #9b93c0);
+}
+.seriesScore b { color: var(--color-juice, #00f5ff); }
+
 .fieldError {
   color: var(--color-pink);
   font-size: var(--text-sm);

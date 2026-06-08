@@ -183,7 +183,7 @@ export function registerGameHandlers(io, socket) {
         r.round = null
         r.match = null   // also reset new-mode (XOX/MATH/SUDOKU) state
         r.winnerId = null
-        r.players.forEach(p => { p.ready = false })
+        r.players.forEach(p => { p.ready = false; p.score = 0 })   // fresh series
       })
       const fresh = await roomManager.get(roomId)
       io.to(roomId).emit('game:rematch_start', _sanitizeForRoom(fresh))
@@ -239,30 +239,60 @@ async function _startRound(io, roomId, room) {
   _startTurnTimer(io, roomId, firstPlayerId)
 }
 
-async function _endRound(io, roomId, winnerId) {
+const SERIES_ROUNDS_TO_WIN = 2     // best of 3
+const SERIES_PAUSE_MS = 3500       // read the round result before the next round
+
+// End a round. The series runs to 2 round-wins (best of 3): a non-deciding round
+// auto-returns to SETUP (re-enter secrets) keeping the running score; the match
+// only ends — recording the leaderboard once — when someone reaches 2 (or on a
+// forfeit/timeout, via forceEnd).
+async function _endRound(io, roomId, winnerId, { forceEnd = false } = {}) {
   clearTimer(roomId)
   // G3: round ended → cancel any pending disconnect-grace so it can't fire
   // an "opponent left" after the game already finished.
   cancelRoomGrace(roomId)
+  let matchOver = forceEnd
   await roomManager.update(roomId, r => {
     r.phase = 'GAME_OVER'
     r.winnerId = winnerId
     const winner = r.players.find(p => p.id === winnerId)
     if (winner) winner.score = (winner.score || 0) + 1
+    if ((winner?.score || 0) >= SERIES_ROUNDS_TO_WIN) matchOver = true
   })
   const updated = await roomManager.get(roomId)
-  // Monthly multiplayer leaderboard (server-authoritative).
-  for (const p of updated.players) {
-    const s = _getSocketForPlayer(io, p.id)
-    recordResult({ entrantId: s?.handshake.auth?.userId || p.id, name: p.name, won: p.id === winnerId })
+
+  if (matchOver) {
+    // Monthly multiplayer leaderboard — recorded once per match (series).
+    for (const p of updated.players) {
+      const s = _getSocketForPlayer(io, p.id)
+      recordResult({ entrantId: s?.handshake.auth?.userId || p.id, name: p.name, won: p.id === winnerId })
+    }
   }
+
   io.to(roomId).emit('game:round_over', {
     winnerId,
-    // Reveal both secrets at game over so the loser learns the number/code they
-    // failed to crack (their opponent's secret).
+    matchOver,
+    roundsToWin: SERIES_ROUNDS_TO_WIN,
+    // Reveal both secrets so the loser learns the number/code they couldn't crack.
     secrets: { ...(updated.round?.secrets || {}) },
     scores: updated.players.map(p => ({ id: p.id, score: p.score })),
   })
+
+  if (!matchOver) setTimeout(() => _nextGuessRound(io, roomId), SERIES_PAUSE_MS)
+}
+
+// Series continues → reset to SETUP for the next round, keeping the score.
+async function _nextGuessRound(io, roomId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.phase !== 'GAME_OVER') return   // ended/closed in the meantime
+  await roomManager.update(roomId, r => {
+    r.phase = 'SETUP'
+    r.round = null
+    r.winnerId = null
+    r.players.forEach(p => { p.ready = false })   // keep p.score (series total)
+  })
+  const fresh = await roomManager.get(roomId)
+  io.to(roomId).emit('game:rematch_start', _sanitizeForRoom(fresh))
 }
 
 async function _handleForfeit(io, roomId, forfeitId) {
@@ -271,7 +301,7 @@ async function _handleForfeit(io, roomId, forfeitId) {
   if (!room) return
   const winnerId = room.players.find(p => p.id !== forfeitId)?.id
   io.to(roomId).emit('game:forfeit', { forfeitPlayerId: forfeitId, winnerId })
-  await _endRound(io, roomId, winnerId)
+  await _endRound(io, roomId, winnerId, { forceEnd: true })   // a forfeit ends the whole match
 }
 
 function _startTurnTimer(io, roomId, currentTurnId) {

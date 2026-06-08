@@ -193,7 +193,8 @@ function GuessRoom() {
     const prev = prevPhaseRef.current
     prevPhaseRef.current = phase
     if (phase === 'PLAYING') recordedRef.current = false  // new game → allow next record
-    if (prev === 'PLAYING' && phase === 'GAME_OVER' && !recordedRef.current) {
+    // Best-of-3: only record when the whole match is decided, not each round.
+    if (prev === 'PLAYING' && phase === 'GAME_OVER' && !recordedRef.current && state.matchOver !== false) {
       recordedRef.current = true
       const won = !!state.won
       recordGameForBadges({ mode, won, multiplayer: true, gtnRange1000Win: mode === 'GTN' && won })
@@ -460,6 +461,25 @@ function GuessRoom() {
 
         {/* GAME OVER */}
         {phase === 'GAME_OVER' && (
+          state.matchOver === false ? (
+            /* ── Best-of-3: a round ended but the series continues ── */
+            <div className={styles.roundOver}>
+              <SkullMascot expression={state.won ? 'impressed' : 'annoyed'} size={84} glow={state.won} />
+              <h2 key={state.won ? 'w' : 'l'} className="anim-msg" style={{ margin: '6px 0 0' }}>
+                {state.won ? '🎉 You won the round!' : 'Round lost'}
+              </h2>
+              <p className={styles.seriesScore}>
+                Series — <b>You {me?.score || 0}</b> · <b>{opponent ? (opponent.score || 0) : 0} {opponent?.name || 'Opp'}</b> · best of 3
+              </p>
+              {opponent && state.revealedSecrets?.[opponent.id] && (
+                <p style={{ textAlign: 'center', margin: 0, color: 'var(--color-text-secondary)' }}>
+                  {opponent.name || 'Opponent'}'s {mode === 'GTN' ? 'number' : 'code'} was{' '}
+                  <b style={{ color: 'var(--color-juice)', letterSpacing: '0.1em' }}>{state.revealedSecrets[opponent.id]}</b>
+                </p>
+              )}
+              <p className={styles.waitingText}>Next round starting…</p>
+            </div>
+          ) : (
           <>
             <GameOverCard
               won={state.won}
@@ -470,6 +490,13 @@ function GuessRoom() {
               onPlayAgain={null}   /* handled by RematchPrompt below */
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
+
+            {/* Series result (best of 3) */}
+            {opponent && (
+              <p className={styles.seriesScore}>
+                Match — <b>You {me?.score || 0}</b> · <b>{opponent.score || 0} {opponent.name || 'Opp'}</b>
+              </p>
+            )}
 
             {/* Reveal the opponent's secret — so the loser learns what they
                 couldn't crack (shown to both players). */}
@@ -496,6 +523,7 @@ function GuessRoom() {
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
           </>
+          )
         )}
       </div>
 

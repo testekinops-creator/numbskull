@@ -76,6 +76,7 @@ function reducer(state, action) {
         rematchStatus: 'idle', rematchRequesterName: null,
         won: null, winnerId: null, draw: false, match: null,
         guesses: [], lastGuessResult: null, roast: null,
+        matchOver: false, revealedSecrets: null,   // clear last round's result for the next one
       } : {}
       return {
         ...state,
@@ -146,6 +147,7 @@ function reducer(state, action) {
         myTurn:   false,
         won:      action.winnerId ? action.winnerId === action.playerId : null,
         winnerId: action.winnerId || null,
+        matchOver: action.matchOver !== false,   // false = best-of-3 round (series continues)
         revealedSecrets: action.secrets || null,   // { playerId: secret } — shown at game over
       }
     }
@@ -463,15 +465,15 @@ export function RoomProvider({ children }) {
     })
 
     // game:round_over carries { winnerId, scores } — pass them through
-    socket.on('game:round_over', ({ winnerId, scores, secrets } = {}) => {
+    socket.on('game:round_over', ({ winnerId, scores, secrets, matchOver } = {}) => {
       clearInterval(timerRef.current)
-      dispatch({ type: 'ROUND_OVER', winnerId, scores, secrets, playerId })
+      dispatch({ type: 'ROUND_OVER', winnerId, scores, secrets, matchOver: matchOver !== false, playerId })
     })
 
     // Forfeit: the person who forfeited loses; winnerId tells us who won
     socket.on('game:forfeit', ({ winnerId, forfeitPlayerId } = {}) => {
       clearInterval(timerRef.current)
-      dispatch({ type: 'ROUND_OVER', winnerId: winnerId || null, scores: null, playerId })
+      dispatch({ type: 'ROUND_OVER', winnerId: winnerId || null, scores: null, matchOver: true, playerId })
     })
 
     // ── New game modes (XOX / Math Battle / Sudoku) ────────────────────────
