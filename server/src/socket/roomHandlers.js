@@ -162,6 +162,21 @@ export function registerRoomHandlers(io, socket) {
       snapshot.match.countdownMs = room.match?.nextRoundAt ? Math.max(0, room.match.nextRoundAt - Date.now()) : 0
       snapshot.match.turnCountdownMs = room.match?.turnEndsAt ? Math.max(0, room.match.turnEndsAt - Date.now()) : 0
     }
+    // Tell the reconnecting player who's actually live right now: if an opponent
+    // is mid-grace (locked / dropped) the client must show the "waiting…" state
+    // instead of a normal-looking board, and knows exactly when the room closes.
+    if (snapshot.room?.players) {
+      snapshot.room.players = snapshot.room.players.map(p => ({
+        ...p,
+        connected: p.id === playerId || _playerHasLiveSocket(io, p.id, roomId),
+      }))
+      const goneOpp = snapshot.room.players.find(p => p.id !== playerId && !p.connected)
+      if (goneOpp && room.phase !== 'GAME_OVER') {
+        const dl = disconnectDeadlines.get(`${goneOpp.id}:${roomId}`)
+        snapshot.opponentDisconnected = true
+        snapshot.roomClosesInMs = dl ? Math.max(0, dl - Date.now()) : DISCONNECT_GRACE_MS
+      }
+    }
     ack?.({ ok: true, room: snapshot.room, snapshot })
   })
 
@@ -208,7 +223,8 @@ function _clearQuickmatchTimeout(playerId) {
 // Mobile users routinely lock the screen mid-game, which drops the socket. We
 // keep their seat for a grace window and restore full state when they return.
 // 60s by default (tunable) — long enough to survive a lock/unlock.
-const disconnectTimers = new Map()  // `${playerId}:${roomId}` -> timeout
+const disconnectTimers = new Map()    // `${playerId}:${roomId}` -> timeout
+const disconnectDeadlines = new Map() // `${playerId}:${roomId}` -> ms timestamp the room closes
 const DISCONNECT_GRACE_MS = Number(process.env.DISCONNECT_GRACE_MS) || 60_000
 
 // Is this player currently connected to the room on SOME live socket? After a
@@ -225,8 +241,10 @@ function _playerHasLiveSocket(io, playerId, roomId, excludeId = null) {
 function _scheduleDisconnectClose(io, playerId, playerName, roomId) {
   const key = `${playerId}:${roomId}`
   if (disconnectTimers.has(key)) clearTimeout(disconnectTimers.get(key))
+  disconnectDeadlines.set(key, Date.now() + DISCONNECT_GRACE_MS)
   const t = setTimeout(async () => {
     disconnectTimers.delete(key)
+    disconnectDeadlines.delete(key)
     const room = await roomManager.get(roomId)
     if (!room) return
     // G3: game already finished → don't override the result with "opponent left"
@@ -248,6 +266,7 @@ function _cancelDisconnectClose(playerId, roomId) {
     clearTimeout(disconnectTimers.get(key))
     disconnectTimers.delete(key)
   }
+  disconnectDeadlines.delete(key)
 }
 
 // Cancel ALL grace timers for a room (used when a round ends or room closes)
@@ -257,6 +276,9 @@ export function cancelRoomGrace(roomId) {
       clearTimeout(disconnectTimers.get(key))
       disconnectTimers.delete(key)
     }
+  }
+  for (const key of [...disconnectDeadlines.keys()]) {
+    if (key.endsWith(`:${roomId}`)) disconnectDeadlines.delete(key)
   }
 }
 

@@ -57,6 +57,9 @@ const INITIAL = {
   opponentLeftMessage:  null,
   // Opponent temporarily dropped (within grace) — drives "reconnecting…" banner
   opponentConnLost:     false,
+  // When the room will auto-close because the opponent is mid-grace (set on a
+  // reconnect that lands while they're gone) — lets us leave on time, not late.
+  opponentCloseAt:      null,
 }
 
 // Math Battle scores arrive as [{ id, score }]; we store them as a map keyed
@@ -398,13 +401,13 @@ function reducer(state, action) {
       return { ...state, roomClosedByOpponent: true }
 
     case 'OPPONENT_LEFT':
-      return { ...state, opponentLeftMessage: action.message, roomClosedByOpponent: true, opponentConnLost: false }
+      return { ...state, opponentLeftMessage: action.message, roomClosedByOpponent: true, opponentConnLost: false, opponentCloseAt: null }
 
     case 'OPPONENT_CONN_LOST':
       return { ...state, opponentConnLost: true }
 
     case 'OPPONENT_CONN_RESTORED':
-      return { ...state, opponentConnLost: false }
+      return { ...state, opponentConnLost: false, opponentCloseAt: null }
 
     // Full state rebuild after a reconnect (refresh / network drop)
     case 'RECONNECT_RESTORE': {
@@ -433,7 +436,12 @@ function reducer(state, action) {
           : state.spin,
         roomClosedByOpponent: false,
         opponentLeftMessage: null,
-        opponentConnLost: false,
+        // If we reconnected while the opponent is still mid-grace, surface the
+        // "waiting…" state (not a normal board) and remember when the room closes.
+        opponentConnLost: !isOver && !!s.opponentDisconnected,
+        opponentCloseAt: (!isOver && s.opponentDisconnected)
+          ? Date.now() + (s.roomClosesInMs ?? 0)
+          : null,
       }
     }
 

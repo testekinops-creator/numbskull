@@ -21,6 +21,7 @@ import MultiplayerTutorial from '../components/tutorial/MultiplayerTutorial.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { useDelayedFlag } from '../hooks/useDelayedFlag.js'
+import { useAwayTimeout } from '../hooks/useAwayTimeout.js'
 import { getSkullExpression } from '../utils/personality.js'
 import MatchRoom from '../components/match/MatchRoom.jsx'
 import RulesFab from '../components/match/RulesFab.jsx'
@@ -134,6 +135,10 @@ function GuessRoom() {
   // bouncing the user back in from the lobby's auto-navigate.
   useEffect(() => () => clearRoom(), []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Away too long (locked/backgrounded past the reconnect grace) → the room is
+  // dead; go to the game list instead of a stale board. Skip once the game's over.
+  useAwayTimeout(!!room && phase !== 'GAME_OVER', () => { leaveRoom(roomId); navigate('/home') })
+
   // Reconnect + restore on mount AND on every socket (re)connect.
   // Covers: page refresh, network drop, network switch, app resume.
   useEffect(() => {
@@ -150,6 +155,15 @@ function GuessRoom() {
     socket.on('connect', doReconnect)  // fires again on every reconnection
     return () => socket.off('connect', doReconnect)
   }, [socket, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reconnected while the opponent was mid-grace: leave for the lobby at the
+  // close deadline even if the server's opponent_left event is missed.
+  useEffect(() => {
+    if (!state.opponentCloseAt) return
+    const t = setTimeout(() => { leaveRoom(roomId); navigate('/home') },
+      Math.max(0, state.opponentCloseAt - Date.now()) + 1500)
+    return () => clearTimeout(t)
+  }, [state.opponentCloseAt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Room closed (opponent left / declined) → show message briefly, then go home.
   // Uses enteredRoomRef instead of `room` so it still fires after room is cleared.

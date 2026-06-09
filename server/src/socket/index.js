@@ -28,6 +28,11 @@ export function setupSocket(httpServer) {
       methods: ['GET', 'POST'],
       credentials: true,
     },
+    // Detect a silently-dropped client (phone lock, network loss) faster than the
+    // ~45s default so the reconnect grace + room cleanup start promptly: a missed
+    // heartbeat is now noticed in ~pingInterval+pingTimeout = 30s, not 45s.
+    pingInterval: 20_000,
+    pingTimeout: 10_000,
   })
 
   // Multi-instance event fan-out (only when REDIS_URL is configured)

@@ -25,6 +25,7 @@ import RulesFab from './RulesFab.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
+import { useAwayTimeout } from '../../hooks/useAwayTimeout.js'
 import { getModeRoast } from '../../utils/roasts.js'
 import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
@@ -106,6 +107,21 @@ export default function MatchRoom({ roomId, mode }) {
     })()
     return () => { cancelled = true }
   }, [phase, me?.ready, opponent?.id, isParty]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Away too long (phone locked / app backgrounded past the reconnect grace) →
+  // the room is dead; go to the game list instead of a stale board. Only while a
+  // game is actually in progress, so we never yank you off the results screen.
+  useAwayTimeout(!!room && phase !== 'GAME_OVER', () => { leaveRoom(roomId); navigate('/home') })
+
+  // Reconnected while the opponent was mid-grace: when their grace runs out the
+  // server closes the room (and we get opponent_left), but guarantee we leave on
+  // time even if that event is missed — go to the lobby at the close deadline.
+  useEffect(() => {
+    if (!state.opponentCloseAt) return
+    const t = setTimeout(() => { leaveRoom(roomId); navigate('/home') },
+      Math.max(0, state.opponentCloseAt - Date.now()) + 1500)
+    return () => clearTimeout(t)
+  }, [state.opponentCloseAt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Room closed (opponent left / declined) → brief message, then home.
   useEffect(() => {
