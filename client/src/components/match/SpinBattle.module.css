@@ -133,26 +133,107 @@
 }
 .vowelHint {
   font-size: var(--text-xs, 0.72rem);
-  color: var(--color-text-secondary, #9b93c0);
-}
-.vowels { display: flex; gap: 8px; }
-.vowel {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 215, 64, 0.4);
-  background: color-mix(in srgb, var(--color-warning, #ffd740) 12%, transparent);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--color-warning, #ffd740);
-  font-family: var(--font-display, sans-serif);
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 0.1s var(--ease-spring), opacity 0.15s;
+  text-shadow: 0 0 10px rgba(255, 215, 64, 0.4);
 }
-.vowel:not(:disabled):hover { transform: translateY(-2px); }
-.vowel:not(:disabled):active { transform: scale(0.92); }
-.vowel:disabled { opacity: 0.35; cursor: default; }
+.vowels { display: flex; gap: 11px; }
 
-.solveToggle { width: 100%; max-width: 260px; }
+/* Premium gold "coin" vowels: glossy fill, embossed letter, warm glow. */
+.vowel {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background:
+    radial-gradient(125% 120% at 30% 22%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 46%),
+    linear-gradient(160deg, #ffe684 0%, #ffd23f 42%, #e8920c 100%);
+  color: #5a3a00;
+  font-family: var(--font-display, sans-serif);
+  font-weight: 900;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.75),
+    inset 0 -2px 4px rgba(150, 90, 0, 0.45),
+    0 4px 10px rgba(0, 0, 0, 0.35),
+    0 0 16px rgba(255, 184, 40, 0.45);
+  transition: transform 0.14s var(--ease-spring), box-shadow 0.22s, filter 0.22s;
+}
+.vowel::before {                       /* glossy top highlight */
+  content: '';
+  position: absolute;
+  top: 4px; left: 10px; right: 10px;
+  height: 36%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+.vowel:not(:disabled):hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -2px 4px rgba(150, 90, 0, 0.5),
+    0 9px 20px rgba(0, 0, 0, 0.42),
+    0 0 28px rgba(255, 200, 60, 0.75);
+}
+.vowel:not(:disabled):active { transform: translateY(-1px) scale(0.94); }
+.vowel:disabled {
+  cursor: default;
+  opacity: 0.42;
+  filter: saturate(0.55) brightness(0.78);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.vowel.keyDone {                       /* already bought — spent token */
+  opacity: 0.3;
+  filter: none;
+  background: rgba(255, 215, 64, 0.1);
+  color: rgba(255, 215, 64, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 64, 0.3);
+}
+.vowel.keyDone::before { display: none; }
+
+/* Premium glass-gold "Solve" pill: glowing edge + slow light sweep. */
+.solveToggle {
+  width: 100%;
+  max-width: 280px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 215, 64, 0.55) !important;
+  background: linear-gradient(180deg, rgba(255, 215, 64, 0.16), rgba(255, 215, 64, 0.04)) !important;
+  color: #ffe9a8 !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 10px rgba(255, 215, 64, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 22px rgba(0, 0, 0, 0.35);
+  transition: transform 0.16s var(--ease-spring), box-shadow 0.25s, background 0.25s;
+}
+.solveToggle:not(:disabled):hover {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, rgba(255, 215, 64, 0.26), rgba(255, 215, 64, 0.08)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 22px rgba(255, 215, 64, 0.42), 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+.solveToggle:disabled { opacity: 0.4; }
+.solveToggle:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.28) 50%, transparent 62%);
+  transform: translateX(-130%);
+  animation: solveSheen 5s ease-in-out infinite 1.2s;
+  pointer-events: none;
+}
+@keyframes solveSheen {
+  0%, 16%   { transform: translateX(-130%); }
+  32%, 100% { transform: translateX(130%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .solveToggle:not(:disabled)::after { animation: none; display: none; }
+  .vowel:not(:disabled):hover { transform: none; }
+}
 
 .solveForm {
   width: 100%;
