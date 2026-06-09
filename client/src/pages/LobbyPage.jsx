@@ -172,7 +172,7 @@ export default function LobbyPage() {
                 ? 'Solo practice: spin the wheel, call letters, and solve the phrase before five strikes end you.'
                 : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
             </p>
-            <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={playVsAI}>
+            <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={playVsAI}>
               {SOLO_LABEL_MODES.has(mode) ? '🧠 Start Solo Practice' : '🤖 Play vs Computer'}
             </button>
           </div>
@@ -205,7 +205,7 @@ export default function LobbyPage() {
                   ) : state.matchmakingTimedOut ? (
                     <>
                       <p className={styles.hint}>😴 No opponent showed up. Want to try again, or create a room and share the code?</p>
-                      <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
+                      <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
                         Try Again
                       </button>
                       <button className="btn btn-ghost btn-sm" onClick={() => setMpTab('create')}>Create a room instead</button>
@@ -213,7 +213,7 @@ export default function LobbyPage() {
                   ) : (
                     <>
                       <p className={styles.hint}>Get matched with a random opponent instantly.</p>
-                      <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
+                      <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
                         Find Match
                       </button>
                     </>
@@ -241,7 +241,7 @@ export default function LobbyPage() {
                       ))}
                     </div>
                   )}
-                  <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={handleCreate} disabled={busy}>
+                  <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={handleCreate} disabled={busy}>
                     Create Room
                   </button>
                 </div>
@@ -258,7 +258,7 @@ export default function LobbyPage() {
                     autoCapitalize="characters"
                     aria-label="Room code"
                   />
-                  <button type="submit" className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={busy || !joinCode.trim()}>
+                  <button type="submit" className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} disabled={busy || !joinCode.trim()}>
                     Join Room
                   </button>
                 </form>
