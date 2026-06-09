@@ -1,0 +1,77 @@
+// Spin Battle content — Culture (mythology, festivals, literature, languages).
+// UPPERCASE A–Z + single spaces.
+
+export default [
+  {
+    category: 'Mythology',
+    words: [
+      'ZEUS', 'HERA', 'POSEIDON', 'HADES', 'APOLLO',
+      'ATHENA', 'ARES', 'APHRODITE', 'HERMES', 'ARTEMIS',
+      'DIONYSUS', 'HEPHAESTUS', 'DEMETER', 'PERSEPHONE', 'ODIN',
+      'FREYA', 'BALDUR', 'HEIMDALL', 'OSIRIS', 'ISIS',
+      'ANUBIS', 'HORUS', 'CRONUS', 'ATLAS', 'PROMETHEUS',
+      'HERCULES', 'PERSEUS', 'ACHILLES', 'ODYSSEUS', 'ICARUS',
+    ],
+  },
+  {
+    category: 'Mythical Creatures',
+    words: [
+      'DRAGON', 'UNICORN', 'PHOENIX', 'GRIFFIN', 'MERMAID',
+      'MINOTAUR', 'CENTAUR', 'PEGASUS', 'MEDUSA', 'KRAKEN',
+      'HYDRA', 'SPHINX', 'CHIMERA', 'BASILISK', 'WEREWOLF',
+      'VAMPIRE', 'ZOMBIE', 'GOBLIN', 'TROLL', 'OGRE',
+      'FAIRY', 'ELF', 'DWARF', 'GNOME', 'LEPRECHAUN',
+      'YETI', 'BIGFOOT', 'LOCH NESS MONSTER', 'CYCLOPS', 'BANSHEE',
+    ],
+  },
+  {
+    category: 'Festivals',
+    words: [
+      'CHRISTMAS', 'HALLOWEEN', 'THANKSGIVING', 'EASTER', 'DIWALI',
+      'HOLI', 'RAMADAN', 'HANUKKAH', 'NEW YEAR', 'VALENTINES DAY',
+      'OKTOBERFEST', 'CARNIVAL', 'MARDI GRAS', 'CHINESE NEW YEAR', 'NAVRATRI',
+      'DUSSEHRA', 'BAISAKHI', 'ONAM', 'PONGAL', 'RAKSHA BANDHAN',
+      'GANESH CHATURTHI', 'LANTERN FESTIVAL', 'DAY OF THE DEAD', 'SAINT PATRICKS DAY', 'EID',
+    ],
+  },
+  {
+    category: 'Books & Literature',
+    words: [
+      'THE HOBBIT', 'THE LORD OF THE RINGS', 'MOBY DICK', 'WAR AND PEACE', 'GREAT EXPECTATIONS',
+      'OLIVER TWIST', 'ROMEO AND JULIET', 'HAMLET', 'MACBETH', 'OTHELLO',
+      'DON QUIXOTE', 'THE ODYSSEY', 'ROBINSON CRUSOE', 'TREASURE ISLAND', 'FRANKENSTEIN',
+      'DRACULA', 'THE GREAT GATSBY', 'TO KILL A MOCKINGBIRD', 'THE CATCHER IN THE RYE', 'ANIMAL FARM',
+      'BRAVE NEW WORLD', 'THE ALCHEMIST', 'LITTLE WOMEN', 'JANE EYRE', 'WUTHERING HEIGHTS',
+      'CRIME AND PUNISHMENT', 'ALICE IN WONDERLAND', 'THE CHRONICLES OF NARNIA', 'GULLIVERS TRAVELS', 'LES MISERABLES',
+      'THE THREE MUSKETEERS', 'THE OLD MAN AND THE SEA', 'A TALE OF TWO CITIES', 'HARRY POTTER', 'THE DA VINCI CODE',
+    ],
+  },
+  {
+    category: 'Authors',
+    words: [
+      'JANE AUSTEN', 'MARK TWAIN', 'CHARLES DICKENS', 'AGATHA CHRISTIE', 'STEPHEN KING',
+      'ERNEST HEMINGWAY', 'LEO TOLSTOY', 'GEORGE ORWELL', 'ROALD DAHL', 'OSCAR WILDE',
+      'EDGAR ALLAN POE', 'RUDYARD KIPLING', 'JULES VERNE', 'VICTOR HUGO', 'FRANZ KAFKA',
+      'JANE GOODALL', 'DR SEUSS', 'JRR TOLKIEN', 'ARTHUR CONAN DOYLE', 'RABINDRANATH TAGORE',
+    ],
+  },
+  {
+    category: 'Languages',
+    words: [
+      'ENGLISH', 'SPANISH', 'FRENCH', 'GERMAN', 'ITALIAN',
+      'PORTUGUESE', 'MANDARIN', 'CANTONESE', 'JAPANESE', 'KOREAN',
+      'ARABIC', 'HINDI', 'BENGALI', 'PUNJABI', 'TAMIL',
+      'TELUGU', 'RUSSIAN', 'GREEK', 'LATIN', 'HEBREW',
+      'TURKISH', 'DUTCH', 'SWEDISH', 'POLISH', 'VIETNAMESE',
+      'THAI', 'SWAHILI', 'URDU', 'GUJARATI', 'MARATHI',
+    ],
+  },
+  {
+    category: 'Zodiac Signs',
+    words: [
+      'ARIES', 'TAURUS', 'GEMINI', 'CANCER', 'LEO',
+      'VIRGO', 'LIBRA', 'SCORPIO', 'SAGITTARIUS', 'CAPRICORN',
+      'AQUARIUS', 'PISCES',
+    ],
+  },
+]

@@ -100,20 +100,64 @@ const JOBS = [
   'HOTEL MANAGER', 'AUTO MECHANIC', 'PASTRY BAKER', 'VETERINARY DOCTOR', 'FISHING GUIDE',
 ]
 
-function tag(list, category) {
-  return list.map(text => ({ text, category }))
+// Pop-culture + knowledge content lives in domain files under ./puzzles/ as
+// `{ category, words }` blocks. The original IP-safe lists above are blocks too,
+// so the whole bank — and the category list — is derived from one source.
+import entertainment from './puzzles/entertainment.js'
+import world from './puzzles/world.js'
+import knowledge from './puzzles/knowledge.js'
+import nature from './puzzles/nature.js'
+import foods from './puzzles/foods.js'
+import life from './puzzles/life.js'
+import culture from './puzzles/culture.js'
+import more from './puzzles/more.js'
+import extra from './puzzles/extra.js'
+import hard from './puzzles/hard.js'
+
+const BLOCKS = [
+  { category: 'Phrases',          words: PHRASES },
+  { category: 'Animals',          words: ANIMALS },
+  { category: 'Food & Drink',     words: FOOD },
+  { category: 'Around the World', words: PLACES },
+  { category: 'Everyday Things',  words: THINGS },
+  { category: 'Nature & Weather', words: NATURE },
+  { category: 'Jobs & Roles',     words: JOBS },
+  ...entertainment,
+  ...world,
+  ...knowledge,
+  ...nature,
+  ...foods,
+  ...life,
+  ...culture,
+  ...more,
+  ...extra,
+  ...hard,
+]
+
+// Normalise every entry to the maskable charset (UPPERCASE A–Z + single spaces),
+// drop anything invalid, and de-duplicate — so the bank stays clean no matter how
+// much content we pour in (the first category to claim an answer keeps it). This
+// is what lets the lists scale to thousands without hand-checking each one.
+function _normalize(t) {
+  return String(t).toUpperCase()
+    .replace(/&/g, ' AND ')
+    .replace(/[^A-Z]+/g, ' ')   // hyphens, digits, punctuation → space
+    .replace(/\s+/g, ' ').trim()
+}
+function _valid(t) {
+  const n = t.replace(/ /g, '').length
+  return n >= 3 && n <= 30 && /[BCDFGHJKLMNPQRSTVWXYZ]/.test(t)
 }
 
-export const SPIN_CATEGORIES = [
-  'Phrases', 'Animals', 'Food & Drink', 'Around the World', 'Everyday Things', 'Nature & Weather', 'Jobs & Roles',
-]
-
-export const SPIN_PUZZLES = [
-  ...tag(PHRASES, 'Phrases'),
-  ...tag(ANIMALS, 'Animals'),
-  ...tag(FOOD, 'Food & Drink'),
-  ...tag(PLACES, 'Around the World'),
-  ...tag(THINGS, 'Everyday Things'),
-  ...tag(NATURE, 'Nature & Weather'),
-  ...tag(JOBS, 'Jobs & Roles'),
-]
+const _seen = new Set()
+export const SPIN_PUZZLES = []
+for (const b of BLOCKS) {
+  for (const w of b.words) {
+    const text = _normalize(w)
+    if (!_valid(text) || _seen.has(text)) continue
+    _seen.add(text)
+    SPIN_PUZZLES.push({ text, category: b.category })
+  }
+}
+// Derived from the cleaned set, so every listed category really has puzzles.
+export const SPIN_CATEGORIES = [...new Set(SPIN_PUZZLES.map(p => p.category))]

@@ -1,0 +1,77 @@
+// Spin Battle content — Food & drink. UPPERCASE A–Z + single spaces.
+// Complements the legacy "Food & Drink" list with cuisines, produce and treats.
+
+export default [
+  {
+    category: 'World Dishes',
+    words: [
+      'SUSHI', 'PIZZA', 'TACOS', 'BURRITO', 'LASAGNA',
+      'SPAGHETTI', 'RAMEN', 'PAD THAI', 'BIRYANI', 'SAMOSA',
+      'FALAFEL', 'HUMMUS', 'KEBAB', 'DUMPLINGS', 'CROISSANT',
+      'PANCAKES', 'WAFFLES', 'OMELETTE', 'HAMBURGER', 'HOT DOG',
+      'SANDWICH', 'NACHOS', 'QUESADILLA', 'RISOTTO', 'PAELLA',
+      'GNOCCHI', 'RAVIOLI', 'MACARONI', 'DUMPLING SOUP', 'BIBIMBAP',
+      'PHO', 'DIM SUM', 'TANDOORI CHICKEN', 'NAAN BREAD', 'CHOW MEIN',
+      'SUSHI ROLL', 'TEMPURA', 'TERIYAKI', 'GOULASH', 'MOUSSAKA',
+      'SHAWARMA', 'CEVICHE', 'EMPANADA', 'PIEROGI', 'BRATWURST',
+      'CHICKEN WINGS', 'MEATBALLS', 'POT ROAST', 'BEEF STEW', 'CLAM CHOWDER',
+      'MINESTRONE', 'CAESAR SALAD', 'COLESLAW', 'MASHED POTATO', 'SCRAMBLED EGGS',
+      'CHICKEN BIRYANI', 'BUTTER NAAN', 'CHOLE BHATURE', 'PAV BHAJI', 'IDLI SAMBAR',
+    ],
+  },
+  {
+    category: 'Fruits',
+    words: [
+      'MANGO', 'ORANGE', 'STRAWBERRY', 'PINEAPPLE', 'WATERMELON',
+      'GRAPES', 'CHERRY', 'PEACH', 'PLUM', 'PAPAYA',
+      'GUAVA', 'POMEGRANATE', 'BLUEBERRY', 'RASPBERRY', 'BLACKBERRY',
+      'COCONUT', 'AVOCADO', 'LEMON', 'LIME', 'APRICOT',
+      'DRAGON FRUIT', 'PASSION FRUIT', 'LYCHEE', 'CANTALOUPE', 'GRAPEFRUIT',
+      'TANGERINE', 'CRANBERRY', 'NECTARINE', 'BANANA', 'APPLE',
+      'PEAR', 'KIWI FRUIT', 'JACKFRUIT', 'CUSTARD APPLE', 'STAR FRUIT',
+    ],
+  },
+  {
+    category: 'Vegetables',
+    words: [
+      'CARROT', 'POTATO', 'TOMATO', 'ONION', 'GARLIC',
+      'BROCCOLI', 'SPINACH', 'CAULIFLOWER', 'CABBAGE', 'LETTUCE',
+      'CUCUMBER', 'PEPPER', 'EGGPLANT', 'ZUCCHINI', 'PUMPKIN',
+      'RADISH', 'BEETROOT', 'CELERY', 'ASPARAGUS', 'MUSHROOM',
+      'SWEET CORN', 'GREEN PEAS', 'GREEN BEANS', 'CHICKPEA', 'LENTIL',
+      'OKRA', 'KALE', 'TURNIP', 'PARSNIP', 'ARTICHOKE',
+      'SWEET POTATO', 'BELL PEPPER', 'BRUSSELS SPROUT', 'BUTTERNUT SQUASH', 'BOK CHOY',
+    ],
+  },
+  {
+    category: 'Drinks',
+    words: [
+      'LEMONADE', 'MILKSHAKE', 'SMOOTHIE', 'COCOA', 'ESPRESSO',
+      'CAPPUCCINO', 'LATTE', 'MOCHA', 'ICED TEA', 'GREEN TEA',
+      'HOT CHOCOLATE', 'APPLE JUICE', 'ORANGE SODA', 'COCONUT WATER', 'GINGER ALE',
+      'COLA', 'ROOT BEER', 'ENERGY DRINK', 'BUBBLE TEA', 'MILK TEA',
+      'FRUIT PUNCH', 'LASSI', 'BUTTERMILK', 'TONIC WATER', 'SODA WATER',
+    ],
+  },
+  {
+    category: 'Desserts',
+    words: [
+      'CHEESECAKE', 'BROWNIE', 'DONUT', 'CUPCAKE', 'MACARON',
+      'TIRAMISU', 'PUDDING', 'CUSTARD', 'MOUSSE', 'TART',
+      'PIE', 'COOKIE', 'MUFFIN', 'ECLAIR', 'CANNOLI',
+      'GELATO', 'SORBET', 'SUNDAE', 'PARFAIT', 'TRIFLE',
+      'PANNA COTTA', 'CREME BRULEE', 'BAKLAVA', 'CHURROS', 'FUDGE',
+      'GULAB JAMUN', 'JALEBI', 'RICE PUDDING', 'CARROT CAKE', 'RED VELVET CAKE',
+    ],
+  },
+  {
+    category: 'Spices & Herbs',
+    words: [
+      'CINNAMON', 'PEPPER', 'CUMIN', 'TURMERIC', 'GINGER',
+      'CARDAMOM', 'CLOVE', 'NUTMEG', 'PAPRIKA', 'CORIANDER',
+      'BASIL', 'OREGANO', 'THYME', 'ROSEMARY', 'PARSLEY',
+      'MINT', 'SAGE', 'DILL', 'SAFFRON', 'VANILLA',
+      'CHILLI POWDER', 'BAY LEAF', 'FENUGREEK', 'MUSTARD SEED', 'CHIVES',
+    ],
+  },
+]
