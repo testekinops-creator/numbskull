@@ -42,8 +42,8 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
     return () => window.removeEventListener('keydown', h)
   }, [open, onClose])
 
-  // AI roast generates AND sends instantly — no preview/Send step.
-  // (Manually typed messages still use the Send button below.)
+  // AI roast generates AND sends instantly, then closes this panel (manual sends
+  // stay open so you can keep typing).
   async function roastAndSend() {
     if (generating) return
     setGen(true)
@@ -54,6 +54,7 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
       onSend('My roast generator is broken. Kind of like your strategy.')
     } finally {
       setGen(false)
+      onClose?.()
     }
   }
 
