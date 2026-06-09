@@ -84,6 +84,18 @@
   color: var(--color-text-muted, #9a9ab0);
 }
 
+/* SOS live score + turn row */
+.sosHud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  width: 100%;
+  max-width: min(94vw, 460px);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary, #c4c4d4);
+}
+
 /* Per-player cumulative mistake meter (Sudoku) */
 .mistakeMeter {
   display: inline-block;

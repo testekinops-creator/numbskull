@@ -7,8 +7,9 @@ import { ReverseChallenge }       from './engines/ReverseChallenge.js'
 import { TicTacToeEngine }        from './engines/TicTacToeEngine.js'
 import { MathBattleEngine }       from './engines/MathBattleEngine.js'
 import { SpinBattleEngine }       from './engines/SpinBattleEngine.js'
+import { SosEngine }              from './engines/SosEngine.js'
 
-export const VALID_MODES = ['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SPIN']
+export const VALID_MODES = ['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SPIN', 'SOS']
 
 export function engineFactory(mode, options = {}) {
   switch (mode) {
@@ -21,6 +22,7 @@ export function engineFactory(mode, options = {}) {
     case 'XOX':           return new TicTacToeEngine(options)
     case 'MATH':          return new MathBattleEngine(options)
     case 'SPIN':          return new SpinBattleEngine(options)
+    case 'SOS':           return new SosEngine(options)
     default:              throw new Error(`Unknown game mode: ${mode}`)
   }
 }

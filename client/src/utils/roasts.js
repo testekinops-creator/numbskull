@@ -50,6 +50,22 @@ const ROASTS = {
     ],
     wrong: ['Red again? The grid is blushing on your behalf.', 'Wrong number. Bold, chaotic strategy.'],
   },
+  SOS: {
+    win: [
+      'Three letters, one big ego. Enjoy your S‑O‑S supremacy.',
+      'You spelled victory in the most literal way possible.',
+      'More lines than a kindergarten worksheet. Well done, champ.',
+    ],
+    lose: [
+      'Outspelled. By three letters. Let that one sink in.',
+      'You had ONE word to make and still fumbled it.',
+      'S‑O‑S — fitting, since your strategy was a distress signal.',
+    ],
+    draw: [
+      'A tie. You both ran out of letters and ideas simultaneously.',
+      'Dead even. The board is as confused as you are.',
+    ],
+  },
 }
 
 export function getModeRoast(mode, event) {

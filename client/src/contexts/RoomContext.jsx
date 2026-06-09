@@ -40,6 +40,7 @@ const INITIAL = {
   spin:                 null,
   // XOX best-of-3: transient round-over banner (between games of the series)
   xoxRound:             null,
+  sosLastCell:          null,   // SOS: last placed cell (board highlight)
   seriesScore:          null,   // final series tally shown at match over
   // Rematch state machine: idle | requesting | incoming | declined
   rematchStatus:        'idle',
@@ -177,6 +178,7 @@ function reducer(state, action) {
           ? { turnEndsAt: Date.now() + action.match.turnCountdownMs }
           : null,
         xoxRound: null,
+        sosLastCell: null,
         won: null, winnerId: null, draw: false,
         rematchStatus: 'idle', rematchRequesterName: null,
         roomClosedByOpponent: false,
@@ -191,6 +193,17 @@ function reducer(state, action) {
         myTurn: action.patch?.turnId !== undefined
           ? action.patch.turnId === action.playerId
           : state.myTurn,
+      }
+
+    // SOS: full match snapshot after a placement / claim / timeout.
+    case 'SOS_UPDATE':
+      return {
+        ...state,
+        match: action.match ? { ...state.match, ...action.match } : state.match,
+        myTurn: action.match?.turnId !== undefined
+          ? action.match.turnId === action.playerId
+          : state.myTurn,
+        sosLastCell: action.lastCell !== undefined ? action.lastCell : state.sosLastCell,
       }
 
     // Spin Battle: an action happened (spin / guess / vowel / solve / roundover).
@@ -534,6 +547,14 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'XOX_ROUNDOVER', payload, playerId })
     })
 
+    // SOS: placement / claim / timeout — server sends the full public match.
+    socket.on('sos:update', ({ match, lastCell } = {}) => {
+      dispatch({ type: 'SOS_UPDATE', match, lastCell, playerId })
+    })
+    socket.on('sos:claimed', ({ match } = {}) => {
+      dispatch({ type: 'SOS_UPDATE', match, playerId })
+    })
+
     socket.on('math:question', (payload = {}) => {
       dispatch({ type: 'MATH_QUESTION', payload, playerId })
     })
@@ -639,6 +660,8 @@ export function RoomProvider({ children }) {
       socket.off('match:start')
       socket.off('xox:update')
       socket.off('xox:roundover')
+      socket.off('sos:update')
+      socket.off('sos:claimed')
       socket.off('math:question')
       socket.off('math:resolved')
       socket.off('sudoku:update')
@@ -723,6 +746,9 @@ export function RoomProvider({ children }) {
   const xoxMove = useCallback((roomId, cell) => {
     socket?.emit('xox:move', { roomId, cell })
   }, [socket])
+
+  const sosMove  = useCallback((roomId, cell, letter) => socket?.emit('sos:move',  { roomId, cell, letter }), [socket])
+  const sosClaim = useCallback((roomId, cells)        => socket?.emit('sos:claim', { roomId, cells }),        [socket])
 
   const mathAnswer = useCallback((roomId, index, choice) => {
     socket?.emit('math:answer', { roomId, index, choice })
@@ -822,7 +848,7 @@ export function RoomProvider({ children }) {
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
       clearChatToast, sendFriendRequest, acceptFriendRequest, checkFriendStatus, clearIncomingFriend,
-      matchReady, hostStart, xoxMove, matchForfeit, mathAnswer,
+      matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
       spinSpin, spinGuess, spinVowel, spinSolve,
     }}>

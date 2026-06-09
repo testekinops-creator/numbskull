@@ -1,0 +1,66 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  align-items: center;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  width: 100%;
+}
+.vsTag { margin-left: auto; font-size: var(--text-sm, 0.85rem); color: var(--color-text-muted, #9b93c0); }
+
+/* SETUP */
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  text-align: center;
+  width: 100%;
+}
+.setupTitle { font-family: var(--font-brand, sans-serif); font-size: var(--text-2xl, 1.8rem); font-weight: var(--weight-black, 900); }
+.setupHint { font-size: var(--text-sm, 0.85rem); color: var(--color-text-secondary, #c4c4d4); max-width: 32ch; }
+.choiceLabel {
+  font-size: var(--text-xs, 0.72rem);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted, #9b93c0);
+  margin-top: var(--space-2, 8px);
+}
+.row { display: flex; gap: var(--space-2, 8px); }
+.choiceBtn {
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-surface, #251f5a);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-text-secondary, #c4c4d4);
+  font-weight: var(--weight-semibold, 600);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s var(--ease-spring, ease);
+}
+.choiceBtn:active { transform: scale(0.95); }
+.choiceActive {
+  background: linear-gradient(135deg, var(--color-primary, #534ab7), var(--color-primary-hover, #6a61d6));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 16px rgba(83, 74, 183, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* PLAYING */
+.play { display: flex; flex-direction: column; align-items: center; gap: var(--space-3, 12px); width: 100%; }
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  width: 100%;
+  max-width: min(94vw, 460px);
+  justify-content: space-between;
+}
+.status { font-weight: var(--weight-bold, 700); font-size: var(--text-base, 1rem); }
+.scoreTag { font-size: var(--text-sm, 0.85rem); color: var(--color-text-secondary, #c4c4d4); }
+.scoreTag b { color: var(--color-juice, #00f5ff); }

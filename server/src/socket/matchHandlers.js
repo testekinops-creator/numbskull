@@ -10,6 +10,7 @@ import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine } from '../game/engines/SudokuEngine.js'
+import { SosEngine } from '../game/engines/SosEngine.js'
 import {
   WHEEL, VOWEL_COST, EXTRA_TURN_BONUS, JACKPOT_BONUS, STEAL_AMOUNT, pickPuzzle, spinWheel,
   countOf, isAllRevealed, maskAnswer, normalizeSolve, isVowel, isConsonant, distinctLetters,
@@ -17,7 +18,11 @@ import {
 import { recordResult } from '../game/MonthlyLeaderboard.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS'])
+
+// SOS: a generous per-turn anti-stall window (games are long). On expiry we
+// auto-claim any owed lines and pass the turn — never forfeit the whole match.
+const SOS_TURN_MS = 45_000
 
 // Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
 const SPIN_BEST_OF = 3
@@ -96,6 +101,7 @@ export function registerMatchHandlers(io, socket) {
       })
 
       const updated = await roomManager.get(roomId)
+      if (!updated) return ack?.({ ok: false, error: 'Room not found' })
       const bothReady = updated.players.length === 2 && updated.players.every(p => p.ready)
       const inLobby = updated.phase === 'SETUP' || updated.phase === 'LOBBY'
 
@@ -173,6 +179,102 @@ export function registerMatchHandlers(io, socket) {
       else _startMoveTimer(io, roomId, updated.match.turnId)
     } catch (err) {
       logger.error({ err }, 'xox:move error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── SOS: place a letter ─────────────────────────────────────────────────────
+  // Forming ≥1 S–O–S keeps your turn and locks the board until you DRAW (claim)
+  // each line via sos:claim — scoring happens on the claim, not the placement.
+  socket.on('sos:move', async ({ roomId, cell, letter } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SOS' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      const m = room.match
+      if (!m || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+      if (m.pending && m.pending.length)  return ack?.({ ok: false, error: 'Draw your S-O-S first' })
+      letter = String(letter || '').toUpperCase()
+      if (letter !== 'S' && letter !== 'O') return ack?.({ ok: false, error: 'Pick S or O' })
+      if (!Number.isInteger(cell) || cell < 0 || cell >= m.board.length || m.board[cell] !== null) {
+        return ack?.({ ok: false, error: 'Invalid cell' })
+      }
+
+      clearTimer(roomId)
+      let pendingCount = 0, over = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        mm.board[cell] = letter
+        const formed = SosEngine.linesAt(mm.board, mm.size, cell)
+        if (formed.length) {
+          mm.pending = formed; mm.pendingBy = playerId   // keep turn → must claim
+          pendingCount = formed.length
+        } else {
+          mm.pending = []; mm.pendingBy = null
+          mm.turnId = r.players.find(p => p.id !== playerId)?.id || mm.turnId  // pass
+          if (SosEngine.isFull(mm.board)) over = true
+        }
+      })
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('sos:update', { match: _publicMatch(updated.match), lastCell: cell, by: playerId })
+      ack?.({ ok: true, pendingCount })
+
+      if (over) {
+        const { winnerId, draw } = _sosResult(updated.match)
+        await _endMatch(io, roomId, { winnerId, draw, reason: 'complete' })
+      } else {
+        _startSosTimer(io, roomId, updated.match.turnId)
+      }
+    } catch (err) {
+      logger.error({ err }, 'sos:move error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── SOS: claim (draw) a completed S–O–S → +1 and a bonus turn ────────────────
+  socket.on('sos:claim', async ({ roomId, cells } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'SOS' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      const m = room.match
+      if (!m || m.pendingBy !== playerId || !m.pending?.length) {
+        return ack?.({ ok: false, error: 'Nothing to claim' })
+      }
+      if (!Array.isArray(cells) || cells.length !== 3) return ack?.({ ok: false, error: 'Bad claim' })
+      const key = [...cells].sort((a, b) => a - b).join(',')
+
+      let claimed = false, over = false, emptied = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        const i = mm.pending.findIndex(t => [...t].sort((a, b) => a - b).join(',') === key)
+        if (i === -1) return
+        const tri = mm.pending.splice(i, 1)[0]
+        mm.lines.push({ cells: tri, by: playerId })
+        mm.scores[playerId] = (mm.scores[playerId] || 0) + 1
+        claimed = true
+        if (mm.pending.length === 0) {
+          mm.pendingBy = null; emptied = true
+          if (SosEngine.isFull(mm.board)) over = true
+        }
+      })
+      if (!claimed) return ack?.({ ok: false, error: 'Not a pending line' })
+
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('sos:claimed', { match: _publicMatch(updated.match), cells, by: playerId })
+      ack?.({ ok: true })
+
+      if (over) {
+        const { winnerId, draw } = _sosResult(updated.match)
+        await _endMatch(io, roomId, { winnerId, draw, reason: 'complete' })
+      } else if (emptied) {
+        clearTimer(roomId)
+        _startSosTimer(io, roomId, updated.match.turnId)   // bonus turn (same player)
+      }
+    } catch (err) {
+      logger.error({ err }, 'sos:claim error')
       ack?.({ ok: false, error: err.message })
     }
   })
@@ -648,6 +750,29 @@ async function _startMatch(io, roomId) {
     })
   }
 
+  if (room.mode === 'SOS') {
+    // Turn rotates through the player list; the starting player rotates each game.
+    const ids = room.players.map(p => p.id)
+    const seq = room.gameSeq || 0
+    const firstId = ids[seq % ids.length]
+    const size = Number(room.difficulty) === 10 ? 10 : 8
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.gameSeq = seq + 1
+      r.match = {
+        kind:    'SOS',
+        size,
+        board:   Array(size * size).fill(null),
+        turnId:  firstId,
+        scores:  Object.fromEntries(ids.map(id => [id, 0])),
+        lines:   [],          // [{ cells:[i,i,i], by: playerId }] — claimed SOS
+        pending: [],          // SOS the current mover has formed but not yet drawn
+        pendingBy: null,
+      }
+    })
+  }
+
   const updated = await roomManager.get(roomId)
   for (const p of updated.players) {
     const s = _findSocket(io, p.id)
@@ -657,6 +782,7 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
   if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
+  if (updated.mode === 'SOS')  _startSosTimer(io, roomId, updated.match.turnId)
 }
 
 function _nextInOrder(players, fromId) {
@@ -972,6 +1098,48 @@ function _startMoveTimer(io, roomId, currentTurnId) {
   io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: 30_000 })
 }
 
+// SOS winner from the per-game SOS-point tally (tie → draw).
+function _sosResult(match) {
+  const ids = Object.keys(match.scores || {})
+  const [a, b] = ids
+  const sa = match.scores[a] || 0, sb = match.scores[b] || 0
+  if (sa === sb) return { winnerId: null, draw: true }
+  return { winnerId: sa > sb ? a : b, draw: false }
+}
+
+// SOS per-turn timer: on expiry, auto-claim any lines the stalling player is
+// owed (must-draw means they earned them), then pass the turn — never forfeit.
+function _startSosTimer(io, roomId, currentTurnId) {
+  const timer = getTimer(roomId, async (rid) => {
+    const room = await roomManager.get(rid)
+    if (!room || room.mode !== 'SOS' || room.phase !== 'PLAYING') return
+    if (room.match?.turnId !== currentTurnId) return
+    let over = false
+    await roomManager.update(rid, r => {
+      const mm = r.match
+      if (mm.pendingBy === currentTurnId && mm.pending.length) {
+        for (const cells of mm.pending) {
+          mm.lines.push({ cells, by: currentTurnId })
+          mm.scores[currentTurnId] = (mm.scores[currentTurnId] || 0) + 1
+        }
+      }
+      mm.pending = []; mm.pendingBy = null
+      mm.turnId = r.players.find(p => p.id !== currentTurnId)?.id || mm.turnId
+      if (SosEngine.isFull(mm.board)) over = true
+    })
+    const updated = await roomManager.get(rid)
+    io.to(rid).emit('sos:update', { match: _publicMatch(updated.match), lastCell: null, by: currentTurnId, timedOut: true })
+    if (over) {
+      const { winnerId, draw } = _sosResult(updated.match)
+      await _endMatch(io, rid, { winnerId, draw, reason: 'complete' })
+    } else {
+      _startSosTimer(io, rid, updated.match.turnId)
+    }
+  })
+  timer.start(SOS_TURN_MS)
+  io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: SOS_TURN_MS })
+}
+
 // ── Views ──────────────────────────────────────────────────────────────────
 // XOX has no hidden info, but SPIN carries per-viewer private state (a player's
 // own wrong letters) + a live round countdown, so the view is built per viewer.
@@ -1058,6 +1226,19 @@ function _publicMatch(match) {
       correctCount: match.correctCount,
       wrongCount:   match.wrongCount,
       fillTarget:   match.fillTarget,
+    }
+  }
+  if (match.kind === 'SOS') {
+    // No hidden info — the whole board, scores and claimed/pending lines are public.
+    return {
+      kind:      'SOS',
+      size:      match.size,
+      board:     match.board,
+      turnId:    match.turnId,
+      scores:    match.scores,
+      lines:     match.lines || [],
+      pending:   match.pending || [],
+      pendingBy: match.pendingBy || null,
     }
   }
   return match

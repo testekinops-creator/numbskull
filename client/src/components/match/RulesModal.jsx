@@ -61,6 +61,23 @@ const RULES = {
       { h: 'Watch out', p: 'Hit the per-player mistake limit and you forfeit. Finish the grid; highest score wins.' },
     ],
   },
+  SOS: {
+    title: '🔠 SOS',
+    sections: [
+      { h: 'Goal', p: 'Take turns placing an S or an O on the grid. Spell S‑O‑S in any direction to score — most S‑O‑S lines when the board fills up wins.' },
+      { h: 'On your turn', list: [
+        'Pick S or O on the toggle, then tap an empty cell.',
+        'Form an S‑O‑S (across, down, or diagonally) and you score.',
+        'One move can complete more than one S‑O‑S at once.',
+      ] },
+      { h: 'Claiming', list: [
+        'When you form an S‑O‑S the board locks — DRAW the line over it to score.',
+        'Drag across the three cells (or tap a highlighted cell) to claim each line.',
+        'Every line you make = +1 and another go. Draw them all to continue.',
+      ] },
+      { h: 'Winning', p: 'When the board is full, the player with the most S‑O‑S lines wins. Equal lines is a draw.' },
+    ],
+  },
   GTN: {
     title: '🎯 Guess The Number',
     sections: [

@@ -21,6 +21,7 @@ import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
+import SosBoard from './SosBoard.jsx'
 import RulesFab from './RulesFab.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
@@ -31,12 +32,12 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle' }
+const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS' }
 
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
   const {
-    state, matchReady, hostStart, xoxMove, matchForfeit, mathAnswer,
+    state, matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     spinSpin, spinGuess, spinVowel, spinSolve,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
@@ -50,6 +51,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   const [chatOpen, setChatOpen] = useState(false)
   const [mathChoice, setMathChoice] = useState(null)
+  const [sosLetter, setSosLetter] = useState('S')   // SOS: which letter to place
   const [copied, setCopied] = useState(false)
   const [resultRevealed, setResultRevealed] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -75,30 +77,9 @@ export default function MatchRoom({ roomId, mode }) {
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
 
-  // Tell a page reload/close apart from an in-app navigation: on reload the
-  // socket drops and the reconnect grace covers us, so we must NOT leave then.
-  const unloadingRef = useRef(false)
-  useEffect(() => {
-    const hide = () => { unloadingRef.current = true }
-    const show = () => { unloadingRef.current = false }
-    window.addEventListener('pagehide', hide)
-    window.addEventListener('beforeunload', hide)
-    window.addEventListener('pageshow', show)
-    return () => {
-      window.removeEventListener('pagehide', hide)
-      window.removeEventListener('beforeunload', hide)
-      window.removeEventListener('pageshow', show)
-    }
-  }, [])
-
-  // On unmount: if we navigated away in-app while still connected, that means we
-  // abandoned the game — tell the server so the opponent isn't left playing a
-  // ghost. (Explicit Leave/Home already does this; this covers Back/swipe/nav.)
-  // No-op if the room is already gone; skipped on reload so refresh can reconnect.
-  useEffect(() => () => {
-    if (!unloadingRef.current && socket?.connected) leaveRoom(roomId)
-    clearRoom()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // (Clearing local room state + telling the server we left are both handled once
+  // at the RoomPage route level, so the inner StrictMode/loading churn can't trip
+  // them — see clearRoom + useLeaveOnExit in RoomPage.)
 
   // Reconnect + restore on mount and on every (re)connect.
   useEffect(() => {
@@ -144,6 +125,15 @@ export default function MatchRoom({ roomId, mode }) {
       Math.max(0, state.opponentCloseAt - Date.now()) + 1500)
     return () => clearTimeout(t)
   }, [state.opponentCloseAt]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // SOS: a celebratory chime each time YOU claim a line (your score ticks up).
+  const sosScoreRef = useRef(0)
+  useEffect(() => {
+    if (mode !== 'SOS') { sosScoreRef.current = 0; return }
+    const my = state.match?.scores?.[playerId] ?? 0
+    if (my > sosScoreRef.current) playWin()
+    sosScoreRef.current = my
+  }, [state.match?.scores, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Room closed (opponent left / declined) → brief message, then home.
   useEffect(() => {
@@ -472,6 +462,36 @@ export default function MatchRoom({ roomId, mode }) {
                 onSolve={(t) => { unlock(); spinSolve(roomId, t) }}
               />
             )}
+            {mode === 'SOS' && match.board && (() => {
+              const myPending = match.pendingBy === playerId ? (match.pending || []) : []
+              const claiming = myPending.length > 0
+              const myScore  = match.scores?.[playerId] ?? 0
+              const oppScore = opponent ? (match.scores?.[opponent.id] ?? 0) : 0
+              return (
+                <>
+                  <div className={styles.sosHud}>
+                    <span className={styles.hudScore}>You <b>{myScore}</b></span>
+                    <span key={state.myTurn ? 't' : 'o'} className={`${styles.turnLabel} anim-msg`}>
+                      {claiming ? '✏️ Draw your S‑O‑S!' : state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'}…`}
+                    </span>
+                    <span className={styles.hudScore}>{opponent?.name || 'Opp'} <b>{oppScore}</b></span>
+                  </div>
+                  <SosBoard
+                    size={match.size}
+                    board={match.board}
+                    lines={match.lines || []}
+                    pending={myPending}
+                    mineId={playerId}
+                    activeLetter={sosLetter}
+                    onLetterChange={setSosLetter}
+                    onPlace={(i) => { unlock(); playTone(0.4); sosMove(roomId, i, sosLetter) }}
+                    onClaim={(cells) => { unlock(); sosClaim(roomId, cells) }}
+                    disabled={!state.myTurn}
+                    lastCell={state.sosLastCell}
+                  />
+                </>
+              )
+            })()}
           </div>
         )}
 

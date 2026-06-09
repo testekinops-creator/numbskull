@@ -50,6 +50,7 @@ const THEMES = {
   MATH:    { root: 293.66, bpm: 104, wave: 'triangle', cutoff: 2400, prog: 'B' }, // crisp
   BC:      { root: 233.08, bpm: 84,  wave: 'triangle', cutoff: 1800, prog: 'C' }, // playful
   XOX:     { root: 196.00, bpm: 88,  wave: 'sine',     cutoff: 1700, prog: 'C' }, // retro
+  SOS:     { root: 207.65, bpm: 74,  wave: 'sine',     cutoff: 1500, prog: 'A' }, // focused
   default: { root: 220.00, bpm: 78,  wave: 'sine',     cutoff: 1500, prog: 'A' },
 }
 const ARP = [0, 2, 1, 2, 0, 1, 2, 1]   // chord-note index per 8th-note step

@@ -22,6 +22,7 @@ import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { useDelayedFlag } from '../hooks/useDelayedFlag.js'
 import { useAwayTimeout } from '../hooks/useAwayTimeout.js'
+import { useLeaveOnExit } from '../hooks/useLeaveOnExit.js'
 import { getSkullExpression } from '../utils/personality.js'
 import MatchRoom from '../components/match/MatchRoom.jsx'
 import RulesFab from '../components/match/RulesFab.jsx'
@@ -31,7 +32,7 @@ const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '�
 
 // New game modes (XOX / Math Battle / Sudoku / Spin Battle) use a separate
 // real-time match flow rendered by MatchRoom; the GTN/BC guess flow is untouched.
-const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN'])
+const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS'])
 
 // Thin router: decides which room UI to render based on the room's mode.
 // If we landed cold (refresh / direct link) we reconnect first to learn the
@@ -39,31 +40,36 @@ const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN'])
 export default function RoomPage() {
   const { roomId } = useParams()
   const navigate = useNavigate()
-  const { state, reconnectRoom } = useRoom()
+  const { state, reconnectRoom, leaveRoom, clearRoom } = useRoom()
   const { socket } = useSocket()
   const room = state.room
   const mode = room?.mode
 
-  // Learn the room's mode by reconnecting. This must be RESILIENT: a refresh can
-  // briefly drop/re-establish the socket (and races with the server's duplicate-
-  // tab handling), so we retry on every (re)connect instead of giving up after
-  // one shot — and we only leave for home when the room is genuinely gone, never
-  // on a transient timeout (which would strand a recoverable game).
-  const roomRef = useRef(false)
-  useEffect(() => { roomRef.current = !!room }, [room])
+  // Route-level cleanup, so it survives the inner loading↔board churn (and dev
+  // StrictMode), only running on a REAL navigation away from /room/:id:
+  //  • clear local room state (so the lobby's auto-navigate can't bounce us back); and
+  //  • tell the server we left (deferred + cancel-on-remount; skipped on reload,
+  //    where the socket drops and the reconnect grace covers it).
+  useEffect(() => () => clearRoom(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  useLeaveOnExit(roomId, leaveRoom, () => !!socket?.connected)
+
+  // Learn the room's mode by (re)connecting. Self-healing: this re-runs whenever
+  // we're mounted on the room route WITHOUT a room — on first entry, after a
+  // refresh, or if local state was momentarily cleared — and also on every socket
+  // (re)connect. We only leave for home when the room is genuinely gone.
   useEffect(() => {
-    if (!socket || !roomId) return
+    if (!socket || !roomId || room) return
     let cancelled = false
     const attempt = async () => {
-      if (cancelled || roomRef.current) return
+      if (cancelled) return
       const r = await reconnectRoom(roomId)
-      if (cancelled || roomRef.current) return
+      if (cancelled) return
       if (r?.gone) navigate('/home')   // room truly over → leave; else keep retrying
     }
     attempt()
     socket.on('connect', attempt)
     return () => { cancelled = true; socket.off('connect', attempt) }
-  }, [socket, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [socket, roomId, room]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!room) {
     return (
@@ -131,30 +137,8 @@ function GuessRoom() {
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
 
-  // Tell a page reload/close apart from an in-app navigation (reload drops the
-  // socket → reconnect grace covers it, so we must NOT leave then).
-  const unloadingRef = useRef(false)
-  useEffect(() => {
-    const hide = () => { unloadingRef.current = true }
-    const show = () => { unloadingRef.current = false }
-    window.addEventListener('pagehide', hide)
-    window.addEventListener('beforeunload', hide)
-    window.addEventListener('pageshow', show)
-    return () => {
-      window.removeEventListener('pagehide', hide)
-      window.removeEventListener('beforeunload', hide)
-      window.removeEventListener('pageshow', show)
-    }
-  }, [])
-
-  // On unmount: if we navigated away in-app while still connected, we abandoned
-  // the game — tell the server so the opponent isn't left playing a ghost.
-  // (Explicit Leave/Home already does this; this covers Back/swipe/nav.) No-op if
-  // the room is already gone; skipped on reload so a refresh can reconnect.
-  useEffect(() => () => {
-    if (!unloadingRef.current && socket?.connected) leaveRoom(roomId)
-    clearRoom()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // (Clearing room state + telling the server we left are handled once at the
+  // RoomPage route level so the inner StrictMode/loading churn can't trip them.)
 
   // Away too long (locked/backgrounded past the reconnect grace) → the room is
   // dead; go to the game list instead of a stale board. Skip once the game's over.

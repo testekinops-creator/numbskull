@@ -5,9 +5,9 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN'])
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS'])
 const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
@@ -44,10 +44,12 @@ export default function LobbyPage() {
 
   // Sudoku is multiplayer-only and lets the host pick puzzle difficulty.
   const isSudoku = mode === 'SUDOKU'
+  // SOS carries its grid size in the `difficulty` field ('8' | '10').
+  const isSos = mode === 'SOS'
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
-  const [difficulty, setDifficulty] = useState('medium')
+  const [difficulty, setDifficulty] = useState(mode === 'SOS' ? '8' : 'medium')
   const [partySize, setPartySize] = useState(4)   // SPIN party rooms (3–8)
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
@@ -181,6 +183,19 @@ export default function LobbyPage() {
         {/* ── Multiplayer tab ── (always shown for Sudoku) */}
         {(isSudoku || topTab === 'multi') && (
           <>
+            {isSos && (
+              <div className={styles.tabs} style={{ marginBottom: 'var(--space-3, 12px)' }}>
+                {[['8', '8 × 8'], ['10', '10 × 10']].map(([v, label]) => (
+                  <button
+                    key={v}
+                    className={`${styles.tab} ${difficulty === v ? styles.activeTab : ''}`}
+                    onClick={() => setDifficulty(v)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={styles.tabs}>
               {[['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']].map(([id, label]) => (
                 <button

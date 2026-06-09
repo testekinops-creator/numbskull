@@ -52,6 +52,13 @@ const GAMES = [
     desc: 'Spin the wheel, call letters, solve the phrase. Word-puzzle roulette.',
     accent: 'var(--color-pink)',
   },
+  {
+    mode: 'SOS',
+    icon: '🔠',
+    name: 'SOS',
+    desc: 'Place S or O, spell S‑O‑S in any direction, draw the line to score.',
+    accent: 'var(--color-juice)',
+  },
 ]
 
 export default function HomeListPage() {

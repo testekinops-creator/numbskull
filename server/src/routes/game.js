@@ -63,6 +63,7 @@ const startSchema = z.object({
   largeCount: z.number().int().min(0).max(4).optional(),
   symbol:     z.enum(['X', 'O']).optional(),   // XOX: which symbol the human plays
   endless:    z.boolean().optional(),          // MATH: survival mode (no fixed total)
+  boardSize:  z.number().int().optional(),     // SOS: 8 or 10 (engine clamps)
 })
 
 const guessSchema = z.object({
@@ -92,9 +93,9 @@ const sessions = new Map()
 
 gameRouter.post('/start', (req, res, next) => {
   try {
-    const { mode, difficulty, range, largeCount, symbol, endless } = startSchema.parse(req.body)
+    const { mode, difficulty, range, largeCount, symbol, endless, boardSize } = startSchema.parse(req.body)
     const event    = getActiveEvent()
-    const baseOpts = { difficulty, range, largeCount, symbol }
+    const baseOpts = { difficulty, range, largeCount, symbol, boardSize }
     const opts     = applyEventModifier(baseOpts, event)
     const engine   = engineFactory(mode, opts)
     const sessionId = uid()
@@ -133,6 +134,30 @@ gameRouter.post('/xox/move', (req, res, next) => {
     if (result.over) {
       roastEvent = result.draw ? 'lose' : (result.winner === result.playerSymbol ? 'correct' : 'lose')
     }
+    const roast = roastEvent ? getRoastMessage(roastEvent, totalGames) : null
+    if (result.over) sessions.delete(sessionId)
+
+    res.json({ success: true, data: { ...result, roast: roast?.message || null } })
+  } catch (err) { next(err) }
+})
+
+// ── SOS (vs AI) move ────────────────────────────────────────────────────────
+const sosMoveSchema = z.object({
+  cell:       z.number().int().min(0),
+  letter:     z.enum(['S', 'O']),
+  sessionId:  z.string(),
+  totalGames: z.number().int().min(0).default(0),
+})
+
+gameRouter.post('/sos/move', (req, res, next) => {
+  try {
+    const { cell, letter, sessionId, totalGames } = sosMoveSchema.parse(req.body)
+    const session = sessions.get(sessionId)
+    if (!session) throw createError('Session not found', 404, 'SESSION_NOT_FOUND')
+
+    const result = session.engine.playerMove(cell, letter)
+
+    const roastEvent = result.over ? (result.winner === 'player' ? 'correct' : 'lose') : null
     const roast = roastEvent ? getRoastMessage(roastEvent, totalGames) : null
     if (result.over) sessions.delete(sessionId)
 
