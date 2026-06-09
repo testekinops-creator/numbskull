@@ -58,3 +58,34 @@
 .kbd { font-family: var(--font-mono); font-size: var(--text-xs); background: var(--color-surface-3); border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-sm); padding: 2px 6px; color: var(--color-juice); }
 
 .version { font-size: var(--text-xs); color: var(--color-text-muted); text-align: center; padding-top: var(--space-4); }
+
+/* ── Premium card polish + section icons ─────────────────────────── */
+.sectionTitle { display: flex; align-items: center; gap: var(--space-2); }
+.sectionIcon  { font-size: 1.05rem; line-height: 1; }
+.sectionBody  { box-shadow: 0 6px 22px rgba(0, 0, 0, 0.22); }
+
+.idCode { font-family: var(--font-mono, monospace); font-size: var(--text-xs); color: var(--color-text-secondary); }
+
+/* Link / action rows (Export, Log Out, Support links) */
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.linkRow:last-child { border-bottom: none; }
+.linkRow:hover { background: rgba(255, 255, 255, 0.04); }
+.linkIcon { font-size: 1.2rem; width: 24px; text-align: center; flex-shrink: 0; }
+.linkLabel { flex: 1; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.linkChevron { color: var(--color-text-muted); font-size: 1.3rem; line-height: 1; }
+
+.dangerRow .linkLabel { color: var(--color-pink); }
+.dangerRow:hover { background: rgba(255, 62, 138, 0.08); }

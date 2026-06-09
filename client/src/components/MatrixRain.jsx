@@ -26,6 +26,9 @@ export default function MatrixRain({ columns = 28 }) {
     [columns],
   )
 
+  // Performance Mode (Settings) → skip this heavy background effect entirely.
+  if (typeof document !== 'undefined' && document.documentElement.dataset.perf) return null
+
   return (
     <div className={s.rain} aria-hidden="true">
       {cols.map((c, i) => (
