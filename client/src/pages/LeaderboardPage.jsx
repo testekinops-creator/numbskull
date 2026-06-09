@@ -13,11 +13,12 @@ function monthName(period) {
   return new Date(Number(y), Number(m) - 1, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' })
 }
 
-function medal(i) {
-  return i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1
-}
+const initial  = (name) => (name || '?').trim().charAt(0).toUpperCase()
+const winRate  = (w, g) => (g > 0 ? Math.round((w / g) * 100) : 0)
 
 // Monthly MULTIPLAYER leaderboard — ranked by wins this calendar month.
+// (Global / regional / per-mode / weekly / all-time boards need the deferred
+//  DB + backend; this is the premium redesign of the existing monthly board.)
 export default function LeaderboardPage() {
   const navigate = useNavigate()
   const [listRef] = useAutoAnimate()
@@ -42,6 +43,9 @@ export default function LeaderboardPage() {
       .catch(() => setMyRank(null))
   }, [myId])
 
+  const top3 = entries.slice(0, 3)
+  const rest = entries.slice(3)
+
   return (
     <div className="screen">
       <div className={`panel ${styles.page}`}>
@@ -63,17 +67,49 @@ export default function LeaderboardPage() {
         )}
 
         {!loading && entries.length > 0 && (
-          <ol ref={listRef} className={styles.list}>
-            {entries.map((e, i) => (
-              <li key={e.entrantId} className={`${styles.entry} ${e.entrantId === myId ? styles.me : ''}`}>
-                <span className={styles.rank}>{medal(i)}</span>
-                <span className={styles.name}>{e.name}</span>
-                <span className={styles.score}>{e.wins} {e.wins === 1 ? 'win' : 'wins'}</span>
-                <span className={styles.attempts}>{e.games} games</span>
-              </li>
-            ))}
-          </ol>
+          <>
+            {/* Podium — top 3 (centre = #1, crowned) */}
+            <div className={styles.podium}>
+              {top3[1] && <PodiumSpot place={2} e={top3[1]} myId={myId} />}
+              {top3[0] && <PodiumSpot place={1} e={top3[0]} myId={myId} />}
+              {top3[2] && <PodiumSpot place={3} e={top3[2]} myId={myId} />}
+            </div>
+
+            {/* Ranks 4+ */}
+            {rest.length > 0 && (
+              <ol ref={listRef} className={styles.list}>
+                {rest.map((e, i) => (
+                  <li key={e.entrantId} className={`${styles.entry} ${e.entrantId === myId ? styles.me : ''}`}>
+                    <span className={styles.rank}>{i + 4}</span>
+                    <span className={styles.avatar}>{initial(e.name)}</span>
+                    <div className={styles.entryInfo}>
+                      <span className={styles.name}>{e.name}</span>
+                      <span className={styles.meta}>{e.games} games · {winRate(e.wins, e.games)}% win rate</span>
+                    </div>
+                    <span className={styles.score}>{e.wins} {e.wins === 1 ? 'win' : 'wins'}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </>
         )}
+      </div>
+    </div>
+  )
+}
+
+function PodiumSpot({ place, e, myId }) {
+  const isMe  = e.entrantId === myId
+  const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'
+  return (
+    <div className={`${styles.spot} ${styles['spot' + place]} ${isMe ? styles.spotMe : ''}`}>
+      {place === 1 && <span className={styles.crown} aria-hidden="true">👑</span>}
+      <span className={styles.spotAvatar}>{initial(e.name)}</span>
+      <span className={styles.spotName}>{e.name}</span>
+      <span className={styles.spotWins}>{e.wins} {e.wins === 1 ? 'win' : 'wins'}</span>
+      <div className={styles.pedestal}>
+        <span className={styles.pedestalMedal}>{medal}</span>
+        <span className={styles.pedestalRank}>{place}</span>
       </div>
     </div>
   )
