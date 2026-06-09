@@ -23,11 +23,30 @@ async function request(method, path, body) {
   return json.data
 }
 
+// Fetch a raw file (e.g. the GDPR export, which returns a JSON attachment, not
+// the {success,data} envelope) WITH the auth token + correct API base, so it
+// works on the deployed cross-origin server (a plain <a href> can't send the token).
+async function getBlob(path) {
+  const headers = {}
+  if (_token) headers['Authorization'] = `Bearer ${_token}`
+  const res = await fetch(`${BASE}${path}`, {
+    headers,
+    credentials: import.meta.env.VITE_SOCKET_URL ? 'omit' : 'include',
+  })
+  if (!res.ok) {
+    const err = new Error('Request failed')
+    err.status = res.status
+    throw err
+  }
+  return res.blob()
+}
+
 export const api = {
   get:     (path)       => request('GET',    path),
   post:    (path, body) => request('POST',   path, body),
   put:     (path, body) => request('PUT',    path, body),
   patch:   (path, body) => request('PATCH',  path, body),
   del:     (path)       => request('DELETE', path),
+  getBlob,
   setToken: (t)         => { _token = t },
 }

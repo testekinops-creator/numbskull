@@ -4,6 +4,7 @@ import { setColorblindMode } from '../components/AppShell.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { setSoundVolume } from '../hooks/useSound.js'
+import { api } from '../services/api.js'
 import styles from './SettingsPage.module.css'
 
 const CB_KEY      = 'ns_colorblind_mode'
@@ -69,19 +70,45 @@ export default function SettingsPage() {
     else delete document.documentElement.dataset.perf
   }, [perf])
 
+  const [exporting, setExporting] = useState(false)
+
   async function handleLogout() {
     await logout()
     navigate('/')
   }
 
+  // Fetch the GDPR export (auth + correct base) and save it as a JSON file.
+  async function exportData() {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const blob = await api.getBlob('/gdpr/export')
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href = url
+      a.download = 'numbskull-data.json'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Could not export your data — please make sure you are signed in and try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // Registered users get their account id; guests get their guest playerId.
+  const accountId = (isRegistered && user?.id) ? user.id : playerId
+
   function copyId() {
-    navigator.clipboard?.writeText(playerId).then(() => {
+    navigator.clipboard?.writeText(accountId).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     })
   }
 
-  const shortId = playerId ? `${playerId.slice(0, 14)}…` : '—'
+  const shortId = accountId ? `${String(accountId).slice(0, 14)}…` : '—'
 
   return (
     <div className="screen">
@@ -122,7 +149,7 @@ export default function SettingsPage() {
 
           {isRegistered && (
             <>
-              <LinkRow icon="📦" label="Export My Data" href="/api/gdpr/export" download />
+              <ButtonRow icon="📦" label={exporting ? 'Exporting…' : 'Export My Data'} onClick={exportData} />
               <ButtonRow icon="🚪" label="Log Out" danger onClick={handleLogout} />
             </>
           )}
