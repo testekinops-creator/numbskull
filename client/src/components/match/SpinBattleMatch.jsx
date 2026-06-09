@@ -92,7 +92,9 @@ export default function SpinBattleMatch({
     if (spin.skipped) feedback += ' (frozen — go again!)'
   } else if (spin?.event === 'guess') {
     feedback = spin.correct ? `${who} found ${spin.count}× "${spin.letter}" (+${spin.points})`
-      : `No "${spin.letter}" — turn passes${spin.skipped ? ' (opponent frozen!)' : ''}`
+      // Wrong consonants are private (letter stripped from the broadcast), so the
+      // message can't name the letter — say it generically.
+      : `${who} guessed wrong — turn passes${spin.skipped ? ' (opponent frozen!)' : ''}`
   } else if (spin?.event === 'vowel') {
     feedback = spin.correct ? `${who} bought "${spin.letter}" (×${spin.count})` : `No "${spin.letter}"`
   } else if (spin?.event === 'solve') {
