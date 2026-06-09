@@ -9,6 +9,8 @@ import GDPRBanner            from './components/GDPRBanner.jsx'
 import PWAInstallBanner      from './components/PWAInstallBanner.jsx'
 import BadgeToast            from './components/BadgeToast.jsx'
 import ConnectionBanner      from './components/ConnectionBanner.jsx'
+import GameMusic             from './components/GameMusic.jsx'
+import MusicToggle           from './components/MusicToggle.jsx'
 import ErrorBoundary         from './components/ErrorBoundary.jsx'
 import { initAnalytics }     from './services/analytics.js'
 import { SkipLink, useColorblindMode } from './components/AppShell.jsx'
@@ -102,6 +104,8 @@ function AppInner() {
       <GDPRBanner />
       <PWAInstallBanner />
       <ConnectionBanner />
+      <GameMusic />
+      <MusicToggle />
       <BadgeToast />
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </>
