@@ -75,8 +75,30 @@ export default function MatchRoom({ roomId, mode }) {
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
 
-  // Clear local room state when leaving the page.
-  useEffect(() => () => clearRoom(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Tell a page reload/close apart from an in-app navigation: on reload the
+  // socket drops and the reconnect grace covers us, so we must NOT leave then.
+  const unloadingRef = useRef(false)
+  useEffect(() => {
+    const hide = () => { unloadingRef.current = true }
+    const show = () => { unloadingRef.current = false }
+    window.addEventListener('pagehide', hide)
+    window.addEventListener('beforeunload', hide)
+    window.addEventListener('pageshow', show)
+    return () => {
+      window.removeEventListener('pagehide', hide)
+      window.removeEventListener('beforeunload', hide)
+      window.removeEventListener('pageshow', show)
+    }
+  }, [])
+
+  // On unmount: if we navigated away in-app while still connected, that means we
+  // abandoned the game — tell the server so the opponent isn't left playing a
+  // ghost. (Explicit Leave/Home already does this; this covers Back/swipe/nav.)
+  // No-op if the room is already gone; skipped on reload so refresh can reconnect.
+  useEffect(() => () => {
+    if (!unloadingRef.current && socket?.connected) leaveRoom(roomId)
+    clearRoom()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reconnect + restore on mount and on every (re)connect.
   useEffect(() => {

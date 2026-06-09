@@ -131,9 +131,30 @@ function GuessRoom() {
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
 
-  // Clear room state when leaving the room page — prevents a stale room from
-  // bouncing the user back in from the lobby's auto-navigate.
-  useEffect(() => () => clearRoom(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Tell a page reload/close apart from an in-app navigation (reload drops the
+  // socket → reconnect grace covers it, so we must NOT leave then).
+  const unloadingRef = useRef(false)
+  useEffect(() => {
+    const hide = () => { unloadingRef.current = true }
+    const show = () => { unloadingRef.current = false }
+    window.addEventListener('pagehide', hide)
+    window.addEventListener('beforeunload', hide)
+    window.addEventListener('pageshow', show)
+    return () => {
+      window.removeEventListener('pagehide', hide)
+      window.removeEventListener('beforeunload', hide)
+      window.removeEventListener('pageshow', show)
+    }
+  }, [])
+
+  // On unmount: if we navigated away in-app while still connected, we abandoned
+  // the game — tell the server so the opponent isn't left playing a ghost.
+  // (Explicit Leave/Home already does this; this covers Back/swipe/nav.) No-op if
+  // the room is already gone; skipped on reload so a refresh can reconnect.
+  useEffect(() => () => {
+    if (!unloadingRef.current && socket?.connected) leaveRoom(roomId)
+    clearRoom()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Away too long (locked/backgrounded past the reconnect grace) → the room is
   // dead; go to the game list instead of a stale board. Skip once the game's over.
