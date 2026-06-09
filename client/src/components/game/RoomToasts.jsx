@@ -8,7 +8,7 @@ import styles from './RoomToasts.module.css'
 //  • opponent got ready          (#2)
 //  • incoming chat message bubble (#5)
 //  • friend request + accepted    (#3)
-const MAX_BUBBLES = 4      // never let the stack push the UI off-screen
+const MAX_BUBBLES = 3      // never let the stack push the UI off-screen
 const BUBBLE_MS   = 5000   // each message lingers this long, then fades
 
 export default function RoomToasts({ roomId }) {
@@ -67,30 +67,42 @@ export default function RoomToasts({ roomId }) {
     }
   }, [state.friendStatus])
 
-  return createPortal(
-    <div className={styles.layer}>
-      {readyToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>✅ {readyToast}</div>}
-      {friendMsg && <div className={`${styles.toast} ${styles.friend} anim-toast`}>🤝 {friendMsg}</div>}
+  return (
+    <>
+      {/* Top-center: status notices + friend request */}
+      {createPortal(
+        <div className={styles.layer}>
+          {readyToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>✅ {readyToast}</div>}
+          {friendMsg && <div className={`${styles.toast} ${styles.friend} anim-toast`}>🤝 {friendMsg}</div>}
 
-      {bubbles.map(b => (
-        <div key={b.id} className={`${styles.chatBubble} anim-toast`} onClick={() => dismissBubble(b.id)}>
-          <span className={styles.chatFrom}>{b.fromName}</span>
-          <span className={styles.chatText}>{b.text}</span>
-        </div>
-      ))}
-
-      {state.incomingFriend && (
-        <div className={`${styles.friendCard} anim-toast`} role="dialog" aria-label="Friend request">
-          <span className={styles.friendCardText}>
-            <strong>{state.incomingFriend.fromName}</strong> wants to be friends
-          </span>
-          <div className={styles.friendCardActions}>
-            <button className={styles.accept} onClick={() => acceptFriendRequest(roomId)}>Accept</button>
-            <button className={styles.dismiss} onClick={clearIncomingFriend}>Later</button>
-          </div>
-        </div>
+          {state.incomingFriend && (
+            <div className={`${styles.friendCard} anim-toast`} role="dialog" aria-label="Friend request">
+              <span className={styles.friendCardText}>
+                <strong>{state.incomingFriend.fromName}</strong> wants to be friends
+              </span>
+              <div className={styles.friendCardActions}>
+                <button className={styles.accept} onClick={() => acceptFriendRequest(roomId)}>Accept</button>
+                <button className={styles.dismiss} onClick={clearIncomingFriend}>Later</button>
+              </div>
+            </div>
+          )}
+        </div>,
+        document.body,
       )}
-    </div>,
-    document.body,
+
+      {/* Bottom-left: incoming chat bubbles float up right above the chat button,
+          newest nearest the button, older ones rising above it. */}
+      {createPortal(
+        <div className={styles.chatLayer}>
+          {bubbles.map(b => (
+            <div key={b.id} className={styles.chatBubble} onClick={() => dismissBubble(b.id)}>
+              <span className={styles.chatFrom}>{b.fromName}</span>
+              <span className={styles.chatText}>{b.text}</span>
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
   )
 }
