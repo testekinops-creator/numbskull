@@ -20,7 +20,7 @@ const MODE_LABELS = { GTN: 'Guess The Number', BC: 'Bulls & Cows' }
 export default function GamePage() {
   const { mode } = useParams()
   const navigate = useNavigate()
-  const { state, startGame, submitGuess } = useGame()
+  const { state, startGame, submitGuess, resetGame } = useGame()
   const { isRegistered, updateUser } = useAuth()
   const { playTone, playWin, playLose, unlock } = useSound()
   const { buzz } = useHaptic()
@@ -36,7 +36,12 @@ export default function GamePage() {
   const validMode = mode === 'GTN' || mode === 'BC'
 
   useEffect(() => {
-    if (!validMode) navigate('/home')   // start is deferred until difficulty is picked
+    if (!validMode) { navigate('/home'); return }
+    // Enter fresh every time: clear any game left over from a previous mode (the
+    // GameContext lives above the route, so a GTN game would otherwise bleed into
+    // BC — and vice versa). Then show the difficulty picker.
+    resetGame()
+    setPicked(null)
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function choose(difficulty) {

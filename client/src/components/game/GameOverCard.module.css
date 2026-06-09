@@ -106,9 +106,11 @@
 
 /* ── Stats ───────────────────────────────────────────────────────── */
 .statsRow {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-3);
+  display: grid;
+  /* 2×2 so the 4 boxes never cram into one narrow row (GTN); 2 boxes (BC) sit
+     side-by-side. */
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
   width: 100%;
   animation: fadeUp 0.4s ease 0.38s both;
 }
@@ -120,10 +122,10 @@
   gap: var(--space-1);
   background: var(--color-surface-2);
   border-radius: var(--radius-xl);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-3);
   border: 1px solid rgba(255,255,255,0.07);
-  flex: 1;
-  min-width: 90px;
+  min-width: 0;            /* let grid cells shrink instead of overflowing */
+  box-sizing: border-box;
 }
 .statHighlight { border-color: rgba(0,245,255,0.3); background: rgba(0,245,255,0.07); }
 .statAccent    { border-color: rgba(255,62,138,0.25); }
@@ -136,9 +138,10 @@
 }
 .statValue {
   font-family: var(--font-display);
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
   font-weight: var(--weight-black);
   color: var(--color-text-primary);
+  line-height: 1.1;
 }
 .statHighlight .statValue { color: var(--color-juice); }
 .statAccent    .statValue { color: var(--color-pink); }

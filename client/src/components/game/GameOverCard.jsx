@@ -5,8 +5,10 @@ import SkullMascot from '../skull/SkullMascot.jsx'
 import { celebrateWin } from '../../utils/celebrate.js'
 
 export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores, roast }) {
+  // Capped at 100% — beating the worst-case optimal (e.g. 9 guesses vs 10) is a
+  // perfect run, not "111%".
   const efficiency = optimalMoves && attempts
-    ? Math.round((optimalMoves / attempts) * 100)
+    ? Math.min(100, Math.round((optimalMoves / attempts) * 100))
     : null
 
   const isWin  = won && !draw
