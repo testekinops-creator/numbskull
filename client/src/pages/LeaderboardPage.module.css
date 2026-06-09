@@ -85,8 +85,7 @@
 .pedestal {
   width: 100%;
   margin-top: 4px;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding-top: var(--space-2);
+  display: flex; align-items: center; justify-content: center;
   border-radius: 10px 10px 0 0;
   background: linear-gradient(180deg, var(--color-surface-2), var(--color-surface));
   border: 1px solid rgba(255,255,255,0.08); border-bottom: none;
@@ -94,9 +93,10 @@
 .spot1 .pedestal { height: 84px; background: linear-gradient(180deg, rgba(255,215,64,0.2), rgba(255,215,64,0.03)); border-color: rgba(255,215,64,0.35); }
 .spot2 .pedestal { height: 60px; }
 .spot3 .pedestal { height: 46px; }
-.pedestalMedal { font-size: 1.2rem; }
-.pedestalRank { font-family: var(--font-display); font-weight: 900; font-size: 1.5rem; color: var(--color-text-muted); }
+.pedestalRank { font-family: var(--font-display); font-weight: 900; font-size: 1.8rem; line-height: 1; color: var(--color-text-muted); }
 .spot1 .pedestalRank { color: #ffd740; }
+.spot2 .pedestalRank { color: #c3ccdd; }
+.spot3 .pedestalRank { color: #d99a64; }
 
 @keyframes crownFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes spotRise   { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }

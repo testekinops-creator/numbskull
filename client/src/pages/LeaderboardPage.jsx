@@ -99,8 +99,7 @@ export default function LeaderboardPage() {
 }
 
 function PodiumSpot({ place, e, myId }) {
-  const isMe  = e.entrantId === myId
-  const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'
+  const isMe = e.entrantId === myId
   return (
     <div className={`${styles.spot} ${styles['spot' + place]} ${isMe ? styles.spotMe : ''}`}>
       {place === 1 && <span className={styles.crown} aria-hidden="true">👑</span>}
@@ -108,7 +107,6 @@ function PodiumSpot({ place, e, myId }) {
       <span className={styles.spotName}>{e.name}</span>
       <span className={styles.spotWins}>{e.wins} {e.wins === 1 ? 'win' : 'wins'}</span>
       <div className={styles.pedestal}>
-        <span className={styles.pedestalMedal}>{medal}</span>
         <span className={styles.pedestalRank}>{place}</span>
       </div>
     </div>
