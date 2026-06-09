@@ -6,6 +6,7 @@ import GlitchWordmark from '../components/GlitchWordmark.jsx'
 import PlayButton from '../components/PlayButton.jsx'
 import SplashOverlay, { shouldShowSplash } from '../components/SplashOverlay.jsx'
 import MoreDrawer from '../components/MoreDrawer.jsx'
+import { MenuIcon } from '../components/icons/Icons.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { isGuestMode } from './AuthGatePage.jsx'
@@ -49,15 +50,15 @@ export default function TitleScreen() {
       {/* Only show the ☰ menu after the user has authenticated */}
       {(isRegistered || isGuestMode()) && (
         <div className={styles.topBar}>
-          <div />
           <button
             className={`${styles.iconBtn} ${styles.menuBtn}`}
             onClick={() => setShowDrawer(true)}
-            aria-label="More"
+            aria-label="Menu"
             aria-haspopup="dialog"
           >
-            ☰
+            <MenuIcon size={22} />
           </button>
+          <div />
         </div>
       )}
 

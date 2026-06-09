@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import GameLogo from '../components/GameLogo.jsx'
 import MoreDrawer from '../components/MoreDrawer.jsx'
+import { HomeIcon, MenuIcon } from '../components/icons/Icons.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { isGuestMode } from './AuthGatePage.jsx'
@@ -72,18 +73,18 @@ export default function HomeListPage() {
 
   return (
     <div className={styles.screen} id="main-content">
-      {/* Top bar */}
+      {/* Top bar — hamburger LEFT, premium Home RIGHT */}
       <div className={styles.topBar}>
-        <button className={styles.iconBtn} onClick={() => navigate('/')} aria-label="Home">
-          🏠
-        </button>
         <button
           className={styles.iconBtn}
           onClick={() => setShowDrawer(true)}
-          aria-label="More"
+          aria-label="Menu"
           aria-haspopup="dialog"
         >
-          ☰
+          <MenuIcon size={22} />
+        </button>
+        <button className={`${styles.iconBtn} ${styles.homeBtn}`} onClick={() => navigate('/')} aria-label="Home">
+          <HomeIcon size={22} />
         </button>
       </div>
 

@@ -25,16 +25,28 @@
   width: 44px;
   height: 44px;
   border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s var(--ease-spring);
 }
-.iconBtn:hover { background: rgba(255,255,255,0.12); }
+.iconBtn:hover  { background: rgba(255,255,255,0.12); color: var(--color-text-primary); }
+.iconBtn:active { transform: scale(0.92); }
+
+/* Premium Home button — neon-cyan glass so it reads as the key action */
+.homeBtn {
+  color: var(--color-juice);
+  background: rgba(0,245,255,0.1);
+  border-color: rgba(0,245,255,0.35);
+  box-shadow: 0 0 16px rgba(0,245,255,0.22), inset 0 0 10px rgba(0,245,255,0.08);
+}
+.homeBtn:hover { background: rgba(0,245,255,0.18); color: var(--color-juice); box-shadow: 0 0 24px rgba(0,245,255,0.4); }
 
 /* Hero greeting */
 .hero {

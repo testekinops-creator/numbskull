@@ -98,3 +98,22 @@ export function ClockIcon({ size, ...p }) {
     </svg>
   )
 }
+
+export function HomeIcon({ size, ...p }) {
+  return (
+    <svg {...svgProps(size, p)}>
+      <path d="M3 9.5 12 3l9 6.5" />
+      <path d="M5 10.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9.5" />
+    </svg>
+  )
+}
+
+export function MenuIcon({ size, ...p }) {
+  return (
+    <svg {...svgProps(size, p)}>
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  )
+}
