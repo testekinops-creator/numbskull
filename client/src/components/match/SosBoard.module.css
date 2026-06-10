@@ -6,35 +6,6 @@
   width: 100%;
 }
 
-/* ── S | O toggle ─────────────────────────────────────────────────────── */
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius-full, 999px);
-  padding: 5px;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-.toggleBtn {
-  width: 48px;
-  height: 40px;
-  border-radius: var(--radius-full, 999px);
-  font-family: var(--font-display, sans-serif);
-  font-weight: 900;
-  font-size: 1.2rem;
-  color: var(--color-text-muted, #9b93c0);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.1s var(--ease-spring, ease), box-shadow 0.2s;
-}
-.toggleBtn:active { transform: scale(0.92); }
-.toggleActive { color: #0a0820; box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 0 16px rgba(0, 0, 0, 0.35); }
-.tS.toggleActive { background: var(--color-juice, #00f5ff); }
-.tO.toggleActive { background: var(--color-pink, #ff3e8a); }
-.hint { font-size: var(--text-xs, 0.72rem); color: var(--color-text-muted, #9b93c0); padding: 0 var(--space-2, 8px); }
-.hintDraw { color: var(--color-warning, #ffd740); font-weight: var(--weight-bold, 700); }
-
 /* ── Board ────────────────────────────────────────────────────────────── */
 .board {
   position: relative;
@@ -43,46 +14,89 @@
   display: grid;
   grid-template-columns: repeat(var(--n, 8), 1fr);
   grid-template-rows: repeat(var(--n, 8), 1fr);
-  gap: 3px;
-  padding: 3px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-lg, 14px);
-  touch-action: none;   /* let the claim-draw gesture own the pointer */
+  gap: 4px;
+  padding: 6px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(83,74,183,0.22), transparent 60%),
+    linear-gradient(160deg, rgba(40,34,90,0.6), rgba(24,21,58,0.6));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl, 18px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 34px rgba(0,0,0,0.45);
+  /* Let the PAGE scroll when you swipe over the board in place mode; the claim
+     draw gesture only needs to own the pointer while claiming. */
+  touch-action: pan-y;
 }
-.claiming .cell { pointer-events: none; }   /* in claim mode the board owns pointers */
+.claiming { touch-action: none; }
+.claiming .cell { pointer-events: none; }
 
 .cell {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 6px;
-  background: var(--color-surface-2, #312a72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.12s, transform 0.08s var(--ease-spring, ease);
+  transition: background 0.12s, transform 0.08s var(--ease-spring, ease), box-shadow 0.15s;
   min-width: 0;
 }
-.cell:not(:disabled):hover  { background: var(--color-surface-3, #3d3590); }
+.cell:not(:disabled):hover  { background: linear-gradient(160deg, rgba(0,245,255,0.14), rgba(255,255,255,0.04)); box-shadow: 0 0 0 1px rgba(0,245,255,0.3) inset; }
 .cell:not(:disabled):active { transform: scale(0.9); }
 .cell:disabled { cursor: default; }
+.choosing { box-shadow: 0 0 0 2px var(--color-juice, #00f5ff) inset, 0 0 16px rgba(0,245,255,0.5); }
 
+/* Larger, bolder S / O */
 .glyph {
   font-family: var(--font-display, sans-serif);
   font-weight: 900;
-  font-size: clamp(0.75rem, 4.2vw, 1.4rem);
+  font-size: clamp(1.1rem, 6.4vw, 2.1rem);
   line-height: 1;
 }
-.cS .glyph { color: var(--color-juice, #00f5ff); text-shadow: 0 0 8px rgba(0, 245, 255, 0.45); }
-.cO .glyph { color: var(--color-pink, #ff3e8a); text-shadow: 0 0 8px rgba(255, 62, 138, 0.45); }
+.cS .glyph { color: var(--color-juice, #00f5ff); text-shadow: 0 0 10px rgba(0, 245, 255, 0.55); }
+.cO .glyph { color: var(--color-pink, #ff3e8a); text-shadow: 0 0 10px rgba(255, 62, 138, 0.55); }
 .last { box-shadow: 0 0 0 2px rgba(255, 215, 64, 0.7) inset; }
 
 .pendingCell { animation: sosPulse 1s ease-in-out infinite; }
 @keyframes sosPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 64, 0); background: var(--color-surface-3, #3d3590); }
-  50%      { box-shadow: 0 0 0 2px rgba(255, 215, 64, 0.8) inset, 0 0 14px rgba(255, 215, 64, 0.5); background: rgba(255, 215, 64, 0.14); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 64, 0); }
+  50%      { box-shadow: 0 0 0 2px rgba(255, 215, 64, 0.85) inset, 0 0 16px rgba(255, 215, 64, 0.55); background: rgba(255, 215, 64, 0.16); }
 }
+
+/* ── Tap-to-place S/O chooser ─────────────────────────────────────────── */
+.popBackdrop { position: absolute; inset: 0; z-index: 4; }
+.pop {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius-full, 999px);
+  background: rgba(18, 15, 44, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: popIn 0.14s var(--ease-spring, cubic-bezier(0.34,1.4,0.64,1));
+}
+@keyframes popIn { from { opacity: 0; transform: translate(-50%, calc(-100% - 6px)) scale(0.8); } }
+.popBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  font-family: var(--font-display, sans-serif);
+  font-weight: 900;
+  font-size: 1.35rem;
+  color: #07121a;
+  cursor: pointer;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.6), 0 3px 10px rgba(0,0,0,0.4);
+  transition: transform 0.1s var(--ease-spring, ease), box-shadow 0.18s;
+}
+.popBtn:active { transform: scale(0.88); }
+.popS { background: radial-gradient(120% 120% at 30% 25%, #b8fbff, var(--color-juice, #00f5ff)); box-shadow: inset 0 1px 1px rgba(255,255,255,0.7), 0 0 16px rgba(0,245,255,0.6); }
+.popO { background: radial-gradient(120% 120% at 30% 25%, #ffb9d6, var(--color-pink, #ff3e8a)); color: #2a0414; box-shadow: inset 0 1px 1px rgba(255,255,255,0.6), 0 0 16px rgba(255,62,138,0.6); }
+.popS:hover, .popO:hover { transform: translateY(-1px); }
 
 /* ── Line overlay ─────────────────────────────────────────────────────── */
 .overlay {
@@ -94,7 +108,7 @@
   overflow: visible;
 }
 .sosLine {
-  stroke-width: 6;
+  stroke-width: 3;                 /* thinner strike-through */
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   fill: none;
@@ -103,18 +117,23 @@
   animation: sosDraw 0.4s ease-out forwards;
 }
 @keyframes sosDraw { to { stroke-dashoffset: 0; } }
-.lineMine   { stroke: var(--color-juice, #00f5ff); filter: drop-shadow(0 0 5px rgba(0, 245, 255, 0.7)); }
-.lineTheirs { stroke: var(--color-pink, #ff3e8a); filter: drop-shadow(0 0 5px rgba(255, 62, 138, 0.7)); }
+.lineMine   { stroke: var(--color-juice, #00f5ff); filter: drop-shadow(0 0 4px rgba(0, 245, 255, 0.8)); }
+.lineTheirs { stroke: var(--color-pink, #ff3e8a); filter: drop-shadow(0 0 4px rgba(255, 62, 138, 0.8)); }
 .dragLine {
   stroke: var(--color-warning, #ffd740);
-  stroke-width: 5;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-dasharray: 4 4;
   vector-effect: non-scaling-stroke;
   fill: none;
 }
 
+/* ── Hint ─────────────────────────────────────────────────────────────── */
+.hint { font-size: var(--text-sm, 0.85rem); color: var(--color-text-secondary, #9b93c0); text-align: center; }
+.hintDraw { color: var(--color-warning, #ffd740); font-weight: var(--weight-bold, 700); text-shadow: 0 0 12px rgba(255, 215, 64, 0.4); }
+
 @media (prefers-reduced-motion: reduce) {
-  .pendingCell { animation: none; box-shadow: 0 0 0 2px rgba(255, 215, 64, 0.8) inset; }
+  .pendingCell { animation: none; box-shadow: 0 0 0 2px rgba(255, 215, 64, 0.85) inset; }
   .sosLine { animation: none; stroke-dashoffset: 0; }
+  .pop { animation: none; }
 }

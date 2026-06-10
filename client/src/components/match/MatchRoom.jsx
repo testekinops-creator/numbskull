@@ -51,7 +51,6 @@ export default function MatchRoom({ roomId, mode }) {
 
   const [chatOpen, setChatOpen] = useState(false)
   const [mathChoice, setMathChoice] = useState(null)
-  const [sosLetter, setSosLetter] = useState('S')   // SOS: which letter to place
   const [copied, setCopied] = useState(false)
   const [resultRevealed, setResultRevealed] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -395,7 +394,7 @@ export default function MatchRoom({ roomId, mode }) {
                   </>
                 ) : (
                   <>
-                    <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} />
+                    <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} total={state.turnTimeTotal} />
                     <p key={state.myTurn ? 'me' : 'opp'} className={`${styles.turnLabel} anim-msg`}>
                       {state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'} is playing…`}
                     </p>
@@ -470,21 +469,20 @@ export default function MatchRoom({ roomId, mode }) {
               return (
                 <>
                   <div className={styles.sosHud}>
-                    <span className={styles.hudScore}>You <b>{myScore}</b></span>
-                    <span key={state.myTurn ? 't' : 'o'} className={`${styles.turnLabel} anim-msg`}>
-                      {claiming ? '✏️ Draw your S‑O‑S!' : state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'}…`}
+                    <span className={`${styles.hudScore} ${styles.hudMe}`}>You <b>{myScore}</b></span>
+                    <span key={claiming ? 'c' : state.myTurn ? 't' : 'o'} className={`${styles.turnLabel} anim-msg`}>
+                      {claiming ? '✏️ Draw your S‑O‑S!' : state.myTurn ? '🫵 Your move' : `⏳ ${opponent?.name || 'Opponent'}…`}
                     </span>
                     <span className={styles.hudScore}>{opponent?.name || 'Opp'} <b>{oppScore}</b></span>
                   </div>
+                  <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} total={state.turnTimeTotal} />
                   <SosBoard
                     size={match.size}
                     board={match.board}
                     lines={match.lines || []}
                     pending={myPending}
                     mineId={playerId}
-                    activeLetter={sosLetter}
-                    onLetterChange={setSosLetter}
-                    onPlace={(i) => { unlock(); playTone(0.4); sosMove(roomId, i, sosLetter) }}
+                    onPlace={(i, letter) => { unlock(); playTone(0.4); sosMove(roomId, i, letter) }}
                     onClaim={(cells) => { unlock(); sosClaim(roomId, cells) }}
                     disabled={!state.myTurn}
                     lastCell={state.sosLastCell}

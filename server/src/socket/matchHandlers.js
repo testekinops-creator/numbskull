@@ -20,9 +20,9 @@ import { logger } from '../utils/logger.js'
 
 export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS'])
 
-// SOS: a generous per-turn anti-stall window (games are long). On expiry we
-// auto-claim any owed lines and pass the turn — never forfeit the whole match.
-const SOS_TURN_MS = 45_000
+// SOS: per-move timer. On expiry we auto-claim any owed lines and pass the turn
+// — never forfeit the whole match.
+const SOS_TURN_MS = 20_000
 
 // Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
 const SPIN_BEST_OF = 3

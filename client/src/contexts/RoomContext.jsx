@@ -26,6 +26,7 @@ const INITIAL = {
   guesses:              [],
   myTurn:               false,
   turnTimeLeft:         30,
+  turnTimeTotal:        30,   // full per-turn duration (server-driven; for the bar)
   lastGuessResult:      null,
   roast:                null,
   error:                null,
@@ -123,8 +124,10 @@ function reducer(state, action) {
       }
     }
 
-    case 'TURN_CHANGE':
-      return { ...state, myTurn: action.playerId === action.myId, turnTimeLeft: 30 }
+    case 'TURN_CHANGE': {
+      const secs = action.timerMs ? Math.round(action.timerMs / 1000) : 30
+      return { ...state, myTurn: action.playerId === action.myId, turnTimeLeft: secs, turnTimeTotal: secs }
+    }
 
     case 'TIMER_TICK':
       return { ...state, turnTimeLeft: Math.max(0, state.turnTimeLeft - 1) }
@@ -586,9 +589,9 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'SPIN_TURN', turnCountdownMs })
     })
 
-    socket.on('match:turn', ({ turnId } = {}) => {
+    socket.on('match:turn', ({ turnId, timerMs } = {}) => {
       clearInterval(timerRef.current)
-      dispatch({ type: 'TURN_CHANGE', playerId: turnId, myId: playerId })
+      dispatch({ type: 'TURN_CHANGE', playerId: turnId, myId: playerId, timerMs })
       timerRef.current = setInterval(() => dispatch({ type: 'TIMER_TICK' }), 1000)
     })
 

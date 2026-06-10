@@ -16,6 +16,7 @@ import styles from './SosAiPage.module.css'
 const SIZES = [[8, '8 × 8'], [10, '10 × 10']]
 const DIFFS = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']]
 const triKey = (t) => [...t].sort((a, b) => a - b).join(',')
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 export default function SosAiPage() {
   const navigate = useNavigate()
@@ -36,7 +37,6 @@ export default function SosAiPage() {
   const [lastCell, setLastCell]     = useState(null)
   const [over, setOver]             = useState(false)
   const [winner, setWinner]         = useState(null)
-  const [sosLetter, setSosLetter]   = useState('S')
   const [roast, setRoast]           = useState(null)
   const [busy, setBusy]             = useState(false)
 
@@ -58,26 +58,47 @@ export default function SosAiPage() {
     finally { setBusy(false) }
   }
 
-  async function handlePlace(i) {
+  async function handlePlace(i, letter) {
     if (busy || over || turn !== 'player' || pending.length || board[i] !== null) return
     unlock(); setBusy(true)
     try {
-      const data = await api.post('/game/sos/move', { cell: i, letter: sosLetter, sessionId: sessionRef.current, totalGames: games })
+      const data = await api.post('/game/sos/move', { cell: i, letter, sessionId: sessionRef.current, totalGames: games })
       if (!data.valid) { buzz('error'); return }
       const formed = data.formed || []
-      const formedKeys = new Set(formed.map(t => triKey(t)))
-      setBoard(data.board)
-      setScores(data.scores)
-      setTurn(data.turn)
-      setOver(data.over); setWinner(data.winner)
-      // Reveal everything already drawn (history + the AI's lines); the lines you
-      // just formed stay "pending" until you draw them.
-      setLines((data.lines || []).filter(l => !formedKeys.has(triKey(l.cells))))
-      setPending(formed)
-      const ai = data.aiMoves && data.aiMoves[data.aiMoves.length - 1]
-      setLastCell(ai ? ai.cell : i)
-      playTone(0.45)
-      if (data.aiMoves?.some(m => m.lines.length)) buzz('wrong')   // AI scored
+
+      if (formed.length) {
+        // You scored — show your placement; the lines you formed stay "pending"
+        // until you draw them. The AI hasn't moved yet (bonus turn is yours).
+        const formedKeys = new Set(formed.map(t => triKey(t)))
+        setBoard(data.board)
+        setScores(data.scores)
+        setTurn(data.turn); setOver(data.over); setWinner(data.winner)
+        setLines((data.lines || []).filter(l => !formedKeys.has(triKey(l.cells))))
+        setPending(formed)
+        setLastCell(i)
+        playTone(0.5); buzz('correct')
+        return
+      }
+
+      // No S–O–S for you → the AI takes its turn. Replay it move-by-move at a
+      // human pace so the opponent's play is readable, not instant.
+      const aiMoves = data.aiMoves || []
+      let b = [...board]; b[i] = letter
+      setBoard(b); setLastCell(i); setTurn('ai'); playTone(0.4)
+      let ln = lines
+      for (const mv of aiMoves) {
+        await sleep(620 + Math.random() * 380)
+        b = [...b]; b[mv.cell] = mv.letter
+        setBoard(b); setLastCell(mv.cell); playTone(0.4)
+        if (mv.lines?.length) {
+          await sleep(350)
+          ln = [...ln, ...mv.lines.map(c => ({ cells: c, by: 'ai' }))]
+          setLines(ln); buzz('wrong')
+        }
+      }
+      // Reconcile with the authoritative server state.
+      setScores(data.scores); setTurn(data.turn); setOver(data.over); setWinner(data.winner)
+      setLines(data.lines || ln)
     } catch { buzz('error') }
     finally { setBusy(false) }
   }
@@ -161,8 +182,6 @@ export default function SosAiPage() {
               lines={lines}
               pending={pending}
               mineId="player"
-              activeLetter={sosLetter}
-              onLetterChange={setSosLetter}
               onPlace={handlePlace}
               onClaim={handleClaim}
               disabled={!myTurn || busy}
