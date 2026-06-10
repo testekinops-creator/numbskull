@@ -25,7 +25,8 @@ turnRouter.get('/', async (_req, res) => {
     return res.json({ success: true, data: { iceServers: cache.iceServers } })
   }
   try {
-    const r = await fetch(`https://${DOMAIN}/api/v1/turn/credentials?apiKey=${API_KEY}`)
+    const url = `https://${DOMAIN.trim()}/api/v1/turn/credentials?apiKey=${encodeURIComponent(API_KEY.trim())}`
+    const r = await fetch(url)
     if (!r.ok) throw new Error(`Metered responded ${r.status}`)
     const body = await r.json()
     const iceServers = Array.isArray(body) ? body : (body.iceServers || [])
@@ -33,6 +34,7 @@ turnRouter.get('/', async (_req, res) => {
     res.json({ success: true, data: { iceServers } })
   } catch (err) {
     logger.warn({ err: err.message }, 'TURN credentials fetch failed')
-    res.json({ success: true, data: { iceServers: [], reason: 'metered-error', detail: String(err.message).slice(0, 120) } })
+    // keyLen/domain are non-sensitive — they only reveal whether the value arrived intact.
+    res.json({ success: true, data: { iceServers: [], reason: 'metered-error', detail: String(err.message).slice(0, 120), domain: DOMAIN, keyLen: API_KEY.length } })
   }
 })
