@@ -50,6 +50,8 @@ function buildIceServers() {
 
 const ICE_SERVERS = buildIceServers()
 const CONNECT_TIMEOUT_MS = 15000
+const MAX_ICE_RESTARTS = 4        // auto-reconnect attempts before we give up
+const DISCONNECT_GRACE_MS = 4000  // let a transient 'disconnected' self-heal first
 
 // Peer-to-peer voice call over WebRTC, signalled through the room socket.
 // callState: 'idle' | 'calling' | 'connecting' | 'connected'
@@ -64,6 +66,7 @@ export function useVoiceCall(roomId) {
   const [callerName, setCallerName] = useState(null)
   const [error, setError] = useState(null)
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false) // iOS autoplay blocked → tap to hear
+  const [reconnecting, setReconnecting] = useState(false)         // mid-call recovery in progress
 
   const pcRef          = useRef(null)
   const localStreamRef = useRef(null)
@@ -71,9 +74,14 @@ export function useVoiceCall(roomId) {
   const pendingOffer   = useRef(null)
   const pendingIce     = useRef([])
   const connectTimer   = useRef(null)
+  const isCallerRef     = useRef(false) // true = we made the offer (we drive ICE restarts)
+  const wasConnectedRef = useRef(false) // only auto-reconnect a call that actually linked
+  const restartsRef     = useRef(0)
+  const disconnectTimer = useRef(null)
 
   const cleanup = useCallback(() => {
     clearTimeout(connectTimer.current)
+    clearTimeout(disconnectTimer.current)
     try { pcRef.current?.close() } catch { /* noop */ }
     pcRef.current = null
     localStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -84,6 +92,10 @@ export function useVoiceCall(roomId) {
     setMuted(false)
     setRemoteMuted(false)
     setNeedsAudioUnlock(false)
+    setReconnecting(false)
+    wasConnectedRef.current = false
+    restartsRef.current = 0
+    isCallerRef.current = false
   }, [])
 
   // Terminal failure — tell the peer, tear down, show why.
@@ -94,12 +106,46 @@ export function useVoiceCall(roomId) {
     setError(msg)
   }, [socket, roomId, cleanup])
 
-  // Mark the media path as live (idempotent) and stop the connect watchdog.
+  // Mark the media path as live (idempotent) and stop the watchdog/recovery.
   const markConnected = useCallback(() => {
     clearTimeout(connectTimer.current)
+    clearTimeout(disconnectTimer.current)
+    wasConnectedRef.current = true
+    restartsRef.current = 0
+    setReconnecting(false)
     setError(null)
     setCallState('connected')
   }, [])
+
+  // ── Auto-reconnect: ICE restart when a LIVE call drops ──────────────────────
+  // The caller re-offers with iceRestart; the callee (which can't offer without a
+  // glare collision) just asks the caller to do it via call:restart.
+  const iceRestartAsCaller = useCallback(async () => {
+    const pc = pcRef.current
+    if (!pc || !socket) return
+    try {
+      const offer = await pc.createOffer({ iceRestart: true })
+      await pc.setLocalDescription(offer)
+      socket.emit('call:offer', { roomId, sdp: offer, renegotiate: true })
+    } catch { /* a later state change will retry */ }
+  }, [socket, roomId])
+  const iceRestartRef = useRef(iceRestartAsCaller)
+  useEffect(() => { iceRestartRef.current = iceRestartAsCaller }, [iceRestartAsCaller])
+
+  const recover = useCallback(() => {
+    if (!wasConnectedRef.current) return            // only reconnect calls that linked
+    clearTimeout(disconnectTimer.current)
+    if (restartsRef.current >= MAX_ICE_RESTARTS) {
+      socket?.emit('call:end', { roomId })
+      cleanup(); setCallState('idle')
+      setError('Lost the call — network connection dropped')
+      return
+    }
+    restartsRef.current += 1
+    setReconnecting(true)
+    if (isCallerRef.current) iceRestartAsCaller()
+    else socket?.emit('call:restart', { roomId })   // ask the caller to restart
+  }, [socket, roomId, cleanup, iceRestartAsCaller])
 
   // Play remote audio. iOS Safari blocks autoplay outside a user gesture — and a
   // callee that auto-accepts an offer has no gesture — so on failure we (1) flag
@@ -135,20 +181,34 @@ export function useVoiceCall(roomId) {
         playRemote()
       }
     }
+    // A drop AFTER the call has linked → try to auto-reconnect (ICE restart);
+    // a failure DURING the initial connect → fail cleanly as before.
+    const onDrop = () => {
+      if (wasConnectedRef.current) recover()
+      else failCall('Call failed — your network blocked the connection')
+    }
     pc.onconnectionstatechange = () => {
       const st = pc.connectionState
       if (st === 'connected') markConnected()
-      else if (st === 'failed') failCall('Call failed — your network blocked the connection')
+      else if (st === 'failed') onDrop()
     }
-    // Fallback for browsers that drive iceConnectionState more reliably.
     pc.oniceconnectionstatechange = () => {
       const st = pc.iceConnectionState
       if (st === 'connected' || st === 'completed') markConnected()
-      else if (st === 'failed') failCall('Call failed — your network blocked the connection')
+      else if (st === 'failed') onDrop()
+      else if (st === 'disconnected' && wasConnectedRef.current) {
+        // Usually a transient blip — give it a moment to self-heal, then restart.
+        setReconnecting(true)
+        clearTimeout(disconnectTimer.current)
+        disconnectTimer.current = setTimeout(() => {
+          const cur = pcRef.current?.iceConnectionState
+          if (cur === 'disconnected' || cur === 'failed') recover()
+        }, DISCONNECT_GRACE_MS)
+      }
     }
     pcRef.current = pc
     return pc
-  }, [socket, roomId, markConnected, failCall, playRemote])
+  }, [socket, roomId, markConnected, failCall, recover, playRemote])
 
   // Start the watchdog: if media hasn't linked in time, fail cleanly.
   const armConnectWatch = useCallback(() => {
@@ -178,6 +238,7 @@ export function useVoiceCall(roomId) {
     try {
       const stream = await getMic()
       const pc = createPc()
+      isCallerRef.current = true               // we offer → we drive ICE restarts
       stream.getTracks().forEach(t => pc.addTrack(t, stream))
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
@@ -197,6 +258,7 @@ export function useVoiceCall(roomId) {
     try {
       const stream = await getMic()
       const pc = createPc()
+      isCallerRef.current = false              // we answer → caller drives ICE restarts
       stream.getTracks().forEach(t => pc.addTrack(t, stream))
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current))
       for (const c of pendingIce.current) { try { await pc.addIceCandidate(c) } catch { /* noop */ } }
@@ -246,19 +308,33 @@ export function useVoiceCall(roomId) {
     if (!socket) return
 
     // Direct-connect: auto-accept the incoming offer (mic prompt is the only gate).
-    const onOffer = ({ fromName, sdp }) => {
+    // A `renegotiate` offer is an ICE restart for the LIVE call → answer it on the
+    // existing connection instead of starting a brand-new call.
+    const onOffer = async ({ fromName, sdp, renegotiate }) => {
+      const pc = pcRef.current
+      if (renegotiate && pc) {
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(sdp))
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          socket.emit('call:answer', { roomId, sdp: answer })
+        } catch { /* noop — a later state change will retry */ }
+        return
+      }
       pendingOffer.current = sdp
       setCallerName(fromName || 'Opponent')
       setCallState('connecting')
       acceptRef.current?.()
     }
+    // Callee asked us (the caller) to ICE-restart the live call.
+    const onRestart = () => { if (isCallerRef.current) iceRestartRef.current?.() }
     const onAnswer = async ({ sdp }) => {
       const pc = pcRef.current
-      if (!pc) return
+      if (!pc || pc.signalingState !== 'have-local-offer') return  // stray/late answer
       await pc.setRemoteDescription(new RTCSessionDescription(sdp))
       for (const c of pendingIce.current) { try { await pc.addIceCandidate(c) } catch { /* noop */ } }
       pendingIce.current = []
-      setCallState('connecting') // wait for ICE to actually link before 'connected'
+      if (!wasConnectedRef.current) setCallState('connecting')      // initial connect only
     }
     const onIce = async ({ candidate }) => {
       const pc = pcRef.current
@@ -276,14 +352,16 @@ export function useVoiceCall(roomId) {
     socket.on('call:ice', onIce)
     socket.on('call:end', onEnd)
     socket.on('call:declined', onDeclined)
+    socket.on('call:restart', onRestart)
     return () => {
       socket.off('call:offer', onOffer)
       socket.off('call:answer', onAnswer)
       socket.off('call:ice', onIce)
       socket.off('call:end', onEnd)
       socket.off('call:declined', onDeclined)
+      socket.off('call:restart', onRestart)
     }
-  }, [socket, cleanup])
+  }, [socket, roomId, cleanup])
 
   useEffect(() => () => cleanup(), [cleanup])  // end call when leaving the room
 
@@ -296,7 +374,7 @@ export function useVoiceCall(roomId) {
   }, [callState, playRemote])
 
   return {
-    callState, muted, remoteMuted, callerName, error, clearError, remoteAudioRef,
+    callState, reconnecting, muted, remoteMuted, callerName, error, clearError, remoteAudioRef,
     needsAudioUnlock, unlockAudio,
     startCall, acceptCall, declineCall, endCall, toggleMute, toggleRemoteMute,
   }

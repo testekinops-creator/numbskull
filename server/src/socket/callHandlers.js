@@ -8,10 +8,18 @@ export function registerCallHandlers(io, socket) {
   const playerId   = auth.playerId || socket.id
   const playerName = auth.playerName || 'Player'
 
-  socket.on('call:offer', ({ roomId, sdp } = {}) => {
+  socket.on('call:offer', ({ roomId, sdp, renegotiate } = {}) => {
     if (typeof roomId !== 'string' || !sdp) return
     socket.join(roomId)
-    socket.to(roomId).emit('call:offer', { fromPlayerId: playerId, fromName: playerName, sdp })
+    // `renegotiate` marks an ICE-restart offer for an existing call (auto-reconnect)
+    // so the peer applies it to the live connection instead of starting a new call.
+    socket.to(roomId).emit('call:offer', { fromPlayerId: playerId, fromName: playerName, sdp, renegotiate: !!renegotiate })
+  })
+
+  // The peer that can't create an offer (the callee) asks the caller to ICE-restart.
+  socket.on('call:restart', ({ roomId } = {}) => {
+    if (typeof roomId !== 'string') return
+    socket.to(roomId).emit('call:restart', { fromPlayerId: playerId })
   })
 
   socket.on('call:answer', ({ roomId, sdp } = {}) => {

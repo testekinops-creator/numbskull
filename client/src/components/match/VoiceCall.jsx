@@ -10,7 +10,7 @@ import styles from './VoiceCall.module.css'
 // portaled to <body> — status + mic mute + opponent-audio mute + hang up.
 export default function VoiceCall({ roomId, opponentName }) {
   const {
-    callState, muted, remoteMuted, error, clearError, needsAudioUnlock, unlockAudio,
+    callState, reconnecting, muted, remoteMuted, error, clearError, needsAudioUnlock, unlockAudio,
     remoteAudioRef, startCall, endCall, toggleMute, toggleRemoteMute,
   } = useVoiceCall(roomId)
 
@@ -24,6 +24,7 @@ export default function VoiceCall({ roomId, opponentName }) {
   const active = callState === 'calling' || callState === 'connecting' || callState === 'connected'
 
   const statusText =
+    reconnecting               ? 'Reconnecting…' :
     callState === 'calling'    ? `Calling ${opponentName || 'opponent'}…` :
     callState === 'connecting' ? 'Connecting…' :
     callState === 'connected'  ? `In call · ${opponentName || 'opponent'}` : ''
@@ -42,7 +43,7 @@ export default function VoiceCall({ roomId, opponentName }) {
       {/* Floating call bar — portaled so it never affects the header layout. */}
       {active && createPortal(
         <div className={`${styles.callBar} anim-slide-up`} role="dialog" aria-label="Voice call">
-          <span className={`${styles.status} ${styles[callState]}`}>
+          <span className={`${styles.status} ${styles[reconnecting ? 'connecting' : callState]}`}>
             <span className={styles.dot} />
             {statusText}
           </span>
