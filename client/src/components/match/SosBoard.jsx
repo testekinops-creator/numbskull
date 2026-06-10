@@ -1,5 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
 import styles from './SosBoard.module.css'
+import { celebrateSos } from '../../utils/celebrate.js'
+
+const COMBO_TEXT = (n) => (n === 2 ? '🔥 DOUBLE SOS!' : n === 3 ? '💥 TRIPLE SOS!' : `⚡ ${n}× MEGA SOS!`)
+const CLAIM_HINT_KEY = 'ns_sos_claim_hint'   // first-time coach-mark seen flag
 
 // Cell centre as a percentage of the (square) board — for the SVG line overlay.
 const centerOf = (i, size) => {
@@ -28,10 +32,37 @@ export default function SosBoard({
   const wrapRef = useRef(null)
   const [drag, setDrag] = useState(null)        // { startCell, x, y } during a claim draw
   const [placing, setPlacing] = useState(null)  // cell index with an open S/O popover
+  const [combo, setCombo] = useState(null)      // { n, key } — DOUBLE/TRIPLE flash
+  const [coach, setCoach] = useState(false)     // first-time "drag to claim" hint
+  const comboRef = useRef(0)                    // # lines the current pending move formed
   const claimMode = pending.length > 0
 
   // Any state change that should dismiss the chooser.
   useEffect(() => { if (claimMode || disabled) setPlacing(null) }, [claimMode, disabled])
+
+  // First-time coach-mark: the draw-to-claim mechanic isn't obvious, so the very
+  // first time you form an S–O–S, show a one-time hint (then never again).
+  useEffect(() => {
+    if (claimMode && localStorage.getItem(CLAIM_HINT_KEY) !== '1') {
+      setCoach(true)
+      localStorage.setItem(CLAIM_HINT_KEY, '1')
+    } else if (!claimMode) {
+      setCoach(false)
+    }
+  }, [claimMode])
+
+  // Combo: remember how many lines this move formed; when they're all drawn,
+  // flash DOUBLE/TRIPLE.
+  useEffect(() => {
+    if (pending.length > comboRef.current) comboRef.current = pending.length
+    if (pending.length === 0) {
+      if (comboRef.current >= 2) {
+        setCombo({ n: comboRef.current, key: Date.now() })
+        setTimeout(() => setCombo(null), 1500)
+      }
+      comboRef.current = 0
+    }
+  }, [pending.length])
 
   const cellFromPoint = (clientX, clientY) => {
     const el = wrapRef.current
@@ -57,6 +88,20 @@ export default function SosBoard({
     wrapRef.current.setPointerCapture?.(e.pointerId)
   }
   const onMove = (e) => { if (drag) setDrag(d => ({ ...d, ...localXY(e.clientX, e.clientY) })) }
+
+  // Confetti pop at the claimed line's midpoint (bigger when it's a combo batch).
+  const fireJuice = (tri) => {
+    const el = wrapRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const a = centerOf(tri[0], size), b = centerOf(tri[2], size)
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
+    celebrateSos({
+      x: (rect.left + (mx / 100) * rect.width) / window.innerWidth,
+      y: (rect.top + (my / 100) * rect.height) / window.innerHeight,
+    }, comboRef.current)
+  }
+
   const onUp = (e) => {
     if (!drag) return
     const end = cellFromPoint(e.clientX, e.clientY)
@@ -66,7 +111,7 @@ export default function SosBoard({
         const hits = pending.filter(t => t.includes(end))
         if (hits.length === 1) tri = hits[0]
       }
-      if (tri) onClaim?.(sortTri(tri))
+      if (tri) { const sorted = sortTri(tri); fireJuice(sorted); onClaim?.(sorted) }
     }
     setDrag(null)
   }
@@ -144,6 +189,12 @@ export default function SosBoard({
             return <line x1={a.x} y1={a.y} x2={drag.x} y2={drag.y} className={styles.dragLine} />
           })()}
         </svg>
+
+        {/* First-time coach-mark for the draw-to-claim mechanic */}
+        {coach && <div className={styles.coach}>✏️ Drag across your S‑O‑S to claim it!</div>}
+
+        {/* Combo flash */}
+        {combo && <div key={combo.key} className={styles.comboFlash}>{COMBO_TEXT(combo.n)}</div>}
       </div>
 
       <p className={`${styles.hint} ${claimMode ? styles.hintDraw : ''}`}>

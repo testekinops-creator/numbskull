@@ -209,6 +209,7 @@ export function registerMatchHandlers(io, socket) {
         const formed = SosEngine.linesAt(mm.board, mm.size, cell)
         if (formed.length) {
           mm.pending = formed; mm.pendingBy = playerId   // keep turn → must claim
+          mm.comboSize = formed.length                   // for the multi-SOS bonus
           pendingCount = formed.length
         } else {
           mm.pending = []; mm.pendingBy = null
@@ -257,6 +258,9 @@ export function registerMatchHandlers(io, socket) {
         claimed = true
         if (mm.pending.length === 0) {
           mm.pendingBy = null; emptied = true
+          // Combo bonus once the whole multi-SOS move is drawn (DOUBLE +1, TRIPLE +2…).
+          if ((mm.comboSize || 0) >= 2) mm.scores[playerId] += mm.comboSize - 1
+          mm.comboSize = 0
           if (SosEngine.isFull(mm.board)) over = true
         }
       })
@@ -769,6 +773,7 @@ async function _startMatch(io, roomId) {
         lines:   [],          // [{ cells:[i,i,i], by: playerId }] — claimed SOS
         pending: [],          // SOS the current mover has formed but not yet drawn
         pendingBy: null,
+        comboSize: 0,         // # lines the current pending move formed (for the bonus)
       }
     })
   }
@@ -1118,12 +1123,13 @@ function _startSosTimer(io, roomId, currentTurnId) {
     await roomManager.update(rid, r => {
       const mm = r.match
       if (mm.pendingBy === currentTurnId && mm.pending.length) {
+        if (mm.pending.length >= 2) mm.scores[currentTurnId] = (mm.scores[currentTurnId] || 0) + mm.pending.length - 1
         for (const cells of mm.pending) {
           mm.lines.push({ cells, by: currentTurnId })
           mm.scores[currentTurnId] = (mm.scores[currentTurnId] || 0) + 1
         }
       }
-      mm.pending = []; mm.pendingBy = null
+      mm.pending = []; mm.pendingBy = null; mm.comboSize = 0
       mm.turnId = r.players.find(p => p.id !== currentTurnId)?.id || mm.turnId
       if (SosEngine.isFull(mm.board)) over = true
     })

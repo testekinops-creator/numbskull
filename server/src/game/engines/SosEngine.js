@@ -71,6 +71,8 @@ export class SosEngine {
       this.lines.push({ cells, by })
       this.scores[by] += 1
     }
+    // Combo: a single move completing 2+ S–O–S earns a bonus (DOUBLE = +1, TRIPLE = +2…).
+    if (formed.length >= 2) this.scores[by] += formed.length - 1
     if (SosEngine.isFull(this.board)) {
       this.over = true
       this.winner = this.scores.player === this.scores.ai

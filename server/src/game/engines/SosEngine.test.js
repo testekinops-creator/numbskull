@@ -75,6 +75,15 @@ describe('SosEngine playerMove', () => {
     expect(r.over || r.turn === 'player').toBe(true)
   })
 
+  it('awards a combo bonus for a multi-SOS move', () => {
+    const e = new SosEngine({ boardSize: 8 })
+    // Placing O at 9 completes BOTH diagonals: (0,9,18) and (2,9,16).
+    e.board[0] = 'S'; e.board[18] = 'S'; e.board[2] = 'S'; e.board[16] = 'S'
+    const r = e.playerMove(9, 'O')
+    expect(r.formed.length).toBe(2)
+    expect(r.scores.player).toBe(3)        // 2 lines + 1 combo bonus
+  })
+
   it('rejects bad input', () => {
     const e = new SosEngine({ boardSize: 8 })
     expect(e.playerMove(0, 'X').valid).toBe(false)
