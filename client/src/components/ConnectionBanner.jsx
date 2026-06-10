@@ -2,14 +2,15 @@ import { useLocation } from 'react-router-dom'
 import { useSocket } from '../contexts/SocketContext.jsx'
 
 // Shows a small banner whenever the socket drops and is trying to reconnect, so
-// players understand a stall is their connection (not a frozen game). This only
-// matters where a live socket drives the screen — an active room or a spectated
-// match. Everywhere else (login, home, a plain page refresh) a brief reconnect
-// is just noise, so we stay quiet there.
+// players understand a stall is their connection (not a frozen game). Rooms
+// already render their own "you're offline — reconnecting…" banner, so showing
+// this pill there too would just overlap it; we only need it on the spectator
+// view (which has no banner of its own). Everywhere else a brief reconnect is
+// just noise, so we stay quiet.
 export default function ConnectionBanner() {
   const { reconnecting } = useSocket()
   const { pathname } = useLocation()
-  const onLiveRoute = pathname.startsWith('/room/') || pathname.startsWith('/spectate')
+  const onLiveRoute = pathname.startsWith('/spectate')
   if (!reconnecting || !onLiveRoute) return null
 
   return (
