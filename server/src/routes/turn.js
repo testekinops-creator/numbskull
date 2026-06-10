@@ -16,7 +16,11 @@ let cache = null
 const CACHE_MS = 60 * 60 * 1000   // 1 hour
 
 turnRouter.get('/', async (_req, res) => {
-  if (!DOMAIN || !API_KEY) return res.json({ success: true, data: { iceServers: [] } })
+  // `reason`/`detail` are diagnostics only (never any secret) so we can tell why
+  // the list is empty without reading server logs.
+  if (!DOMAIN || !API_KEY) {
+    return res.json({ success: true, data: { iceServers: [], reason: 'not-configured', has: { domain: !!DOMAIN, key: !!API_KEY } } })
+  }
   if (cache && cache.expiresAt > Date.now()) {
     return res.json({ success: true, data: { iceServers: cache.iceServers } })
   }
@@ -29,6 +33,6 @@ turnRouter.get('/', async (_req, res) => {
     res.json({ success: true, data: { iceServers } })
   } catch (err) {
     logger.warn({ err: err.message }, 'TURN credentials fetch failed')
-    res.json({ success: true, data: { iceServers: [] } })   // client keeps its fallback
+    res.json({ success: true, data: { iceServers: [], reason: 'metered-error', detail: String(err.message).slice(0, 120) } })
   }
 })
