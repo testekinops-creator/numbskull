@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSocket } from '../contexts/SocketContext.jsx'
+import { api } from '../services/api.js'
 
 // ICE servers: STUN locates peers; TURN relays media when a direct path can't
 // form (mobile data / symmetric NAT) — without TURN, calls "connect" but stay
@@ -53,6 +54,24 @@ const CONNECT_TIMEOUT_MS = 15000
 const MAX_ICE_RESTARTS = 4        // auto-reconnect attempts before we give up
 const DISCONNECT_GRACE_MS = 4000  // let a transient 'disconnected' self-heal first
 
+// Live ICE servers = our built-in STUN/open-relay fallback PLUS the Metered TURN
+// credentials our server hands out (the API key stays server-side). Cached for an
+// hour; any failure falls back to the static list, so calls still work.
+let _iceCache = null
+const ICE_TTL_MS = 60 * 60 * 1000
+async function fetchIceServers() {
+  if (_iceCache && Date.now() - _iceCache.ts < ICE_TTL_MS) return _iceCache.servers
+  try {
+    const { iceServers } = await api.get('/turn')
+    if (Array.isArray(iceServers) && iceServers.length) {
+      const servers = [...iceServers, ...ICE_SERVERS]
+      _iceCache = { servers, ts: Date.now() }
+      return servers
+    }
+  } catch { /* fall through to the static list */ }
+  return ICE_SERVERS
+}
+
 // Peer-to-peer voice call over WebRTC, signalled through the room socket.
 // callState: 'idle' | 'calling' | 'connecting' | 'connected'
 // Direct-connect: an incoming offer auto-accepts (no manual Accept/Decline).
@@ -78,6 +97,14 @@ export function useVoiceCall(roomId) {
   const wasConnectedRef = useRef(false) // only auto-reconnect a call that actually linked
   const restartsRef     = useRef(0)
   const disconnectTimer = useRef(null)
+  const iceServersRef   = useRef(ICE_SERVERS)  // refreshed with Metered TURN before a call
+
+  // Pull fresh ICE servers (Metered TURN) so the PeerConnection is built with them.
+  const ensureIce = useCallback(async () => {
+    try { iceServersRef.current = await fetchIceServers() } catch { /* keep current */ }
+  }, [])
+  // Warm the cache on room entry so the first call doesn't wait on the fetch.
+  useEffect(() => { ensureIce() }, [ensureIce])
 
   const cleanup = useCallback(() => {
     clearTimeout(connectTimer.current)
@@ -171,7 +198,7 @@ export function useVoiceCall(roomId) {
   const unlockAudio = useCallback(() => { playRemote() }, [playRemote])
 
   const createPc = useCallback(() => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current })
     pc.onicecandidate = (e) => {
       if (e.candidate) socket?.emit('call:ice', { roomId, candidate: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate })
     }
@@ -237,6 +264,7 @@ export function useVoiceCall(roomId) {
     setError(null)
     try {
       const stream = await getMic()
+      await ensureIce()                        // fresh Metered TURN before building the PC
       const pc = createPc()
       isCallerRef.current = true               // we offer → we drive ICE restarts
       stream.getTracks().forEach(t => pc.addTrack(t, stream))
@@ -257,6 +285,7 @@ export function useVoiceCall(roomId) {
     setError(null)
     try {
       const stream = await getMic()
+      await ensureIce()                        // fresh Metered TURN before building the PC
       const pc = createPc()
       isCallerRef.current = false              // we answer → caller drives ICE restarts
       stream.getTracks().forEach(t => pc.addTrack(t, stream))
