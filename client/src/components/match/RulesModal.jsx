@@ -78,6 +78,24 @@ const RULES = {
       { h: 'Winning', p: 'When the board is full, the player with the most S‑O‑S lines wins. Equal lines is a draw.' },
     ],
   },
+  RMCS: {
+    title: '👑 Raja Mantri Chor Sipahi',
+    sections: [
+      { h: 'Goal', p: 'Four players, four secret roles each round: Raja (1000), Mantri (800), Sipahi (500), Chor (0). Highest total when the host ends the game wins.' },
+      { h: 'Each round', list: [
+        'Tap your chit to see your secret role — poker face on.',
+        'When all four reveal, the Raja and Mantri are announced.',
+        'The other two stay hidden: one Sipahi, one Chor.',
+      ] },
+      { h: 'The hunt', list: [
+        'The Mantri has 60 seconds to accuse one of the two hidden players.',
+        'Caught the Chor → Mantri keeps 800, Sipahi gets 500, Chor gets 0.',
+        'Wrong → the Chor ESCAPES with the Mantri’s 800!',
+        'Chat and emoji stay open — bluff, accuse, mislead.',
+      ] },
+      { h: 'Rounds', p: 'The host deals the next round (new secret roles) or ends the game. Totals carry across rounds.' },
+    ],
+  },
   GTN: {
     title: '🎯 Guess The Number',
     sections: [

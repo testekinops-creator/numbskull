@@ -23,6 +23,12 @@ const STEPS = {
     { emoji: '🎰', title: 'Wedges change everything', body: "💀 Bankrupt wipes your bank · 🛡️ Shield blocks it · 🔥/💰/🦹 load you up · ❄️ Freeze chills a rival's turn. Land smart." },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you play.' },
   ],
+  rmcs: [
+    { emoji: '👑', title: 'Four secret roles', body: 'Every round deals Raja (1000), Mantri (800), Sipahi (500) and Chor (0) — in secret. Tap your chit to see yours. Keep a straight face.' },
+    { emoji: '📣', title: 'Two get exposed', body: 'Once all four reveal, the Raja and Mantri are announced. The other two stay hidden — one honest Sipahi, one lying Chor.' },
+    { emoji: '🕵️', title: 'The Mantri hunts', body: 'The Mantri has 60s to accuse one of the two. Right: Mantri keeps 800. Wrong: the Chor ESCAPES with the 800!' },
+    { emoji: '🥷', title: 'Bluff your way out', body: 'Chat and emoji stay open while the Mantri decides — mislead, provoke, deny. Highest total when the host ends wins.' },
+  ],
 }
 
 export default function MultiplayerTutorial({ variant = 'guess', onDone }) {

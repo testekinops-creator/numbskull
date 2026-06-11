@@ -66,6 +66,22 @@ const ROASTS = {
       'Dead even. The board is as confused as you are.',
     ],
   },
+  RMCS: {
+    win: [
+      'Crowned in a game of liars. Says a lot about your skill set.',
+      'Top of the court. The Chor respects you. The Chor IS you, probably.',
+      'You read faces like a cheap palm reader — and somehow it worked.',
+    ],
+    lose: [
+      'Outbluffed by your own friends. Awkward family dinner energy.',
+      'The Chor walked off with the points AND your dignity.',
+      'Four roles in the game and yours was apparently "decoration".',
+    ],
+    draw: [
+      'A tie in a bluffing game means nobody believed anybody. Healthy.',
+      'Even the Raja is embarrassed by this scoreline.',
+    ],
+  },
 }
 
 export function getModeRoast(mode, event) {

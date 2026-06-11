@@ -16,9 +16,17 @@ import {
   countOf, isAllRevealed, maskAnswer, normalizeSolve, isVowel, isConsonant, distinctLetters,
 } from '../game/engines/SpinBattleEngine.js'
 import { recordResult } from '../game/MonthlyLeaderboard.js'
+import { ROLE_POINTS, assignRoles, scoreRound } from '../game/rmcs.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS'])
+
+// Raja Mantri Chor Sipahi: the Mantri's window to pick the Chor. On expiry the
+// server auto-picks a random suspect so a stalling Mantri can't freeze the room.
+const RMCS_GUESS_MS = 60_000
+// Window for everyone to tap their chit. On expiry unrevealed chits are flipped
+// by the server — an AFK/dropped player can never freeze the round at REVEAL.
+const RMCS_REVEAL_MS = 30_000
 
 // SOS: per-move timer. On expiry we auto-claim any owed lines and pass the turn
 // — never forfeit the whole match.
@@ -125,6 +133,10 @@ export function registerMatchHandlers(io, socket) {
       if (!MATCH_MODES.has(room.mode)) return ack?.({ ok: false, error: 'Wrong mode' })
       if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can start' })
       if (room.players.length < 2) return ack?.({ ok: false, error: 'Need at least 2 players' })
+      // Hidden-role math only works with the full court of 4.
+      if (room.mode === 'RMCS' && room.players.length !== 4) {
+        return ack?.({ ok: false, error: 'Raja Mantri needs exactly 4 players' })
+      }
       if (room.phase !== 'LOBBY' && room.phase !== 'SETUP') return ack?.({ ok: false, error: 'Already started' })
       socket.join(roomId)
       await _startMatch(io, roomId)
@@ -624,6 +636,116 @@ export function registerMatchHandlers(io, socket) {
     } catch (err) { logger.error({ err }, 'spin:solve error'); ack?.({ ok: false, error: err.message }) }
   })
 
+  // ── RMCS: tap your chit to reveal your own role ───────────────────────────
+  socket.on('rmcs:reveal', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      const m = room.match
+      if (!m || m.stage !== 'REVEAL') return ack?.({ ok: false, error: 'Not in reveal stage' })
+      if (!m.roles?.[playerId]) return ack?.({ ok: false, error: 'Not a player in this room' })
+
+      let allRevealed = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        if (!mm || mm.stage !== 'REVEAL') return
+        mm.revealed[playerId] = true
+        // All four chits up → announce Raja+Mantri, open the Mantri's guess window.
+        if (Object.keys(mm.revealed).length === Object.keys(mm.roles).length) {
+          mm.stage = 'GUESS'
+          mm.revealEndsAt = null
+          mm.guessEndsAt = Date.now() + RMCS_GUESS_MS
+          allRevealed = true
+        }
+      })
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('rmcs:update', { match: _publicMatch(updated.match), by: playerId })
+      ack?.({ ok: true })
+      if (allRevealed) _armRmcsStageTimer(io, roomId, RMCS_GUESS_MS)
+    } catch (err) {
+      logger.error({ err }, 'rmcs:reveal error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── RMCS: the Mantri picks a suspect ──────────────────────────────────────
+  socket.on('rmcs:guess', async ({ roomId, suspectId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      const m = room.match
+      if (!m || m.stage !== 'GUESS') return ack?.({ ok: false, error: 'Not guessing now' })
+      const byRole = _rmcsByRole(m.roles)
+      if (playerId !== byRole.MANTRI) return ack?.({ ok: false, error: 'Only the Mantri guesses' })
+      if (suspectId !== byRole.CHOR && suspectId !== byRole.SIPAHI) {
+        return ack?.({ ok: false, error: 'Invalid suspect' })
+      }
+      await _resolveRmcsGuess(io, roomId, suspectId, false)
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'rmcs:guess error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── RMCS: host deals the next round (totals carry over) ───────────────────
+  socket.on('rmcs:next', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can continue' })
+      if (room.match?.stage !== 'RESULT') return ack?.({ ok: false, error: 'Round still in progress' })
+      if (room.players.length !== 4) return ack?.({ ok: false, error: 'Need all 4 players' })
+
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        mm.roles = assignRoles(r.players.map(p => p.id))
+        mm.revealed = {}
+        mm.stage = 'REVEAL'
+        mm.round += 1
+        mm.lastRound = null
+        mm.guessEndsAt = null
+        mm.revealEndsAt = Date.now() + RMCS_REVEAL_MS
+      })
+      const updated = await roomManager.get(roomId)
+      // Per-viewer emit — each player gets their NEW private role.
+      for (const p of updated.players) {
+        const s = _findSocket(io, p.id)
+        s?.emit('rmcs:round', _matchView(updated, p.id))
+      }
+      _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS)
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'rmcs:next error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── RMCS: host ends the session → final standings ─────────────────────────
+  socket.on('rmcs:end', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can end the game' })
+      if (room.match?.stage !== 'RESULT') return ack?.({ ok: false, error: 'Finish the round first' })
+
+      const ranking = _rmcsRanking(room)
+      await _endMatch(io, roomId, { winnerId: ranking[0]?.id || null, draw: false, ranking, reason: 'complete' })
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'rmcs:end error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
   // ── Forfeit (explicit "I give up") ────────────────────────────────────────
   socket.on('match:forfeit', async ({ roomId } = {}, ack) => {
     try {
@@ -778,6 +900,30 @@ async function _startMatch(io, roomId) {
     })
   }
 
+  if (room.mode === 'RMCS') {
+    // 4-player hidden-role game. Roles live ONLY on the server; each player gets
+    // just their own role via the per-viewer _matchView. Totals accumulate across
+    // host-dealt rounds inside one match.
+    const ids = room.players.map(p => p.id)
+    const seq = room.gameSeq || 0
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.gameSeq = seq + 1
+      r.match = {
+        kind:     'RMCS',
+        roles:    assignRoles(ids),    // server-only — stripped in _publicMatch
+        revealed: {},                  // playerId -> true once their chit is tapped
+        stage:    'REVEAL',            // REVEAL → GUESS → RESULT
+        round:    1,
+        totals:   Object.fromEntries(ids.map(id => [id, 0])),
+        lastRound: null,               // { roles, guessedId, correct, gained, timeout }
+        guessEndsAt: null,
+        revealEndsAt: Date.now() + RMCS_REVEAL_MS,
+      }
+    })
+  }
+
   const updated = await roomManager.get(roomId)
   for (const p of updated.players) {
     const s = _findSocket(io, p.id)
@@ -788,6 +934,82 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
   if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'SOS')  _startSosTimer(io, roomId, updated.match.turnId)
+  if (updated.mode === 'RMCS') _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS)
+}
+
+// ── RMCS helpers ──────────────────────────────────────────────────────────────
+// Invert { playerId: role } → { role: playerId }.
+function _rmcsByRole(roles = {}) {
+  return Object.fromEntries(Object.entries(roles).map(([id, role]) => [role, id]))
+}
+
+// Session standings from cumulative totals (sorted desc, ranks assigned).
+function _rmcsRanking(room) {
+  const totals = room.match?.totals || {}
+  return [...room.players]
+    .map(p => ({ id: p.id, name: p.name, total: totals[p.id] || 0 }))
+    .sort((a, b) => b.total - a.total)
+    .map((e, i) => ({ ...e, rank: i + 1 }))
+}
+
+// Score the Mantri's pick (or the timeout auto-pick) and move to RESULT.
+async function _resolveRmcsGuess(io, roomId, suspectId, timeout) {
+  clearTimer(roomId)
+  let resolved = false
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    if (!mm || mm.stage !== 'GUESS') return
+    const correct = mm.roles[suspectId] === 'CHOR'
+    const pts = scoreRound(correct)
+    const gained = {}
+    for (const [id, role] of Object.entries(mm.roles)) {
+      gained[id] = pts[role]
+      mm.totals[id] = (mm.totals[id] || 0) + pts[role]
+    }
+    mm.stage = 'RESULT'
+    mm.guessEndsAt = null
+    // Roles become public knowledge here — the round is decided.
+    mm.lastRound = { roles: { ...mm.roles }, guessedId: suspectId, correct, gained, timeout }
+    resolved = true
+  })
+  if (!resolved) return
+  const updated = await roomManager.get(roomId)
+  io.to(roomId).emit('rmcs:result', { match: _publicMatch(updated.match) })
+}
+
+// Anti-stall stage timer. ONE callback per room (getTimer caches the first
+// callback it's given), so it dispatches on the CURRENT stage when it fires:
+//   REVEAL lapsed → force-flip the remaining chits and open the guess window;
+//   GUESS lapsed  → auto-pick a random suspect for the stalling Mantri.
+function _armRmcsStageTimer(io, roomId, ms) {
+  const timer = getTimer(roomId, async (rid) => {
+    const room = await roomManager.get(rid)
+    if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING') return
+    const m = room.match
+    if (!m) return
+
+    if (m.stage === 'REVEAL') {
+      await roomManager.update(rid, r => {
+        const mm = r.match
+        if (!mm || mm.stage !== 'REVEAL') return
+        for (const id of Object.keys(mm.roles)) mm.revealed[id] = true
+        mm.stage = 'GUESS'
+        mm.revealEndsAt = null
+        mm.guessEndsAt = Date.now() + RMCS_GUESS_MS
+      })
+      const updated = await roomManager.get(rid)
+      io.to(rid).emit('rmcs:update', { match: _publicMatch(updated.match), by: null, autoRevealed: true })
+      _armRmcsStageTimer(io, rid, RMCS_GUESS_MS)
+      return
+    }
+
+    if (m.stage === 'GUESS') {
+      const byRole = _rmcsByRole(m.roles)
+      const suspects = [byRole.CHOR, byRole.SIPAHI]
+      await _resolveRmcsGuess(io, rid, suspects[Math.floor(Math.random() * 2)], true)
+    }
+  })
+  timer.start(ms)
 }
 
 function _nextInOrder(players, fromId) {
@@ -1069,7 +1291,18 @@ async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = 
 // A player left/disconnected from a party room mid-game — keep the match going.
 export async function onPartyPlayerLeft(io, roomId, leftId) {
   const room = await roomManager.get(roomId)
-  if (!room || room.mode !== 'SPIN' || room.phase !== 'PLAYING') return
+  if (!room || room.phase !== 'PLAYING') return
+
+  // RMCS: a 4-player hidden-role round can't continue with 3 — void the round
+  // in progress and close with final standings from the totals so far.
+  if (room.mode === 'RMCS') {
+    if (!room.match) return
+    clearTimer(roomId)
+    const ranking = _rmcsRanking(room)
+    return _endMatch(io, roomId, { winnerId: ranking[0]?.id || null, draw: false, ranking, reason: 'player-left' })
+  }
+
+  if (room.mode !== 'SPIN') return
   const mm = room.match
   if (!mm) return
   // Drop below 2 → end the match (last player standing wins).
@@ -1155,6 +1388,11 @@ function _matchView(room, viewerId) {
     match.myWrongLetters = room.match.wrongGuesses?.[viewerId] || []
     match.countdownMs = _spinCountdownMs(room.match)
     match.turnCountdownMs = room.match.turnEndsAt ? Math.max(0, room.match.turnEndsAt - Date.now()) : 0
+  }
+  if (match?.kind === 'RMCS') {
+    // The ONLY private bit: your own chit.
+    match.myRole = room.match.roles?.[viewerId] || null
+    match.myRolePoints = match.myRole ? ROLE_POINTS[match.myRole] : null
   }
   return { room: _roomSummary(room), match, you: viewerId }
 }
@@ -1247,6 +1485,28 @@ function _publicMatch(match) {
       pendingBy: match.pendingBy || null,
     }
   }
+  if (match.kind === 'RMCS') {
+    // Strip `roles` — they're server-only until the round resolves (lastRound
+    // carries the full reveal, but it's only ever set at stage RESULT).
+    const pub = {
+      kind:     'RMCS',
+      stage:    match.stage,
+      round:    match.round,
+      revealed: match.revealed || {},
+      totals:   match.totals || {},
+      lastRound: match.lastRound || null,
+      guessCountdownMs:  match.guessEndsAt  ? Math.max(0, match.guessEndsAt - Date.now())  : 0,
+      revealCountdownMs: match.revealEndsAt ? Math.max(0, match.revealEndsAt - Date.now()) : 0,
+    }
+    if (match.stage !== 'REVEAL') {
+      const byRole = _rmcsByRole(match.roles)
+      pub.rajaId   = byRole.RAJA
+      pub.mantriId = byRole.MANTRI
+      // Sorted so the array ORDER can never leak which suspect is the Chor.
+      pub.suspects = [byRole.CHOR, byRole.SIPAHI].sort()
+    }
+    return pub
+  }
   return match
 }
 
@@ -1281,6 +1541,7 @@ function _roomSummary(room) {
     players: room.players.map(p => ({ id: p.id, name: p.name, ready: p.ready, score: p.score })),
     hostId: room.hostId,
     spectatorCount: room.spectators?.length || 0,
+    createdAt: room.createdAt,   // lets the lobby show a truthful "waiting for…" clock
   }
 }
 

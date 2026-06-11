@@ -30,6 +30,22 @@ export function celebrateSos({ x = 0.5, y = 0.5 } = {}, combo = 1) {
   })
 }
 
+// Raja Mantri chit reveal — a tight golden burst right where the card flipped
+// (origin in normalised screen coords).
+export function celebrateChit({ x = 0.5, y = 0.5 } = {}) {
+  if (reduced()) return
+  confetti({
+    particleCount: 45,
+    spread: 70,
+    startVelocity: 28,
+    scalar: 0.9,
+    origin: { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) },
+    colors: ['#FFD740', '#FFC107', '#FFF3C4', '#00F5FF'],
+    ticks: 110,
+    zIndex: 1300,
+  })
+}
+
 // Small gold pop for a badge unlock.
 export function celebrateBadge() {
   if (reduced()) return

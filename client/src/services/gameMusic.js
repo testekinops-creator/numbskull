@@ -51,6 +51,7 @@ const THEMES = {
   BC:      { root: 233.08, bpm: 84,  wave: 'triangle', cutoff: 1800, prog: 'C' }, // playful
   XOX:     { root: 196.00, bpm: 88,  wave: 'sine',     cutoff: 1700, prog: 'C' }, // retro
   SOS:     { root: 207.65, bpm: 74,  wave: 'sine',     cutoff: 1500, prog: 'A' }, // focused
+  RMCS:    { root: 246.94, bpm: 80,  wave: 'triangle', cutoff: 1900, prog: 'C' }, // regal intrigue
   default: { root: 220.00, bpm: 78,  wave: 'sine',     cutoff: 1500, prog: 'A' },
 }
 const ARP = [0, 2, 1, 2, 0, 1, 2, 1]   // chord-note index per 8th-note step

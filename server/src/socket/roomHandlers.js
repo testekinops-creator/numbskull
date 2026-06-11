@@ -12,6 +12,8 @@ export function registerRoomHandlers(io, socket) {
   // ── Create room ──────────────────────────────────────────────────────────
   socket.on('room:create', async ({ mode = 'GTN', difficulty = 'medium', isPublic = true, maxPlayers = 2 } = {}, ack) => {
     try {
+      // Raja Mantri Chor Sipahi is exactly-4 by rule — ignore whatever the client sent.
+      if (mode === 'RMCS') maxPlayers = 4
       const room = await roomManager.create({ hostId: playerId, hostName: playerName, mode, difficulty, isPublic, maxPlayers })
       socket.join(room.id)
       ack?.({ ok: true, room: sanitize(room, playerId) })
@@ -161,6 +163,10 @@ export function registerRoomHandlers(io, socket) {
       snapshot.match.myWrongLetters = room.match?.wrongGuesses?.[playerId] || []
       snapshot.match.countdownMs = room.match?.nextRoundAt ? Math.max(0, room.match.nextRoundAt - Date.now()) : 0
       snapshot.match.turnCountdownMs = room.match?.turnEndsAt ? Math.max(0, room.match.turnEndsAt - Date.now()) : 0
+    }
+    // RMCS: re-deliver the reconnecting player's own (still-secret) role.
+    if (snapshot.match?.kind === 'RMCS') {
+      snapshot.match.myRole = room.match?.roles?.[playerId] || null
     }
     // Tell the reconnecting player who's actually live right now: if an opponent
     // is mid-grace (locked / dropped) the client must show the "waiting…" state
@@ -357,6 +363,7 @@ function sanitize(room, viewerId) {
     spectatorCount: room.spectators.length,
     round: room.round ? sanitizeRound(room.round, viewerId) : null,
     hostId: room.hostId,
+    createdAt: room.createdAt,   // lets the lobby show a truthful "waiting for…" clock
   }
 }
 

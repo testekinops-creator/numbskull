@@ -22,6 +22,7 @@ import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
 import SosBoard from './SosBoard.jsx'
+import RmcsMatch from './RmcsMatch.jsx'
 import RulesFab from './RulesFab.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
@@ -32,7 +33,7 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS' }
+const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri' }
 
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
@@ -40,6 +41,7 @@ export default function MatchRoom({ roomId, mode }) {
     state, matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     spinSpin, spinGuess, spinVowel, spinSolve,
+    rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -196,6 +198,19 @@ export default function MatchRoom({ roomId, mode }) {
 
   function openChat() { setChatOpen(true); clearUnreadChat() }
 
+  // Live "how long have we been waiting" clock for the pre-game lobby. Driven by
+  // the server's room.createdAt, so it survives refreshes and is the same for
+  // every player.
+  const [nowTs, setNowTs] = useState(Date.now())
+  const inLobbyPhase = phase === 'LOBBY' || phase === 'SETUP'
+  useEffect(() => {
+    if (!inLobbyPhase) return
+    const id = setInterval(() => setNowTs(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [inLobbyPhase])
+  const waitMs = room?.createdAt ? Math.max(0, nowTs - room.createdAt) : 0
+  const waitClock = `${Math.floor(waitMs / 60000)}:${String(Math.floor(waitMs / 1000) % 60).padStart(2, '0')}`
+
   function copyCode() {
     navigator.clipboard?.writeText(room.code).then(() => {
       setCopied(true)
@@ -266,7 +281,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   return (
     <div className="screen">
-      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : 'match'} />
+      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : 'match'} />
       <RulesFab mode={mode} />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
@@ -345,6 +360,7 @@ export default function MatchRoom({ roomId, mode }) {
           isParty ? (
             <div className={styles.partyLobby}>
               <p className={styles.partyTitle}>Party room · {room.players.length}/{room.maxPlayers}</p>
+              <p className={styles.waitClock}>⏱ Waiting {waitClock}</p>
               <ul className={styles.partyList}>
                 {room.players.map(p => (
                   <li key={p.id} className={styles.partyItem}>
@@ -355,9 +371,13 @@ export default function MatchRoom({ roomId, mode }) {
               <p className={styles.partyCode}>Share code: <b>{room.code}</b></p>
               {isHost ? (
                 <>
+                  {/* RMCS needs the full court of 4; other party modes start at 2+. */}
                   <button className="btn btn-juice btn-lg" style={{ width: '100%' }}
-                    disabled={room.players.length < 2 || starting} onClick={doHostStart}>
-                    {starting ? 'Starting…' : room.players.length < 2 ? 'Waiting for players…' : `Start · ${room.players.length} players`}
+                    disabled={room.players.length < (mode === 'RMCS' ? 4 : 2) || starting} onClick={doHostStart}>
+                    {starting ? 'Starting…'
+                      : mode === 'RMCS' && room.players.length < 4 ? `Waiting for players… ${room.players.length}/4`
+                      : room.players.length < 2 ? 'Waiting for players…'
+                      : `Start · ${room.players.length} players`}
                   </button>
                   {startErr && <p className={roomStyles.errorText || ''} style={{ color: 'var(--color-pink)', marginTop: 8 }}>{startErr}</p>}
                 </>
@@ -367,7 +387,7 @@ export default function MatchRoom({ roomId, mode }) {
             </div>
           ) : (
             <p className={roomStyles.waitingText}>
-              {opponent ? 'Starting…' : `Waiting for an opponent to join…`}
+              {opponent ? 'Starting…' : <>Waiting for an opponent to join… <b>⏱ {waitClock}</b></>}
             </p>
           )
         )}
@@ -461,6 +481,18 @@ export default function MatchRoom({ roomId, mode }) {
                 onSolve={(t) => { unlock(); spinSolve(roomId, t) }}
               />
             )}
+            {mode === 'RMCS' && match.stage && (
+              <RmcsMatch
+                match={match}
+                you={playerId}
+                players={room.players}
+                hostId={room.hostId}
+                onReveal={() => rmcsReveal(roomId)}
+                onGuess={(suspectId) => rmcsGuess(roomId, suspectId)}
+                onNext={() => rmcsNext(roomId)}
+                onEnd={() => rmcsEnd(roomId)}
+              />
+            )}
             {mode === 'SOS' && match.board && (() => {
               const myPending = match.pendingBy === playerId ? (match.pending || []) : []
               const claiming = myPending.length > 0
@@ -508,12 +540,19 @@ export default function MatchRoom({ roomId, mode }) {
               <ol className={styles.rankList}>
                 {state.ranking.map(r => (
                   <li key={r.id} className={`${styles.rankItem} ${r.id === playerId ? styles.rankYou : ''}`}>
-                    <span className={styles.rankPos}>{r.rank === 1 ? '🏆' : `#${r.rank}`}</span>
+                    <span className={styles.rankPos}>{r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `#${r.rank}`}</span>
                     <span className={styles.rankName}>{r.name}{r.id === playerId ? ' (you)' : ''}</span>
-                    <span className={styles.rankWins}>{r.roundWins}W</span>
-                    <span className={`${styles.rankTrophy} ${r.trophies >= 0 ? styles.trophyPos : styles.trophyNeg}`}>
-                      {r.trophies >= 0 ? `+${r.trophies}` : r.trophies}🏆
-                    </span>
+                    {/* SPIN rankings carry roundWins/trophies; RMCS carries point totals. */}
+                    {r.total != null ? (
+                      <span className={styles.rankWins}>{r.total} pts</span>
+                    ) : (
+                      <>
+                        <span className={styles.rankWins}>{r.roundWins}W</span>
+                        <span className={`${styles.rankTrophy} ${r.trophies >= 0 ? styles.trophyPos : styles.trophyNeg}`}>
+                          {r.trophies >= 0 ? `+${r.trophies}` : r.trophies}🏆
+                        </span>
+                      </>
+                    )}
                   </li>
                 ))}
               </ol>

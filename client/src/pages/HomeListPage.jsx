@@ -59,6 +59,13 @@ const GAMES = [
     desc: 'Place S or O, spell S‑O‑S in any direction, draw the line to score.',
     accent: 'var(--color-juice)',
   },
+  {
+    mode: 'RMCS',
+    icon: '👑',
+    name: 'Raja Mantri',
+    desc: 'The classic Raja Mantri Chor Sipahi — read faces, bluff hard, catch the Chor. 4 players.',
+    accent: 'var(--color-warning)',
+  },
 ]
 
 export default function HomeListPage() {

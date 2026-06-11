@@ -209,6 +209,22 @@ function reducer(state, action) {
         sosLastCell: action.lastCell !== undefined ? action.lastCell : state.sosLastCell,
       }
 
+    // RMCS: public match patch (reveal progress / stage moves / round result).
+    // Merging preserves my private `myRole` (the patch never carries it).
+    case 'RMCS_UPDATE':
+      return {
+        ...state,
+        match: action.match ? { ...state.match, ...action.match } : state.match,
+      }
+
+    // RMCS: the host dealt a fresh round — per-viewer payload REPLACES the match
+    // (it carries my new private role; the old round's must not linger).
+    case 'RMCS_ROUND':
+      return {
+        ...state,
+        match: action.match || state.match,
+      }
+
     // Spin Battle: an action happened (spin / guess / vowel / solve / roundover).
     case 'SPIN_EVENT': {
       const p = action.payload || {}
@@ -558,6 +574,11 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'SOS_UPDATE', match, playerId })
     })
 
+    // RMCS (Raja Mantri): reveals/stage moves, round results, fresh deals.
+    socket.on('rmcs:update', ({ match } = {}) => dispatch({ type: 'RMCS_UPDATE', match }))
+    socket.on('rmcs:result', ({ match } = {}) => dispatch({ type: 'RMCS_UPDATE', match }))
+    socket.on('rmcs:round',  (view = {})      => dispatch({ type: 'RMCS_ROUND', match: view.match }))
+
     socket.on('math:question', (payload = {}) => {
       dispatch({ type: 'MATH_QUESTION', payload, playerId })
     })
@@ -665,6 +686,9 @@ export function RoomProvider({ children }) {
       socket.off('xox:roundover')
       socket.off('sos:update')
       socket.off('sos:claimed')
+      socket.off('rmcs:update')
+      socket.off('rmcs:result')
+      socket.off('rmcs:round')
       socket.off('math:question')
       socket.off('math:resolved')
       socket.off('sudoku:update')
@@ -752,6 +776,12 @@ export function RoomProvider({ children }) {
 
   const sosMove  = useCallback((roomId, cell, letter) => socket?.emit('sos:move',  { roomId, cell, letter }), [socket])
   const sosClaim = useCallback((roomId, cells)        => socket?.emit('sos:claim', { roomId, cells }),        [socket])
+
+  // RMCS (Raja Mantri) — acks let the UI surface "only the host…" style errors.
+  const rmcsReveal = useCallback((roomId)            => emitAck(socket, 'rmcs:reveal', { roomId }),            [socket])
+  const rmcsGuess  = useCallback((roomId, suspectId) => emitAck(socket, 'rmcs:guess',  { roomId, suspectId }), [socket])
+  const rmcsNext   = useCallback((roomId)            => emitAck(socket, 'rmcs:next',   { roomId }),            [socket])
+  const rmcsEnd    = useCallback((roomId)            => emitAck(socket, 'rmcs:end',    { roomId }),            [socket])
 
   const mathAnswer = useCallback((roomId, index, choice) => {
     socket?.emit('math:answer', { roomId, index, choice })
@@ -854,6 +884,7 @@ export function RoomProvider({ children }) {
       matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
       spinSpin, spinGuess, spinVowel, spinSolve,
+      rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd,
     }}>
       {children}
     </RoomContext.Provider>
