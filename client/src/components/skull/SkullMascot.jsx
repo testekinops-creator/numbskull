@@ -64,6 +64,10 @@ function SkullMascot({ expression = 'neutral', size = 120, glow = true, classNam
   const uid = expression // Use expression as a stable ID suffix for defs
 
   return (
+    // Keyed by expression: a mood change remounts the svg, replaying the wrapper's
+    // soft cross-fade (the fade lives here because the svg's own `animation` slot
+    // is taken by the glow classes).
+    <span key={expression} className={styles.expressionSwap}>
     <svg
       width={size}
       height={size}
@@ -263,6 +267,7 @@ function SkullMascot({ expression = 'neutral', size = 120, glow = true, classNam
       <ellipse cx="26" cy="70" rx="6" ry="4" fill="white" opacity="0.04" transform="rotate(-20 26 70)" />
       <ellipse cx="94" cy="70" rx="6" ry="4" fill="white" opacity="0.04" transform="rotate(20 94 70)" />
     </svg>
+    </span>
   )
 }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useAutoAnimate } from '@formkit/auto-animate/react'
 import { api } from '../../services/api.js'
 import styles from './ChatPanel.module.css'
@@ -65,7 +66,10 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
     setText('')
   }
 
-  return (
+  // Portaled to <body>: the sheet hides by sliding below the VIEWPORT, which
+  // only works if no ancestor (e.g. an animated .screen) becomes its containing
+  // block. Same pattern as the VoiceCall bar / toasts.
+  return createPortal(
     <>
       <div
         className={`${styles.backdrop} ${open ? styles.backdropVisible : ''}`}
@@ -115,6 +119,7 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
           <button type="submit" className={styles.sendBtn} disabled={!text.trim()}>Send</button>
         </form>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }

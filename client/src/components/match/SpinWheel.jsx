@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useSound } from '../../hooks/useSound.js'
+import { useHaptic } from '../../hooks/useHaptic.js'
 import styles from './SpinWheel.module.css'
 
 export const SPIN_MS = 3600
@@ -44,11 +45,18 @@ function fillFor(v, i) {
 
 // Server-authoritative wheel: it only animates to `targetIndex` (decided by the
 // server). `nonce` bumps each spin so the same index re-triggers the animation.
+// Overshoot past the target by a few degrees, then spring back — the wheel
+// "settles" with momentum instead of stopping dead.
+const OVERSHOOT_DEG = 2.4
+const SETTLE_MS = 420
+
 export default function SpinWheel({ segments = [], targetIndex = 0, nonce = 0, spinning = false, onSettle }) {
   const [rotation, setRotation] = useState(0)
+  const [phase, setPhase] = useState('idle')   // idle | spin | settle
   const rotationRef = useRef(0)
-  const settleRef = useRef(null)
+  const timersRef = useRef([])
   const { playSpin } = useSound()
+  const { buzz } = useHaptic()
 
   useEffect(() => {
     if (!nonce) return
@@ -56,11 +64,17 @@ export default function SpinWheel({ segments = [], targetIndex = 0, nonce = 0, s
     const seg = 360 / n
     const base = Math.ceil(rotationRef.current / 360) * 360 + 360 * 4
     const final = base + (360 - (targetIndex * seg + seg / 2))
-    rotationRef.current = final
-    setRotation(final)
+    rotationRef.current = final               // store the TRUE final (no overshoot)
+    setPhase('spin')
+    setRotation(final + OVERSHOOT_DEG)
     playSpin(SPIN_MS)   // decelerating ticks + landing thunk, in sync with the spin
-    settleRef.current = setTimeout(() => onSettle?.(), SPIN_MS)
-    return () => clearTimeout(settleRef.current)
+    timersRef.current = [
+      // Landing: spring back the overshoot + a thunk in the hand.
+      setTimeout(() => { setPhase('settle'); setRotation(final); buzz('wrong') }, SPIN_MS),
+      setTimeout(() => onSettle?.(), SPIN_MS),
+      setTimeout(() => setPhase('idle'), SPIN_MS + SETTLE_MS),
+    ]
+    return () => timersRef.current.forEach(clearTimeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nonce])
 
@@ -69,7 +83,7 @@ export default function SpinWheel({ segments = [], targetIndex = 0, nonce = 0, s
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.pointer} aria-hidden="true" />
+      <div className={`${styles.pointer} ${phase === 'settle' ? styles.pointerWiggle : ''}`} aria-hidden="true" />
       <svg viewBox="0 0 200 200" className={styles.svg} role="img" aria-label="Prize wheel">
         <circle cx={CX} cy={CY} r={R + 3} className={styles.rim} />
         <g
@@ -77,7 +91,12 @@ export default function SpinWheel({ segments = [], targetIndex = 0, nonce = 0, s
             transformBox: 'fill-box',
             transformOrigin: 'center',
             transform: `rotate(${rotation}deg)`,
-            transition: spinning ? `transform ${SPIN_MS}ms cubic-bezier(0.18, 0.7, 0.22, 1)` : 'none',
+            transition:
+              phase === 'settle'
+                ? `transform ${SETTLE_MS}ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1))`
+                : spinning
+                  ? `transform ${SPIN_MS}ms cubic-bezier(0.18, 0.7, 0.22, 1)`
+                  : 'none',
           }}
         >
           {segments.map((v, i) => {

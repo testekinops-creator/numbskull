@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import CountUp from 'react-countup'
 import styles from './MathBattle.module.css'
+import { useHaptic } from '../../hooks/useHaptic.js'
 
 // Pure presentational Math Battle view. Both the AI page and the multiplayer
 // MatchRoom pass these props; neither game logic lives here.
@@ -14,6 +16,13 @@ export default function MathBattle({
   question, myScore = 0, oppScore = 0, oppName = 'Opponent',
   onAnswer, locked, myChoice, reveal, durationMs = 15000, solo = false, endless = false,
 }) {
+  const { buzz } = useHaptic()
+
+  // Haptic on MY reveal — a win pattern for a correct buzz, a short jolt for a miss.
+  useEffect(() => {
+    if (reveal?.byMe) buzz(reveal.correct ? 'correct' : 'wrong')
+  }, [reveal, buzz])
+
   if (!question) return null
   const { index, prompt, options, total } = question
 
@@ -63,7 +72,7 @@ export default function MathBattle({
             <button
               key={i}
               className={cls}
-              onClick={() => onAnswer?.(opt)}
+              onClick={() => { buzz('tap'); onAnswer?.(opt) }}
               disabled={locked}
             >
               {opt}

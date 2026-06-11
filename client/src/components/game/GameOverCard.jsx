@@ -18,7 +18,10 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
   useEffect(() => { if (isWin) celebrateWin() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className={`${styles.card} ${draw ? styles.loseCard : isWin ? styles.winCard : styles.loseCard} ${!isWin && !draw ? 'anim-screen-shake' : ''}`}>
+    // Shake lives on a wrapper: the card itself runs its `cardEnter` animation,
+    // and two `animation` declarations on one element override each other.
+    <div className={!draw ? 'anim-screen-shake' : undefined} style={!draw ? { animationDelay: '0.12s' } : undefined}>
+    <div className={`${styles.card} ${draw ? styles.loseCard : isWin ? styles.winCard : styles.loseCard}`}>
 
       {/* Win confetti is fired imperatively via canvas-confetti (see effect). */}
 
@@ -107,6 +110,7 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
           </button>
         </div>
       )}
+    </div>
     </div>
   )
 }

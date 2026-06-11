@@ -15,6 +15,7 @@ import ErrorBoundary         from './components/ErrorBoundary.jsx'
 import { initAnalytics }     from './services/analytics.js'
 import { SkipLink, useColorblindMode } from './components/AppShell.jsx'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js'
+import { useButtonHaptics } from './hooks/useButtonHaptics.js'
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal.jsx'
 
 // Eagerly loaded (critical path — first paint)
@@ -60,6 +61,7 @@ function PageFallback() {
 function AppInner() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   useKeyboardShortcuts(() => setShowShortcuts(s => !s))
+  useButtonHaptics()
 
   return (
     <>

@@ -1,4 +1,5 @@
 .board {
+  position: relative;   /* anchors the winning strike-line overlay */
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
@@ -77,6 +78,39 @@
   50%      { transform: scale(1.04); }
 }
 
+/* Winning strike-through — an SVG line that draws end-to-end (like the SOS claim). */
+.strikeOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.strikeLine {
+  stroke-width: 5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  /* Dash units are screen px (non-scaling-stroke) and the strike spans the whole
+     board (~435px diagonal at max width) — 600 keeps it one unbroken stroke. */
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: strikeDraw 0.55s var(--ease-out, ease-out) 0.15s forwards;
+}
+@keyframes strikeDraw { to { stroke-dashoffset: 0; } }
+
+.strikeX {
+  stroke: var(--color-juice, #00f5ff);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-juice, #00f5ff) 80%, transparent));
+}
+.strikeO {
+  stroke: var(--color-pink, #ff3e8a);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-pink, #ff3e8a) 80%, transparent));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .markGlyph, .winCell, .cell { animation: none; transition: none; }
+  .strikeLine { animation: none; stroke-dashoffset: 0; }
 }

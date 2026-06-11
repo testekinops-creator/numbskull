@@ -3,11 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useRoom } from '../contexts/RoomContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { useSound } from '../hooks/useSound.js'
+import { useHaptic } from '../hooks/useHaptic.js'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS'])
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS'])
 const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
@@ -31,6 +33,21 @@ export default function LobbyPage() {
   useEffect(() => { matchmakingRef.current = state.matchmaking }, [state.matchmaking])
   useEffect(() => () => { if (matchmakingRef.current) cancelQuickMatch() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // "Opponent found!" beat — a short celebration (flash + chime + buzz) before
+  // navigating, instead of an anticlimactic instant jump into the room.
+  const { playWin } = useSound()
+  const { buzz } = useHaptic()
+  const [found, setFound] = useState(false)
+  const foundTimerRef = useRef(null)
+  useEffect(() => () => clearTimeout(foundTimerRef.current), [])
+  function celebrateFound(roomId) {
+    if (foundTimerRef.current) return         // already celebrating
+    setFound(true)
+    playWin()
+    buzz('correct')
+    foundTimerRef.current = setTimeout(() => navigate(`/room/${roomId}`), 850)
+  }
+
   // Only auto-navigate when WE started matchmaking and then got paired.
   const startedMatchmakingRef = useRef(false)
   useEffect(() => {
@@ -38,7 +55,7 @@ export default function LobbyPage() {
     if (startedMatchmakingRef.current && !state.matchmaking &&
         state.room?.id && state.room.phase === 'SETUP') {
       startedMatchmakingRef.current = false
-      navigate(`/room/${state.room.id}`)
+      celebrateFound(state.room.id)
     }
   }, [state.matchmaking, state.room?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -46,9 +63,13 @@ export default function LobbyPage() {
   const isSudoku = mode === 'SUDOKU'
   // SOS carries its grid size in the `difficulty` field ('8' | '10').
   const isSos = mode === 'SOS'
+  // Raja Mantri: multiplayer-only (no AI — bluffing bots is hollow), exactly 4
+  // players, room-code only (no 4-player quick-match queue).
+  const isRmcs = mode === 'RMCS'
+  const mpOnly = isSudoku || isRmcs
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
-  const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
+  const [mpTab, setMpTab]   = useState(mode === 'RMCS' ? 'create' : 'quick')   // quick | create | join
   const [difficulty, setDifficulty] = useState(mode === 'SOS' ? '8' : 'medium')
   const [partySize, setPartySize] = useState(4)   // SPIN party rooms (3–8)
   const [joinCode, setJoinCode] = useState('')
@@ -75,12 +96,12 @@ export default function LobbyPage() {
     const res = await quickMatch(mode, difficulty)
     setBusy(false)
     if (!res?.ok) { setError(res?.error || 'Failed'); return }
-    if (res.matched) navigate(`/room/${res.room.id}`)
+    if (res.matched) celebrateFound(res.room.id)
   }
 
   async function handleCreate() {
     setBusy(true); setError('')
-    const maxPlayers = mode === 'SPIN' ? partySize : 2
+    const maxPlayers = mode === 'SPIN' ? partySize : mode === 'RMCS' ? 4 : 2
     const res = await createRoom({ mode, isPublic: true, difficulty, maxPlayers })
     setBusy(false)
     if (!res?.ok) { setError(res?.error || 'Failed'); return }
@@ -129,8 +150,8 @@ export default function LobbyPage() {
           </div>
         </div>
 
-        {/* Top tabs: AI vs Multiplayer — Sudoku is multiplayer-only, no AI tab */}
-        {!isSudoku && (
+        {/* Top tabs: AI vs Multiplayer — Sudoku/Raja Mantri are multiplayer-only, no AI tab */}
+        {!mpOnly && (
           <div className={styles.topTabs}>
             <button
               className={`${styles.topTab} ${topTab === 'multi' ? styles.topTabActive : ''}`}
@@ -163,7 +184,7 @@ export default function LobbyPage() {
         )}
 
         {/* ── AI tab ── */}
-        {!isSudoku && topTab === 'ai' && (
+        {!mpOnly && topTab === 'ai' && (
           <div className={`${styles.tabContent} ${styles.aiPanel} anim-slide-up`}>
             <p className={styles.hint}>
               {mode === 'XOX'
@@ -180,8 +201,8 @@ export default function LobbyPage() {
           </div>
         )}
 
-        {/* ── Multiplayer tab ── (always shown for Sudoku) */}
-        {(isSudoku || topTab === 'multi') && (
+        {/* ── Multiplayer tab ── (always shown for MP-only modes) */}
+        {(mpOnly || topTab === 'multi') && (
           <>
             {isSos && (
               <div className={styles.tabs} style={{ marginBottom: 'var(--space-3, 12px)' }}>
@@ -197,7 +218,11 @@ export default function LobbyPage() {
               </div>
             )}
             <div className={styles.tabs}>
-              {[['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']].map(([id, label]) => (
+              {/* RMCS: no 4-player quick-match queue — room code only. */}
+              {(isRmcs
+                ? [['create', '🏠 Create Room'], ['join', '🔑 Join Room']]
+                : [['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']]
+              ).map(([id, label]) => (
                 <button
                   key={id}
                   className={`${styles.tab} ${mpTab === id ? styles.activeTab : ''}`}
@@ -211,7 +236,12 @@ export default function LobbyPage() {
             <div className={`${styles.tabContent} anim-slide-up`}>
               {mpTab === 'quick' && (
                 <div className={styles.quickPanel}>
-                  {state.matchmaking ? (
+                  {found ? (
+                    <div className={styles.foundCard} role="status">
+                      <span className={styles.foundIcon}>⚔️</span>
+                      <span className={styles.foundText}>Opponent found!</span>
+                    </div>
+                  ) : state.matchmaking ? (
                     <>
                       <div className={styles.spinner} aria-label="Finding opponent" />
                       <p className={styles.waitText}>Looking for an opponent… <b>{fmtSecs(searchSecs)}</b></p>
@@ -241,6 +271,8 @@ export default function LobbyPage() {
                   <p className={styles.hint}>
                     {mode === 'SPIN'
                       ? 'Create a party room and share the code. The host starts when everyone’s in.'
+                      : mode === 'RMCS'
+                      ? 'Create a room and share the code with 3 friends — Raja Mantri needs exactly 4 players.'
                       : 'Create a private room and share the code with a friend.'}
                   </p>
                   {mode === 'SPIN' && (

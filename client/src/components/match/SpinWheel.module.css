@@ -46,4 +46,22 @@
   border-right: 12px solid transparent;
   border-top: 20px solid var(--color-warning, #ffd740);
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  transform-origin: 50% 0;   /* wiggle pivots from where it's mounted */
+}
+
+/* Landing wiggle — the pointer gets "clipped" by the settling wheel. */
+.pointerWiggle {
+  animation: pointerWiggle 0.42s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+@keyframes pointerWiggle {
+  0%   { transform: translateX(-50%) rotate(0deg); }
+  25%  { transform: translateX(-50%) rotate(-9deg); }
+  55%  { transform: translateX(-50%) rotate(5deg); }
+  80%  { transform: translateX(-50%) rotate(-2deg); }
+  100% { transform: translateX(-50%) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pointerWiggle { animation: none; }
 }

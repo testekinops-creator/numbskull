@@ -126,11 +126,28 @@
   border-color: var(--color-success, #00e676);
   background: color-mix(in srgb, var(--color-success, #00e676) 22%, var(--color-surface, #1b1b2e));
   color: #fff;
+  animation: answerPop 0.4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-success, #00e676) 40%, transparent);
 }
 
 .wrong {
   border-color: var(--color-pink, #ff3e8a);
   background: color-mix(in srgb, var(--color-pink, #ff3e8a) 22%, var(--color-surface, #1b1b2e));
+  animation: answerShake 0.4s var(--ease-default, ease);
+}
+
+@keyframes answerPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+@keyframes answerShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
 
 /* Reveal */
@@ -145,5 +162,5 @@
 .revealNeutral { color: var(--color-text-muted, #9a9ab0); }
 
 @media (prefers-reduced-motion: reduce) {
-  .option, .timerFill { animation: none; transition: none; }
+  .option, .timerFill, .correct, .wrong { animation: none; transition: none; }
 }

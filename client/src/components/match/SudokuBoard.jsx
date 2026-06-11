@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import styles from './SudokuBoard.module.css'
+import { useHaptic } from '../../hooks/useHaptic.js'
 
 // Collaborative Sudoku board. `match` carries grid/given/status/wrongOwner/
 // editLock/scores. All edits go through the on* handlers (server-authoritative).
@@ -7,6 +8,7 @@ export default function SudokuBoard({ match, playerId, opponentId, onLock, onUnl
   const [selected, setSelected] = useState(null)
   const selRef = useRef(null)
   selRef.current = selected
+  const { buzz } = useHaptic()
 
   // Release my lock when leaving the board.
   useEffect(() => () => { if (selRef.current != null) onUnlock?.(selRef.current) }, []) // eslint-disable-line
@@ -44,6 +46,7 @@ export default function SudokuBoard({ match, playerId, opponentId, onLock, onUnl
 
   function tapNumber(n) {
     if (selected == null) return
+    buzz('tap')
     onFill?.(selected, n)
   }
 

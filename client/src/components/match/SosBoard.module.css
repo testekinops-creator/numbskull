@@ -156,6 +156,25 @@
   100% { opacity: 0; transform: translate(-50%, -90%) scale(1); }
 }
 
+/* ── Claim "snap" flash — a ring that bursts where the drawn line landed ── */
+.snapFlash {
+  position: absolute;
+  z-index: 5;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;     /* center on the left/top % coordinates */
+  border-radius: 50%;
+  border: 3px solid var(--color-warning, #ffd740);
+  box-shadow: 0 0 18px rgba(255, 215, 64, 0.85);
+  pointer-events: none;
+  animation: snapRing 0.45s var(--ease-out, ease-out) forwards;
+}
+@keyframes snapRing {
+  0%   { opacity: 1; transform: scale(0.4); }
+  60%  { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(3.2); }
+}
+
 /* ── First-time coach-mark ────────────────────────────────────────────── */
 .coach {
   position: absolute;
@@ -182,4 +201,5 @@
   .pendingCell { animation: none; box-shadow: 0 0 0 2px rgba(255, 215, 64, 0.85) inset; }
   .sosLine { animation: none; stroke-dashoffset: 0; }
   .pop { animation: none; }
+  .snapFlash { animation: none; opacity: 0; }
 }

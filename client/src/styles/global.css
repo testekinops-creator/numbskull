@@ -77,8 +77,10 @@ input, textarea, select {
            max(var(--space-4), var(--safe-right))
            max(var(--space-4), var(--safe-bottom))
            max(var(--space-4), var(--safe-left));
-  /* Subtle page-entrance transition between routes */
-  animation: page-in var(--duration-slow) var(--ease-decelerate) both;
+  /* Subtle page-entrance transition between routes. NO fill-mode: a filled
+     transform animation keeps .screen a containing block for fixed descendants
+     forever (Chrome) — it broke the chat sheet's off-screen "closed" state. */
+  animation: page-in var(--duration-slow) var(--ease-decelerate);
 }
 
 /* --- Card --- */
@@ -338,12 +340,14 @@ input, textarea, select {
   to   { width: 0%; }
 }
 
-/* 15. Page entrance (route transition).
-   Opacity-only on purpose: a lingering transform on .screen (fill-mode both)
-   would create a containing block for fixed descendants (chat bar, banners). */
+/* 15. Page entrance (route transition) — fade + a 12px rise.
+   The LAST keyframe must stay `transform: none`: with fill-mode both, a lingering
+   transform on .screen would create a permanent containing block for fixed
+   descendants (chat bar, banners). Ending at `none` confines that effect to the
+   350ms entrance itself, when the page is at scroll-top and rides as one unit. */
 @keyframes page-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* 16. Spring pop-in */

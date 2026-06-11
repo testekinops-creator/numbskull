@@ -4,6 +4,23 @@
   overflow: visible;
 }
 
+/* Neutral wrapper that replays a soft cross-fade whenever the expression
+   (= React key) changes. Sized by its svg child; never affects layout. */
+.expressionSwap {
+  display: inline-flex;
+  line-height: 0;
+  animation: expressionIn 0.18s var(--ease-out) both;
+}
+
+@keyframes expressionIn {
+  from { opacity: 0.3; transform: scale(0.95); }
+  to   { opacity: 1;   transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expressionSwap { animation: none; }
+}
+
 .glowPulse {
   animation: skullGlow 3s ease-in-out infinite;
 }
