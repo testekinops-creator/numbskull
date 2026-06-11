@@ -782,6 +782,7 @@ export function RoomProvider({ children }) {
   const rmcsGuess  = useCallback((roomId, suspectId) => emitAck(socket, 'rmcs:guess',  { roomId, suspectId }), [socket])
   const rmcsNext   = useCallback((roomId)            => emitAck(socket, 'rmcs:next',   { roomId }),            [socket])
   const rmcsEnd    = useCallback((roomId)            => emitAck(socket, 'rmcs:end',    { roomId }),            [socket])
+  const rmcsRematch = useCallback((roomId)           => emitAck(socket, 'rmcs:rematch', { roomId }),           [socket])
 
   const mathAnswer = useCallback((roomId, index, choice) => {
     socket?.emit('math:answer', { roomId, index, choice })
@@ -884,7 +885,7 @@ export function RoomProvider({ children }) {
       matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
       spinSpin, spinGuess, spinVowel, spinSolve,
-      rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd,
+      rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch,
     }}>
       {children}
     </RoomContext.Provider>

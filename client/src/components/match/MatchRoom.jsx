@@ -6,14 +6,14 @@ import { useSocket } from '../../contexts/SocketContext.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { api } from '../../services/api.js'
 import { recordGameForBadges } from '../../services/badges.js'
-import SkullMascot from '../skull/SkullMascot.jsx'
 import GameLogo from '../GameLogo.jsx'
+import Avatar from '../avatar/Avatar.jsx'
 import GameOverCard from '../game/GameOverCard.jsx'
 import RematchPrompt from '../game/RematchPrompt.jsx'
 import TurnTimer from '../game/TurnTimer.jsx'
 import EmojiBurst from '../game/EmojiBurst.jsx'
 import ChatPanel from '../game/ChatPanel.jsx'
-import EmojiPicker from '../game/EmojiPicker.jsx'
+import RoomActionDock from '../game/RoomActionDock.jsx'
 import RoomSocialCluster from '../game/RoomSocialCluster.jsx'
 import RoomToasts from '../game/RoomToasts.jsx'
 import MultiplayerTutorial from '../tutorial/MultiplayerTutorial.jsx'
@@ -23,7 +23,6 @@ import SudokuBoard from './SudokuBoard.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
 import SosBoard from './SosBoard.jsx'
 import RmcsMatch from './RmcsMatch.jsx'
-import RulesFab from './RulesFab.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
@@ -41,7 +40,7 @@ export default function MatchRoom({ roomId, mode }) {
     state, matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     spinSpin, spinGuess, spinVowel, spinSolve,
-    rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd,
+    rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -57,6 +56,9 @@ export default function MatchRoom({ roomId, mode }) {
   const [resultRevealed, setResultRevealed] = useState(false)
   const [starting, setStarting] = useState(false)
   const [startErr, setStartErr] = useState('')
+  const [rematching, setRematching] = useState(false)
+  const [rematchErr, setRematchErr] = useState('')
+  const [callActive, setCallActive] = useState(false)   // a voice call is live (lifts/widens the bottom chrome)
   // Ignore a brief opponent drop (e.g. a page refresh) — only alarm after ~2.5s.
   const showOppLost = useDelayedFlag(connected && state.opponentConnLost, 2500)
 
@@ -67,6 +69,14 @@ export default function MatchRoom({ roomId, mode }) {
     // on success, match:start flips the phase and this lobby unmounts
   }
 
+  async function doRunItBack() {
+    setRematchErr(''); setRematching(true)
+    unlock()
+    const r = await rmcsRematch(roomId)
+    if (!r?.ok) { setRematchErr(r?.error || 'Could not restart — try again'); setRematching(false) }
+    // on success, match:start flips the phase back to PLAYING and the card unmounts
+  }
+
   const room = state.room
   const phase = room?.phase || 'IDLE'
   const me = room?.players?.find(p => p.id === playerId)
@@ -74,6 +84,15 @@ export default function MatchRoom({ roomId, mode }) {
   const match = state.match
   const isParty = (room?.maxPlayers || 2) > 2          // 3–8 player party room
   const isHost = room?.hostId === playerId
+  const showCall = !isParty && !!opponent              // voice is 1v1 only
+  // Drop the call flag if call support goes away (opponent left / party room).
+  useEffect(() => { if (!showCall) setCallActive(false) }, [showCall])
+  // Reserve bottom space so the floating dock + call bar never sit over the board
+  // or the result buttons. At game over the dock is tucked away, so we only need
+  // to clear a lingering call pill (if a call is still live).
+  const dockPad = phase === 'GAME_OVER'
+    ? (callActive ? '72px' : 'var(--space-8, 32px)')
+    : (callActive ? '156px' : '100px')
 
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
@@ -282,7 +301,6 @@ export default function MatchRoom({ roomId, mode }) {
   return (
     <div className="screen">
       <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : 'match'} />
-      <RulesFab mode={mode} />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…
@@ -294,7 +312,7 @@ export default function MatchRoom({ roomId, mode }) {
         </div>
       )}
 
-      <div className={`panel ${roomStyles.roomPage}`}>
+      <div className={`panel ${roomStyles.roomPage}`} style={{ paddingBottom: dockPad }}>
         {/* Header */}
         <div className={roomStyles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => { leaveRoom(roomId); navigate('/home') }}>
@@ -327,15 +345,21 @@ export default function MatchRoom({ roomId, mode }) {
           </div>
         )}
 
-        {/* Players */}
+        {/* Players — 1v1 HUD only. Party rooms (RMCS / SPIN 3–8) show the full
+            roster inside the game itself, so a "You vs <one player>" row here
+            would be wrong. */}
+        {!isParty && (
         <div className={roomStyles.players}>
           <div className={`${roomStyles.playerSlot} ${me?.ready ? roomStyles.ready : ''}`}>
+            <Avatar id={me?.avatar} seed={playerId} name={me?.name} size={44} ring="cyan" />
             <span className={roomStyles.playerName}>You {mySymbol ? `(${mySymbol})` : ''}</span>
             <span className={roomStyles.playerScore}>{me?.score ?? 0}</span>
           </div>
-          <RoomSocialCluster roomId={roomId} opponent={opponent} allowVoice={!isParty} />
+          {/* Call now lives in the action dock; the cluster keeps add-friend only. */}
+          <RoomSocialCluster roomId={roomId} opponent={opponent} allowVoice={false} />
           {opponent ? (
             <div className={`${roomStyles.playerSlot} ${opponent?.ready ? roomStyles.ready : ''}`}>
+              <Avatar id={opponent?.avatar} seed={opponent?.id} name={opponent?.name} size={44} />
               <span className={roomStyles.playerName}>
                 {opponent.name} {match?.symbols?.[opponent.id] ? `(${match.symbols[opponent.id]})` : ''}
               </span>
@@ -348,12 +372,13 @@ export default function MatchRoom({ roomId, mode }) {
             </div>
           )}
         </div>
+        )}
 
-        {/* Skull + roast */}
-        <div className={roomStyles.skullRow}>
-          <SkullMascot expression={phase === 'GAME_OVER' ? 'grudging' : 'annoyed'} size={72} />
-          {state.roast && <p className={`${roomStyles.roast} anim-slide-up`} key={state.roast}>"{state.roast}"</p>}
-        </div>
+        {/* Roast line (kept) — the redundant mid-screen skull was removed; the
+            Game Over card carries its own skull as the centrepiece. */}
+        {state.roast && (
+          <p className={`${roomStyles.roast} anim-slide-up`} key={state.roast} style={{ textAlign: 'center' }}>"{state.roast}"</p>
+        )}
 
         {/* SETUP — party lobby (host starts) or 1v1 auto-ready */}
         {(phase === 'SETUP' || phase === 'LOBBY') && (
@@ -364,7 +389,9 @@ export default function MatchRoom({ roomId, mode }) {
               <ul className={styles.partyList}>
                 {room.players.map(p => (
                   <li key={p.id} className={styles.partyItem}>
-                    {p.id === room.hostId ? '👑 ' : '🙂 '}{p.name}{p.id === playerId ? ' (you)' : ''}
+                    <Avatar id={p.avatar} seed={p.id} name={p.name} size={32} ring={p.id === room.hostId ? 'gold' : false} />
+                    <span className={styles.partyItemName}>{p.name}{p.id === playerId ? ' (you)' : ''}</span>
+                    {p.id === room.hostId && <span className={styles.partyHostTag}>👑 host</span>}
                   </li>
                 ))}
               </ul>
@@ -537,10 +564,13 @@ export default function MatchRoom({ roomId, mode }) {
           isParty && state.ranking ? (
             <div className={styles.rankCard}>
               <h2 className={styles.rankTitle}>Final standings</h2>
+              {state.draw && <p className={`${styles.resultBanner} anim-bounce-land`}>🤝 It's a tie!</p>}
               <ol className={styles.rankList}>
                 {state.ranking.map(r => (
                   <li key={r.id} className={`${styles.rankItem} ${r.id === playerId ? styles.rankYou : ''}`}>
                     <span className={styles.rankPos}>{r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `#${r.rank}`}</span>
+                    <Avatar id={room.players.find(p => p.id === r.id)?.avatar} seed={r.id} name={r.name}
+                      size={36} ring={r.rank === 1 ? 'gold' : false} />
                     <span className={styles.rankName}>{r.name}{r.id === playerId ? ' (you)' : ''}</span>
                     {/* SPIN rankings carry roundWins/trophies; RMCS carries point totals. */}
                     {r.total != null ? (
@@ -556,7 +586,21 @@ export default function MatchRoom({ roomId, mode }) {
                   </li>
                 ))}
               </ol>
-              <button className="btn btn-juice btn-lg" style={{ width: '100%' }} onClick={() => { leaveRoom(roomId); navigate('/home') }}>
+              {/* RMCS host can re-deal a fresh game with the same 4 players. */}
+              {mode === 'RMCS' && isHost && room.players.length === 4 && (
+                <button className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={rematching} onClick={doRunItBack}>
+                  {rematching ? 'Dealing…' : '🔁 Run it back'}
+                </button>
+              )}
+              {rematchErr && <p style={{ color: 'var(--color-pink)', textAlign: 'center', margin: 0 }}>{rematchErr}</p>}
+              {mode === 'RMCS' && !isHost && room.players.length === 4 && (
+                <p className={styles.seriesLine}>Waiting for the host to run it back…</p>
+              )}
+              <button
+                className={`btn ${mode === 'RMCS' && isHost && room.players.length === 4 ? 'btn-ghost' : 'btn-juice'} btn-lg`}
+                style={{ width: '100%' }}
+                onClick={() => { leaveRoom(roomId); navigate('/home') }}
+              >
                 Home
               </button>
             </div>
@@ -616,16 +660,22 @@ export default function MatchRoom({ roomId, mode }) {
 
       <EmojiBurst trigger={state.lastEmoji} />
 
-      {/* Chat / emoji bar */}
-      {opponent && (
-        <div className={roomStyles.chatBar}>
-          <EmojiPicker onPick={(e) => sendEmoji(roomId, e)} />
-          <button className={roomStyles.chatToggle} onClick={openChat} aria-label="Open chat">
-            💬
-            {state.unreadChat > 0 && <span className={roomStyles.unreadDot}>{state.unreadChat}</span>}
-          </button>
-        </div>
-      )}
+      {/* Premium action dock — emoji · chat · call (1v1) · help · music. Tucked
+          away at game over so it can't cover the Play Again / Home buttons (the
+          call pill, if any, stays — a call isn't dropped just because the game ended). */}
+      <RoomActionDock
+        roomId={roomId}
+        mode={mode}
+        hasOpponent={!!opponent}
+        showCall={showCall}
+        opponentName={opponent?.name}
+        unread={state.unreadChat}
+        callActive={callActive}
+        onCallActiveChange={setCallActive}
+        tuckedAway={phase === 'GAME_OVER'}
+        onEmoji={(e) => sendEmoji(roomId, e)}
+        onOpenChat={openChat}
+      />
 
       <RoomToasts roomId={roomId} />
 
@@ -633,6 +683,7 @@ export default function MatchRoom({ roomId, mode }) {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         messages={state.chatMessages}
+        players={room?.players || []}
         onSend={(text) => sendChat(roomId, text)}
       />
     </div>

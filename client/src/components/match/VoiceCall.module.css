@@ -55,6 +55,37 @@
   -webkit-backdrop-filter: blur(14px);
 }
 
+/* Collapsed "In call" pill — minimal footprint, always visible; tap to expand. */
+.callPill {
+  position: fixed;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  bottom: calc(var(--safe-bottom, 0px) + 14px);
+  z-index: 1150;
+  width: max-content;
+  max-width: 70vw;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full, 999px);
+  background: rgba(20, 16, 48, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--color-text-primary, #fff);
+  font-size: var(--text-sm, 0.85rem);
+  font-weight: var(--weight-bold, 700);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s var(--ease-spring, ease), border-color 0.2s;
+}
+.callPill:active { transform: scale(0.95); }
+.callPill.pillMuted { border-color: color-mix(in srgb, var(--color-pink, #ff3e8a) 60%, transparent); color: #ffe6f0; }
+.pillLabel { white-space: nowrap; }
+
 .status {
   display: inline-flex;
   align-items: center;

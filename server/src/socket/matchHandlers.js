@@ -738,10 +738,30 @@ export function registerMatchHandlers(io, socket) {
       if (room.match?.stage !== 'RESULT') return ack?.({ ok: false, error: 'Finish the round first' })
 
       const ranking = _rmcsRanking(room)
-      await _endMatch(io, roomId, { winnerId: ranking[0]?.id || null, draw: false, ranking, reason: 'complete' })
+      const { winnerId, draw } = _rmcsResult(ranking)
+      await _endMatch(io, roomId, { winnerId, draw, ranking, reason: 'complete' })
       ack?.({ ok: true })
     } catch (err) {
       logger.error({ err }, 'rmcs:end error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── RMCS: "Run it back" — host restarts a fresh match (same 4 players) ─────
+  socket.on('rmcs:rematch', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RMCS') return ack?.({ ok: false, error: 'Wrong mode' })
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can run it back' })
+      if (room.phase !== 'GAME_OVER') return ack?.({ ok: false, error: 'Finish the game first' })
+      // Need the full court again — someone may have left after the standings.
+      if (room.players.length !== 4) return ack?.({ ok: false, error: 'Need all 4 players to run it back' })
+      // _startMatch re-deals fresh roles, zeroes totals, flips phase → PLAYING
+      // and emits match:start per viewer (each gets their new private role).
+      await _startMatch(io, roomId)
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'rmcs:rematch error')
       ack?.({ ok: false, error: err.message })
     }
   })
@@ -943,13 +963,27 @@ function _rmcsByRole(roles = {}) {
   return Object.fromEntries(Object.entries(roles).map(([id, role]) => [role, id]))
 }
 
-// Session standings from cumulative totals (sorted desc, ranks assigned).
+// Session standings from cumulative totals (sorted desc). Standard COMPETITION
+// ranking: equal totals share a rank (1,1,3,4…), so tied leaders both get rank 1.
 function _rmcsRanking(room) {
   const totals = room.match?.totals || {}
-  return [...room.players]
+  const sorted = [...room.players]
     .map(p => ({ id: p.id, name: p.name, total: totals[p.id] || 0 }))
     .sort((a, b) => b.total - a.total)
-    .map((e, i) => ({ ...e, rank: i + 1 }))
+  let prevTotal = null, prevRank = 0
+  return sorted.map((e, i) => {
+    const rank = e.total === prevTotal ? prevRank : i + 1
+    prevTotal = e.total; prevRank = rank
+    return { ...e, rank }
+  })
+}
+
+// Match result from the ranking: a draw when 2+ players share the top rank, so
+// we never crown an arbitrary single winner on a tie.
+function _rmcsResult(ranking) {
+  const leaders = ranking.filter(r => r.rank === 1)
+  const tie = leaders.length > 1
+  return { winnerId: tie ? null : (ranking[0]?.id || null), draw: tie }
 }
 
 // Score the Mantri's pick (or the timeout auto-pick) and move to RESULT.
@@ -1299,7 +1333,8 @@ export async function onPartyPlayerLeft(io, roomId, leftId) {
     if (!room.match) return
     clearTimer(roomId)
     const ranking = _rmcsRanking(room)
-    return _endMatch(io, roomId, { winnerId: ranking[0]?.id || null, draw: false, ranking, reason: 'player-left' })
+    const { winnerId, draw } = _rmcsResult(ranking)
+    return _endMatch(io, roomId, { winnerId, draw, ranking, reason: 'player-left' })
   }
 
   if (room.mode !== 'SPIN') return
@@ -1538,7 +1573,7 @@ function _roomSummary(room) {
   return {
     id: room.id, code: room.code, mode: room.mode, difficulty: room.difficulty,
     phase: room.phase,
-    players: room.players.map(p => ({ id: p.id, name: p.name, ready: p.ready, score: p.score })),
+    players: room.players.map(p => ({ id: p.id, name: p.name, avatar: p.avatar ?? null, ready: p.ready, score: p.score })),
     hostId: room.hostId,
     spectatorCount: room.spectators?.length || 0,
     createdAt: room.createdAt,   // lets the lobby show a truthful "waiting for…" clock

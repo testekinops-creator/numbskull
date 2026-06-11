@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { api } from '../services/api.js'
+import Avatar from '../components/avatar/Avatar.jsx'
+import EmptyState from '../components/EmptyState.jsx'
 import styles from './FriendsPage.module.css'
 
 export default function FriendsPage() {
@@ -102,15 +104,16 @@ export default function FriendsPage() {
         {tab === 'friends' && (
           <ul className={styles.list}>
             {friends.length === 0 && (
-              <div className={styles.empty}>
-                <p>No friends yet.</p>
-                <button className="btn btn-juice btn-sm" onClick={() => setTab('add')}>
-                  + Add someone
-                </button>
-              </div>
+              <EmptyState
+                expression="judging"
+                title="No friends. Shocking."
+                message="Add someone so you have a witness for your victories (and your losses)."
+                action={<button className="btn btn-juice btn-sm" onClick={() => setTab('add')}>+ Add someone</button>}
+              />
             )}
             {friends.map(f => (
               <li key={f.id} className={`${styles.item} card`}>
+                <Avatar seed={f.id} name={f.username} size={42} />
                 <div className={styles.itemInfo}>
                   <span className={styles.itemName}>{f.username}</span>
                   <span className={styles.itemStat}>{f.totalGames ?? 0} games</span>
@@ -124,10 +127,17 @@ export default function FriendsPage() {
         {/* ── Friend requests ── */}
         {tab === 'requests' && (
           <ul className={styles.list}>
-            {requests.length === 0 && <p className={styles.emptyText}>No pending requests.</p>}
+            {requests.length === 0 && (
+              <EmptyState
+                expression="grudging"
+                title="No requests"
+                message="Nobody's knocking right now. Go make yourself worth challenging."
+              />
+            )}
             {requests.map(r => (
               <li key={r.id} className={`${styles.item} card`}>
-                <span className={styles.itemName}>{r.username}</span>
+                <Avatar seed={r.id} name={r.username} size={42} />
+                <span className={styles.itemName} style={{ flex: 1 }}>{r.username}</span>
                 <div className={styles.itemActions}>
                   <button className="btn btn-juice btn-sm" onClick={() => accept(r.id)}>✓ Accept</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => decline(r.id)}>✗ Decline</button>
@@ -164,6 +174,7 @@ export default function FriendsPage() {
             <ul className={styles.list}>
               {results.map(u => (
                 <li key={u.id} className={`${styles.item} card`}>
+                  <Avatar seed={u.id} name={u.username} size={42} />
                   <div className={styles.itemInfo}>
                     <span className={styles.itemName}>{u.username}</span>
                     <span className={styles.itemStat}>{u.totalGames ?? 0} games</span>

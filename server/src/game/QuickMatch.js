@@ -5,6 +5,10 @@ import { logger } from '../utils/logger.js'
 // same two people when other opponents are waiting.
 const RECENT_TTL_MS = 5 * 60_000
 
+// Modes that need more than 2 players grouped before a match can start. Raja
+// Mantri is exactly 4; everything else is a 1v1 pairing.
+const GROUP_SIZE = { RMCS: 4 }
+
 export class QuickMatchQueue {
   constructor() {
     this._queue = []
@@ -13,16 +17,49 @@ export class QuickMatchQueue {
 
   // `key` is an account-stable identity (userId when registered, else playerId)
   // so the same account on two devices can't self-match or double-queue.
-  async enqueue(playerId, playerName, mode = 'GTN', difficulty = 'medium', key = null) {
+  async enqueue(playerId, playerName, mode = 'GTN', difficulty = 'medium', key = null, avatar = null) {
     const myKey = key || playerId
+    const need = GROUP_SIZE[mode] || 2
 
     // Idempotent: already waiting (same socket OR same account) → stay waiting.
     if (this._queue.find(e => e.playerId === playerId || e.key === myKey)) {
       return { matched: false, roomId: null, waiting: true }
     }
 
-    // Candidates: same mode, NOT my own account. Prefer someone who isn't the
-    // opponent I just played (fairness); fall back to anyone if that's all there is.
+    const me = { playerId, playerName, avatar, mode, difficulty, key: myKey }
+
+    // ── Group modes (e.g. Raja Mantri = 4): gather enough distinct waiting
+    //    players of this mode, then open ONE party room with all of them. ──
+    if (need > 2) {
+      const mates = this._queue.filter(e => e.mode === mode && e.key !== myKey)
+      if (mates.length < need - 1) {
+        this._queue.push({ ...me, enqueuedAt: Date.now() })
+        return { matched: false, roomId: null, waiting: true }
+      }
+      const chosen = mates.slice(0, need - 1)           // longest-waiting first
+      for (const m of chosen) this._queue.splice(this._queue.indexOf(m), 1)
+      const members = [...chosen, me]                   // host = first (longest-waiting)
+      const host = members[0]
+      const room = await roomManager.create({
+        hostId: host.playerId,
+        hostName: host.playerName,
+        hostAvatar: host.avatar || null,
+        mode,
+        difficulty: host.difficulty || difficulty,
+        isPublic: false,
+        maxPlayers: need,
+      })
+      await roomManager.update(room.id, r => {
+        for (const m of members.slice(1)) {
+          r.players.push({ id: m.playerId, name: m.playerName, avatar: m.avatar || null, ready: false, score: 0 })
+        }
+        r.phase = 'LOBBY'   // party room: the host presses Start when everyone's in
+      })
+      logger.debug({ roomId: room.id, mode, size: need }, 'Quick match grouped')
+      return { matched: true, roomId: room.id, room: await roomManager.get(room.id), memberIds: members.map(m => m.playerId) }
+    }
+
+    // ── 1v1 modes: pair with the best available opponent. ──
     const candidates = this._queue.filter(e => e.mode === mode && e.key !== myKey)
     const lastOpp = this._recentOpp(myKey)
     const opponent = candidates.find(e => e.key !== lastOpp) || candidates[0]
@@ -34,20 +71,21 @@ export class QuickMatchQueue {
       const room = await roomManager.create({
         hostId: opponent.playerId,
         hostName: opponent.playerName,
+        hostAvatar: opponent.avatar || null,
         mode,
         // The waiting player "hosted" the match → use their chosen difficulty.
         difficulty: opponent.difficulty || difficulty,
         isPublic: false,
       })
       await roomManager.update(room.id, r => {
-        r.players.push({ id: playerId, name: playerName, ready: false, score: 0 })
+        r.players.push({ id: playerId, name: playerName, avatar: avatar || null, ready: false, score: 0 })
         r.phase = 'SETUP'
       })
       logger.debug({ roomId: room.id, mode }, 'Quick match paired')
       return { matched: true, roomId: room.id, room: await roomManager.get(room.id), opponentId: opponent.playerId }
     }
 
-    this._queue.push({ playerId, playerName, mode, difficulty, key: myKey, enqueuedAt: Date.now() })
+    this._queue.push({ ...me, enqueuedAt: Date.now() })
     return { matched: false, roomId: null, waiting: true }
   }
 

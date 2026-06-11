@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import GameLogo from '../components/GameLogo.jsx'
 import MoreDrawer from '../components/MoreDrawer.jsx'
+import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import { HomeIcon, MenuIcon } from '../components/icons/Icons.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
@@ -87,6 +88,7 @@ export default function HomeListPage() {
 
   return (
     <div className={styles.screen} id="main-content">
+      <AmbientOrbs />
       {/* Top bar — hamburger LEFT, premium Home RIGHT */}
       <div className={styles.topBar}>
         <button

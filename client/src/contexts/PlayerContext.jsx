@@ -27,13 +27,20 @@ export function PlayerProvider({ children }) {
   const [player, setPlayer] = useState(() => {
     const stored = loadPlayer()
     if (stored) return stored
-    const fresh = { playerId: `guest_${uuidv4()}`, playerName: adjective(), totalGames: 0 }
+    const fresh = { playerId: `guest_${uuidv4()}`, playerName: adjective(), totalGames: 0, avatar: null }
     savePlayer(fresh)
     return fresh
   })
 
   function setName(name) {
     const updated = { ...player, playerName: name.trim().slice(0, 20) || player.playerName }
+    setPlayer(updated)
+    savePlayer(updated)
+  }
+
+  // Chosen avatar id (null = use the deterministic playerId-seeded fallback).
+  function setAvatar(avatar) {
+    const updated = { ...player, avatar: avatar || null }
     setPlayer(updated)
     savePlayer(updated)
   }
@@ -45,7 +52,7 @@ export function PlayerProvider({ children }) {
   }
 
   return (
-    <PlayerContext.Provider value={{ ...player, setName, incrementGames }}>
+    <PlayerContext.Provider value={{ ...player, setName, setAvatar, incrementGames }}>
       {children}
     </PlayerContext.Provider>
   )

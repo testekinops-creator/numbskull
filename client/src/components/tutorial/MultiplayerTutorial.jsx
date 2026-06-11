@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useFocusTrap } from '../../hooks/useFocusTrap.js'
 import styles from './TutorialOverlay.module.css'  // reuse the single-player tutorial styling
 
 // First-time multiplayer onboarding. `variant`:
@@ -35,6 +36,7 @@ export default function MultiplayerTutorial({ variant = 'guess', onDone }) {
   const KEY = `ns_mp_tut_${variant}`
   const [step, setStep] = useState(0)
   const [visible, setVisible] = useState(false)
+  const trapRef = useFocusTrap(visible)  // hook must run unconditionally (before any early return)
 
   useEffect(() => { if (!localStorage.getItem(KEY)) setVisible(true) }, [KEY])
 
@@ -47,7 +49,7 @@ export default function MultiplayerTutorial({ variant = 'guess', onDone }) {
 
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true" aria-label="How multiplayer works">
-      <div className={`${styles.panel} card anim-bounce-land`}>
+      <div ref={trapRef} className={`${styles.panel} card anim-bounce-land`}>
         <div className={styles.progress}>
           {steps.map((_, i) => (
             <span key={i} className={`${styles.dot} ${i === step ? styles.active : ''} ${i < step ? styles.done : ''}`} />

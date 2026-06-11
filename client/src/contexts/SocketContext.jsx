@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext.jsx'
 const SocketContext = createContext(null)
 
 export function SocketProvider({ children }) {
-  const { playerId, playerName } = usePlayer()
+  const { playerId, playerName, avatar } = usePlayer()
   const { user, isRegistered } = useAuth()
   const socketRef = useRef(null)
   const [connected, setConnected] = useState(false)
@@ -25,6 +25,7 @@ export function SocketProvider({ children }) {
       auth: {
         playerId,
         playerName: displayName,
+        avatar: avatar || null,   // chosen emoji-avatar id (null → playerId fallback)
         userId: isRegistered && user?.id ? user.id : null,  // DB id for friend requests
       },
       reconnection: true,
@@ -36,37 +37,42 @@ export function SocketProvider({ children }) {
       transports: ['websocket', 'polling'],
     })
 
-    const duplicateTab = { current: false }
-
     socket.on('connect', () => { setConnected(true); setReconnecting(false); everConnectedRef.current = true })
     socket.on('disconnect', () => { setConnected(false); if (everConnectedRef.current) setReconnecting(true) })
     socket.io.on('reconnect_attempt', () => { if (everConnectedRef.current) setReconnecting(true) })
     socket.io.on('reconnect', () => setReconnecting(false))
-    socket.on('error:duplicate_tab', () => {
-      duplicateTab.current = true
-      alert('You opened Numbskull in another tab. This tab has been disconnected.')
-    })
+    // Another tab/window opened with the same player → the server hands the live
+    // connection to the newest socket and drops this one. We do NOT permanently
+    // brick this tab (that left Play/links dead with no recovery). Instead the
+    // tab the user actually focuses RECLAIMS the connection via `nudge` below —
+    // a server-initiated disconnect won't auto-reconnect, so this is controlled:
+    // only the focused tab reconnects, and reconnecting kicks the other tab.
+    socket.on('error:duplicate_tab', () => { setReconnecting(true) })
 
     // Mobile resilience: socket.io throttles its retry timers while the tab is
     // hidden, so after unlocking the phone (or the network returning) we nudge it
-    // to reconnect right away instead of waiting out a throttled backoff.
+    // to reconnect right away instead of waiting out a throttled backoff. This is
+    // also how a duplicate-tab-dropped tab comes back: focusing it reconnects.
     const nudge = () => {
-      if (duplicateTab.current) return
       if (document.visibilityState === 'visible' && !socket.connected) socket.connect()
     }
     document.addEventListener('visibilitychange', nudge)
     window.addEventListener('online', nudge)
     window.addEventListener('focus', nudge)
+    // Also reclaim on the first tap: a side-by-side window can be dropped while
+    // still visible (no focus event fires), so a tap is our signal to come back.
+    window.addEventListener('pointerdown', nudge, true)
 
     socketRef.current = socket
     return () => {
       document.removeEventListener('visibilitychange', nudge)
       window.removeEventListener('online', nudge)
       window.removeEventListener('focus', nudge)
+      window.removeEventListener('pointerdown', nudge, true)
       socket.disconnect()
       socketRef.current = null
     }
-  }, [playerId, displayName])
+  }, [playerId, displayName, avatar])
 
   return (
     <SocketContext.Provider value={{ socket: socketRef.current, connected, reconnecting }}>

@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
-import GameLogo from '../components/GameLogo.jsx'
+import Avatar from '../components/avatar/Avatar.jsx'
+import AvatarPicker from '../components/avatar/AvatarPicker.jsx'
 import { getTierFromGames } from '../utils/personality.js'
 import styles from './ProfilePage.module.css'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
   const { user, isRegistered, logout, refreshUser } = useAuth()
-  const { totalGames, gtnWins, playerName } = usePlayer()
+  const { totalGames, gtnWins, playerName, playerId, avatar, setAvatar } = usePlayer()
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Pull live stats from the DB whenever the profile opens
   useEffect(() => {
@@ -31,7 +33,16 @@ export default function ProfilePage() {
         <div className={`panel ${styles.page}`}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
           <div className={styles.guestBanner}>
-            <GameLogo variant="static" size={80} />
+            <button className={styles.avatarBtn} onClick={() => setPickerOpen(o => !o)} aria-label="Change avatar" title="Change avatar">
+              <Avatar id={avatar} seed={playerId} name={playerName} size={80} ring="cyan" />
+              <span className={styles.editPip} aria-hidden="true">✏️</span>
+            </button>
+            {pickerOpen && (
+              <div className={styles.pickerCard}>
+                <p className={styles.pickerTitle}>Pick your avatar</p>
+                <AvatarPicker value={avatar} onPick={(id) => { setAvatar(id); setPickerOpen(false) }} />
+              </div>
+            )}
             <h2>You're playing as a guest.</h2>
             <p className={styles.nudgeText}>
               Register to save your stats, earn badges, challenge friends, and appear on leaderboards. Your current progress will carry over.
@@ -57,12 +68,22 @@ export default function ProfilePage() {
         </div>
 
         <div className={styles.avatar}>
-          <GameLogo variant="static" size={96} />
+          <button className={styles.avatarBtn} onClick={() => setPickerOpen(o => !o)} aria-label="Change avatar" title="Change avatar">
+            <Avatar id={avatar} seed={playerId} name={displayName} size={96} ring="cyan" />
+            <span className={styles.editPip} aria-hidden="true">✏️</span>
+          </button>
           <div className={styles.identity}>
             <h1 className={styles.username}>{displayName}</h1>
             <span className={`badge badge-pink`}>{tier}</span>
           </div>
         </div>
+
+        {pickerOpen && (
+          <div className={styles.pickerCard}>
+            <p className={styles.pickerTitle}>Pick your avatar</p>
+            <AvatarPicker value={avatar} onPick={(id) => { setAvatar(id); setPickerOpen(false) }} />
+          </div>
+        )}
 
         <div className={styles.statsGrid}>
           <StatCard label="Total Games" value={games} />

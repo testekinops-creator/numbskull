@@ -1,4 +1,5 @@
 import { roomManager } from '../game/RoomManager.js'
+import { cleanText } from '../utils/profanity.js'
 
 const MAX_TEXT = 200
 // Whitelist of allowed quick-emojis (prevents arbitrary payloads)
@@ -22,7 +23,7 @@ export function registerChatHandlers(io, socket) {
       const room = await roomManager.get(roomId)
       if (!room) return ack?.({ ok: false, error: 'Room not found' })
 
-      const clean = text.trim().slice(0, MAX_TEXT)
+      const clean = cleanText(text.trim().slice(0, MAX_TEXT))
       if (!clean) return ack?.({ ok: false })
 
       socket.join(roomId)

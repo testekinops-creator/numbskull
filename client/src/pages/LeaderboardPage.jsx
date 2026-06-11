@@ -5,6 +5,8 @@ import { api } from '../services/api.js'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { SkeletonLeaderboard } from '../components/Skeleton.jsx'
+import Avatar from '../components/avatar/Avatar.jsx'
+import EmptyState from '../components/EmptyState.jsx'
 import styles from './LeaderboardPage.module.css'
 
 function monthName(period) {
@@ -13,7 +15,6 @@ function monthName(period) {
   return new Date(Number(y), Number(m) - 1, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' })
 }
 
-const initial  = (name) => (name || '?').trim().charAt(0).toUpperCase()
 const winRate  = (w, g) => (g > 0 ? Math.round((w / g) * 100) : 0)
 
 // Monthly MULTIPLAYER leaderboard — ranked by wins this calendar month.
@@ -63,7 +64,11 @@ export default function LeaderboardPage() {
         {loading && <SkeletonLeaderboard />}
 
         {!loading && entries.length === 0 && (
-          <p className={styles.empty}>No multiplayer games yet this month. Win one to claim the top spot.</p>
+          <EmptyState
+            expression="evil"
+            title="Wide open at the top"
+            message="No multiplayer games yet this month. Win one and the throne is yours."
+          />
         )}
 
         {!loading && entries.length > 0 && (
@@ -81,7 +86,7 @@ export default function LeaderboardPage() {
                 {rest.map((e, i) => (
                   <li key={e.entrantId} className={`${styles.entry} ${e.entrantId === myId ? styles.me : ''}`}>
                     <span className={styles.rank}>{i + 4}</span>
-                    <span className={styles.avatar}>{initial(e.name)}</span>
+                    <Avatar seed={e.entrantId} name={e.name} size={40} ring={e.entrantId === myId ? 'cyan' : false} />
                     <div className={styles.entryInfo}>
                       <span className={styles.name}>{e.name}</span>
                       <span className={styles.meta}>{e.games} games · {winRate(e.wins, e.games)}% win rate</span>
@@ -103,7 +108,8 @@ function PodiumSpot({ place, e, myId }) {
   return (
     <div className={`${styles.spot} ${styles['spot' + place]} ${isMe ? styles.spotMe : ''}`}>
       {place === 1 && <span className={styles.crown} aria-hidden="true">👑</span>}
-      <span className={styles.spotAvatar}>{initial(e.name)}</span>
+      <Avatar seed={e.entrantId} name={e.name} size={place === 1 ? 64 : 52}
+        ring={place === 1 ? 'gold' : place === 2 ? 'silver' : 'bronze'} />
       <span className={styles.spotName}>{e.name}</span>
       <span className={styles.spotWins}>{e.wins} {e.wins === 1 ? 'win' : 'wins'}</span>
       <div className={styles.pedestal}>

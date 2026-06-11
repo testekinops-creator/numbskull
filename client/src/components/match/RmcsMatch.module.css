@@ -29,7 +29,7 @@
 
 .rosterItem {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto;
   gap: 8px;
   align-items: center;
   padding: 4px 8px;
@@ -136,45 +136,121 @@
   overflow: hidden;
 }
 
+/* Premium royal card back: deep-plum field, woven gold diamond lattice, an
+   ornate double frame, corner pips, and a crowned central medallion. */
 .chitFront {
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(83, 74, 183, 0.45), transparent 60%),
-    linear-gradient(160deg, #2c2566, #1b1745);
-  border: 2px dashed rgba(255, 255, 255, 0.25);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.1);
+    radial-gradient(120% 85% at 50% 0%, rgba(120, 96, 220, 0.40), transparent 62%),
+    linear-gradient(160deg, #3a2f7a 0%, #241d56 55%, #16123a 100%);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: chitBeckon 2.4s ease-in-out infinite;
 }
 
-.chitQ {
-  font-family: var(--font-display);
-  font-size: 3.4rem;
-  font-weight: 900;
-  color: var(--color-juice, #00f5ff);
-  text-shadow: 0 0 22px var(--color-juice-glow, rgba(0,245,255,0.25));
+/* Woven gold diamond lattice (two crossed hatchings → argyle weave). */
+.chitLattice {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient( 45deg, rgba(255, 215, 64, 0.16) 0 1px, transparent 1px 13px),
+    repeating-linear-gradient(-45deg, rgba(255, 215, 64, 0.16) 0 1px, transparent 1px 13px),
+    repeating-linear-gradient( 45deg, rgba(255, 215, 64, 0.05) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(-45deg, rgba(255, 215, 64, 0.05) 0 1px, transparent 1px 26px);
+  -webkit-mask-image: radial-gradient(120% 120% at 50% 50%, #000 55%, transparent 92%);
+          mask-image: radial-gradient(120% 120% at 50% 50%, #000 55%, transparent 92%);
+}
+
+/* Ornate inset double frame in gold. */
+.chitFrame {
+  position: absolute;
+  inset: 9px;
+  border-radius: calc(var(--radius-xl, 16px) - 6px);
+  pointer-events: none;
+  border: 1.5px solid rgba(255, 215, 64, 0.55);
+  box-shadow:
+    inset 0 0 0 4px rgba(22, 18, 58, 0.6),
+    inset 0 0 0 5.5px rgba(255, 215, 64, 0.28),
+    inset 0 0 22px rgba(255, 215, 64, 0.12);
+}
+
+/* Small gold flourishes tucked into each corner. */
+.chitCorner {
+  position: absolute;
+  font-size: 0.7rem;
+  color: rgba(255, 215, 64, 0.7);
+  pointer-events: none;
+  text-shadow: 0 0 6px rgba(255, 215, 64, 0.4);
+}
+.chitCorner[data-pos="tl"] { top: 14px;    left: 14px; }
+.chitCorner[data-pos="tr"] { top: 14px;    right: 14px; }
+.chitCorner[data-pos="bl"] { bottom: 14px; left: 14px; }
+.chitCorner[data-pos="br"] { bottom: 14px; right: 14px; }
+
+/* Crowned medallion at the centre. */
+.chitMedallion {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 234, 160, 0.95), rgba(212, 160, 38, 0.85) 55%, rgba(150, 104, 16, 0.9) 100%);
+  border: 2px solid rgba(255, 240, 190, 0.85);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    inset 0 2px 4px rgba(255, 255, 255, 0.55),
+    inset 0 -3px 6px rgba(120, 80, 0, 0.5),
+    0 0 26px rgba(255, 215, 64, 0.3);
+}
+.chitMedallion::after {           /* engraved ring inside the medallion */
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(90, 58, 0, 0.45);
+}
+
+.chitCrown {
+  font-size: 2.1rem;
+  line-height: 1;
+  color: #4a3000;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.5));
 }
 
 .chitHint {
+  position: absolute;
+  bottom: 16%;
   font-size: var(--text-sm, 0.875rem);
   font-weight: var(--weight-bold, 700);
-  color: var(--color-text-secondary, #afa9ec);
+  color: rgba(255, 232, 170, 0.92);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
 }
 
 .chitBack {
   transform: rotateY(180deg);
-  background: #201b50;
-  border: 2px solid rgba(255, 215, 64, 0.55);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5), 0 0 26px rgba(255, 215, 64, 0.3);
+  /* The card art already has its own ornate gold frame + dark background, so the
+     face is transparent with no extra border (a second border double-framed it)
+     and only a soft radius so the card's own corners aren't clipped. */
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 28px rgba(255, 215, 64, 0.28);
 }
 
-/* The card art fills the face. */
+/* The full framed card. `contain` (not cover) so the baked-in title + points are
+   never sliced off at the edges. */
 .chitImg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: inherit;
 }
 
@@ -334,13 +410,13 @@
   100% { opacity: 1; transform: rotateX(0); }
 }
 
-/* Mini card art in the round-result grid. */
+/* Mini card art in the round-result grid — whole card, no crop, no extra border
+   (the art carries its own frame). */
 .revealImg {
-  width: 76px;
+  width: 84px;
   aspect-ratio: 63 / 100;
-  object-fit: cover;
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid rgba(255, 215, 64, 0.45);
+  object-fit: contain;
+  border-radius: 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 .revealName  { font-weight: 700; font-size: var(--text-sm, 0.875rem); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -14,7 +14,7 @@ import RematchPrompt from '../components/game/RematchPrompt.jsx'
 import TurnTimer from '../components/game/TurnTimer.jsx'
 import EmojiBurst from '../components/game/EmojiBurst.jsx'
 import ChatPanel from '../components/game/ChatPanel.jsx'
-import EmojiPicker from '../components/game/EmojiPicker.jsx'
+import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import RoomSocialCluster from '../components/game/RoomSocialCluster.jsx'
 import RoomToasts from '../components/game/RoomToasts.jsx'
 import MultiplayerTutorial from '../components/tutorial/MultiplayerTutorial.jsx'
@@ -23,9 +23,7 @@ import { useHaptic } from '../hooks/useHaptic.js'
 import { useDelayedFlag } from '../hooks/useDelayedFlag.js'
 import { useAwayTimeout } from '../hooks/useAwayTimeout.js'
 import { useLeaveOnExit } from '../hooks/useLeaveOnExit.js'
-import { getSkullExpression } from '../utils/personality.js'
 import MatchRoom from '../components/match/MatchRoom.jsx'
-import RulesFab from '../components/match/RulesFab.jsx'
 import styles from './RoomPage.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
@@ -71,12 +69,44 @@ export default function RoomPage() {
     return () => { cancelled = true; socket.off('connect', attempt) }
   }, [socket, roomId, room]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Safety net: a genuinely-missing room resolves fast (reconnect → gone → /home).
+  // But if the SERVER is unreachable, the reconnect ack just times out and retries
+  // forever — an endless "Connecting…" spinner. After ~15s, offer an escape hatch.
+  const [stuck, setStuck] = useState(false)
+  useEffect(() => {
+    if (room) { setStuck(false); return }
+    if (stuck) return
+    const t = setTimeout(() => setStuck(true), 15_000)
+    return () => clearTimeout(t)
+  }, [room, stuck])
+
+  async function retryRoom() {
+    setStuck(false)               // re-arms the timeout + flips back to the spinner
+    const r = await reconnectRoom(roomId)
+    if (r?.gone) navigate('/home')
+  }
+
   if (!room) {
     return (
       <div className="screen">
         <div className={styles.loading}>
-          <div className={styles.spinner} />
-          <p>Connecting to room…</p>
+          {stuck ? (
+            <>
+              <p style={{ fontWeight: 700 }}>😕 Couldn't reach the room</p>
+              <p style={{ color: 'var(--color-text-secondary)', textAlign: 'center', margin: 0 }}>
+                It may have ended, or your connection dropped.
+              </p>
+              <div style={{ display: 'flex', gap: 'var(--space-3, 12px)', marginTop: 'var(--space-2, 8px)' }}>
+                <button className="btn btn-juice" onClick={retryRoom}>Retry</button>
+                <button className="btn btn-ghost" onClick={() => navigate('/home')}>Home</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.spinner} />
+              <p>Connecting to room…</p>
+            </>
+          )}
         </div>
       </div>
     )
@@ -116,6 +146,17 @@ function GuessRoom() {
   const me = room?.players?.find(p => p.id === playerId)
   const opponent = room?.players?.find(p => p.id !== playerId)
   const isMyTurn = state.myTurn
+
+  // Premium action dock (emoji · chat · call · help · music). GTN/B&C are always
+  // 1v1, so voice is available whenever an opponent is present.
+  const [callActive, setCallActive] = useState(false)
+  const showCall = !!opponent
+  useEffect(() => { if (!showCall) setCallActive(false) }, [showCall])
+  // Reserve bottom space so the dock / call bar never cover the board or result
+  // buttons; the dock tucks away at game over (only clear a lingering call pill).
+  const dockPad = phase === 'GAME_OVER'
+    ? (callActive ? '72px' : 'var(--space-8, 32px)')
+    : (callActive ? '156px' : '100px')
 
   // ── Opponent's guesses (broadcast to room) ───────────────────────────────
   const opponentGuesses = state.guesses.filter(g => g.guesser !== playerId)
@@ -279,8 +320,6 @@ function GuessRoom() {
     clearUnreadChat()
   }
 
-  const expression = getSkullExpression(state.lastGuessResult, phase === 'GAME_OVER' ? 'GAME_OVER' : 'PLAYING')
-
   if (!room) {
     return (
       <div className="screen">
@@ -295,7 +334,6 @@ function GuessRoom() {
   return (
     <div className="screen">
       <MultiplayerTutorial variant="guess" />
-      <RulesFab mode={mode} />
       {/* You are offline (your own socket dropped) — debounced */}
       {showOffline && (
         <div className={`${styles.connBanner} ${styles.connOffline}`}>
@@ -309,7 +347,7 @@ function GuessRoom() {
         </div>
       )}
 
-      <div className={`panel ${styles.roomPage}`}>
+      <div className={`panel ${styles.roomPage}`} style={{ paddingBottom: dockPad }}>
         {/* Header */}
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => { leaveRoom(roomId); navigate('/home') }}>
@@ -329,7 +367,8 @@ function GuessRoom() {
         {/* Players */}
         <div className={styles.players}>
           <PlayerSlot player={me} isYou label="You" />
-          <RoomSocialCluster roomId={roomId} opponent={opponent} />
+          {/* Call now lives in the action dock; the cluster keeps add-friend only. */}
+          <RoomSocialCluster roomId={roomId} opponent={opponent} allowVoice={false} />
           {opponent ? (
             <PlayerSlot player={opponent} label={opponent.name} />
           ) : (
@@ -340,13 +379,11 @@ function GuessRoom() {
           )}
         </div>
 
-        {/* Skull + roast */}
-        <div className={styles.skullRow}>
-          <SkullMascot expression={expression} size={80} />
-          {state.roast && (
-            <p className={`${styles.roast} anim-slide-up`} key={state.roast}>"{state.roast}"</p>
-          )}
-        </div>
+        {/* Roast line (kept) — the redundant mid-screen skull was removed for a
+            cleaner board, matching the other game modes. */}
+        {state.roast && (
+          <p className={`${styles.roast} anim-slide-up`} key={state.roast} style={{ textAlign: 'center' }}>"{state.roast}"</p>
+        )}
 
         {/* SETUP phase — ready up */}
         {phase === 'SETUP' && !me?.ready && (
@@ -574,16 +611,20 @@ function GuessRoom() {
       {/* ── Emoji burst overlay (full screen) ── */}
       <EmojiBurst trigger={state.lastEmoji} />
 
-      {/* ── Chat / emoji bar — shown once an opponent is in the room ── */}
-      {opponent && (
-        <div className={styles.chatBar}>
-          <EmojiPicker onPick={(e) => sendEmoji(roomId, e)} />
-          <button className={styles.chatToggle} onClick={openChat} aria-label="Open chat">
-            💬
-            {state.unreadChat > 0 && <span className={styles.unreadDot}>{state.unreadChat}</span>}
-          </button>
-        </div>
-      )}
+      {/* ── Premium action dock — emoji · chat · call · help · music ── */}
+      <RoomActionDock
+        roomId={roomId}
+        mode={mode}
+        hasOpponent={!!opponent}
+        showCall={showCall}
+        opponentName={opponent?.name}
+        unread={state.unreadChat}
+        callActive={callActive}
+        onCallActiveChange={setCallActive}
+        tuckedAway={phase === 'GAME_OVER'}
+        onEmoji={(e) => sendEmoji(roomId, e)}
+        onOpenChat={openChat}
+      />
 
       <RoomToasts roomId={roomId} />
 
@@ -592,6 +633,7 @@ function GuessRoom() {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         messages={state.chatMessages}
+        players={room?.players || []}
         onSend={(text) => sendChat(roomId, text)}
       />
     </div>

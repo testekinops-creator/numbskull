@@ -81,7 +81,7 @@ export class RoomManager {
   _unlock(roomId) { this._locks.delete(roomId) }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
-  async create({ hostId, hostName, mode = 'GTN', difficulty = 'medium', isPublic = true, maxPlayers = 2 }) {
+  async create({ hostId, hostName, hostAvatar = null, mode = 'GTN', difficulty = 'medium', isPublic = true, maxPlayers = 2 }) {
     if (this._rooms.size >= MAX_ROOMS) {
       throw new Error('Server is at room capacity')
     }
@@ -97,7 +97,7 @@ export class RoomManager {
       isPublic,
       maxPlayers: Math.max(2, Math.min(8, maxPlayers | 0)),  // party rooms: 2–8
       phase: 'LOBBY',        // LOBBY | SETUP | PLAYING | ROUND_OVER | GAME_OVER
-      players: [{ id: hostId, name: hostName, ready: false, score: 0 }],
+      players: [{ id: hostId, name: hostName, avatar: hostAvatar ?? null, ready: false, score: 0 }],
       spectators: [],
       round: null,
       createdAt: Date.now(),

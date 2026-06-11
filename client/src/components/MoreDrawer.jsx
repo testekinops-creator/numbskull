@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { isGuestMode } from '../pages/AuthGatePage.jsx'
+import { useFocusTrap } from '../hooks/useFocusTrap.js'
 import styles from './MoreDrawer.module.css'
 
 // Premium left-edge slide navigation drawer (glassmorphism). Closes on: Escape,
@@ -13,6 +14,9 @@ export default function MoreDrawer({ open, onClose }) {
 
   const drawerRef = useRef(null)
   const startX = useRef(null)
+  // Trap focus inside the drawer while open; merge with drawerRef (used for swipe).
+  const trapRef = useFocusTrap(open)
+  const setDrawerRef = useCallback((node) => { drawerRef.current = node; trapRef.current = node }, [trapRef])
 
   // Close on Escape + lock background scroll while open.
   useEffect(() => {
@@ -60,7 +64,7 @@ export default function MoreDrawer({ open, onClose }) {
       />
 
       <div
-        ref={drawerRef}
+        ref={setDrawerRef}
         className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}
         role="dialog"
         aria-modal="true"

@@ -8,13 +8,14 @@ export function registerRoomHandlers(io, socket) {
   const auth = socket.handshake.auth
   const playerId = auth.playerId || socket.id
   const playerName = auth.playerName || 'Anonymous'
+  const playerAvatar = auth.avatar || null   // chosen emoji-avatar id (else client falls back to a playerId-seeded one)
 
   // ── Create room ──────────────────────────────────────────────────────────
   socket.on('room:create', async ({ mode = 'GTN', difficulty = 'medium', isPublic = true, maxPlayers = 2 } = {}, ack) => {
     try {
       // Raja Mantri Chor Sipahi is exactly-4 by rule — ignore whatever the client sent.
       if (mode === 'RMCS') maxPlayers = 4
-      const room = await roomManager.create({ hostId: playerId, hostName: playerName, mode, difficulty, isPublic, maxPlayers })
+      const room = await roomManager.create({ hostId: playerId, hostName: playerName, hostAvatar: playerAvatar, mode, difficulty, isPublic, maxPlayers })
       socket.join(room.id)
       ack?.({ ok: true, room: sanitize(room, playerId) })
       logger.debug({ roomId: room.id }, 'Room created via socket')
@@ -40,7 +41,7 @@ export function registerRoomHandlers(io, socket) {
         if (r.players.find(p => p.id === playerId)) return   // idempotent re-join
         if (r.players.length >= cap) { joinError = 'Room is full'; return }
         if (r.phase !== 'LOBBY')   { joinError = 'Game already in progress'; return }
-        r.players.push({ id: playerId, name: playerName, ready: false, score: 0 })
+        r.players.push({ id: playerId, name: playerName, avatar: playerAvatar, ready: false, score: 0 })
         // 1v1 rooms auto-advance to SETUP at 2; party rooms (cap>2) wait for the
         // host to press Start.
         if (cap === 2 && r.players.length === 2) r.phase = 'SETUP'
@@ -63,27 +64,28 @@ export function registerRoomHandlers(io, socket) {
       quickMatch.prune(pid => !!_findSocket(io, pid))
       // Account-stable key: a registered user can't self-match across two devices.
       const accountKey = socket.handshake.auth?.userId || playerId
-      const result = await quickMatch.enqueue(playerId, playerName, mode, difficulty, accountKey)
+      const result = await quickMatch.enqueue(playerId, playerName, mode, difficulty, accountKey, playerAvatar)
       if (result.matched) {
         const room = result.room
 
-        // Join Player B (the one who triggered the match)
+        // Join the triggering player (this socket).
         socket.join(room.id)
         _clearQuickmatchTimeout(playerId)
 
-        // Find Player A (the one who was waiting in queue) and join them too
-        const hostId = room.hostId
-        if (hostId && hostId !== playerId) {
-          _clearQuickmatchTimeout(hostId)     // they're matched → cancel their timeout
-          const hostSocket = _findSocket(io, hostId)
-          if (hostSocket) {
-            hostSocket.join(room.id)
-            // Tell Player A they've been matched — includes their sanitized room view
-            hostSocket.emit('room:quickmatch_found', sanitize(room, hostId))
+        // Everyone else in the match was waiting in the queue — join their sockets
+        // and tell them they've been matched. `memberIds` covers group modes
+        // (Raja Mantri = 4); for 1v1 it's just the host who was waiting.
+        const others = (result.memberIds || [room.hostId]).filter(id => id && id !== playerId)
+        for (const id of others) {
+          _clearQuickmatchTimeout(id)
+          const s = _findSocket(io, id)
+          if (s) {
+            s.join(room.id)
+            s.emit('room:quickmatch_found', sanitize(room, id))
           }
         }
 
-        // Broadcast updated room to everyone now in the room (both players)
+        // Broadcast updated room to everyone now in the room.
         io.to(room.id).emit('room:updated', sanitize(room, null))
         ack?.({ ok: true, matched: true, room: sanitize(room, playerId) })
       } else {
@@ -356,6 +358,7 @@ function sanitize(room, viewerId) {
     players: room.players.map(p => ({
       id: p.id,
       name: p.name,
+      avatar: p.avatar ?? null,
       ready: p.ready,
       score: p.score,
       isYou: p.id === viewerId,

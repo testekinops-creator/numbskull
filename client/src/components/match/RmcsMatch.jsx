@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import TurnTimer from '../game/TurnTimer.jsx'
+import Avatar from '../avatar/Avatar.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { celebrateWin, celebrateChit } from '../../utils/celebrate.js'
@@ -135,6 +136,7 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
         <div className={styles.roundLabel}>Round {match.round}</div>
         {players.map(p => (
           <div key={p.id} className={`${styles.rosterItem} ${p.id === you ? styles.rosterYou : ''}`}>
+            <Avatar id={p.avatar} seed={p.id} name={p.name} size={30} ring={p.id === hostId ? 'gold' : false} />
             <span className={styles.rosterName}>{p.id === hostId ? '⭐ ' : ''}{nameOf(p.id)}</span>
             <span className={styles.rosterRole}>{roleChip(p.id)}</span>
             <span className={styles.rosterScore}>{match.totals?.[p.id] ?? 0}</span>
@@ -151,7 +153,15 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') tapChit() }}>
             <div className={styles.chitInner}>
               <div className={styles.chitFront}>
-                <span className={styles.chitQ}>?</span>
+                <span className={styles.chitLattice} aria-hidden="true" />
+                <span className={styles.chitFrame} aria-hidden="true" />
+                <span className={styles.chitCorner} data-pos="tl" aria-hidden="true">❖</span>
+                <span className={styles.chitCorner} data-pos="tr" aria-hidden="true">❖</span>
+                <span className={styles.chitCorner} data-pos="bl" aria-hidden="true">❖</span>
+                <span className={styles.chitCorner} data-pos="br" aria-hidden="true">❖</span>
+                <span className={styles.chitMedallion}>
+                  <span className={styles.chitCrown}>♛</span>
+                </span>
                 <span className={styles.chitHint}>Tap to Reveal</span>
               </div>
               <div className={styles.chitBack}>

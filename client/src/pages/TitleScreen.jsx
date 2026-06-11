@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import GameLogo from '../components/GameLogo.jsx'
 import MatrixRain from '../components/MatrixRain.jsx'
@@ -18,7 +18,7 @@ const NAME_KEY = 'ns_name_set'
 export default function TitleScreen() {
   const navigate = useNavigate()
   const { totalGames } = usePlayer()
-  const { isRegistered } = useAuth()
+  const { isRegistered, loading: authLoading } = useAuth()
 
   const [showSplash,  setShowSplash]  = useState(() => shouldShowSplash())
   const [showDrawer,  setShowDrawer]  = useState(false)
@@ -26,19 +26,23 @@ export default function TitleScreen() {
 
   const onSplashDone = useCallback(() => setShowSplash(false), [])
 
-  function handlePlay() {
-    setPlayPressed(true)
+  // Just mark the press — routing happens in the effect below once auth has
+  // resolved. (In a fresh tab the saved session is still being verified for a
+  // beat; routing during that window would mis-send a logged-in user to the
+  // auth gate / a blank protected route. So we wait for `authLoading` to clear.)
+  function handlePlay() { setPlayPressed(true) }
 
-    // Registered or guest → go to the games home list
-    if (isRegistered || isGuestMode()) {
-      const hasSetName = localStorage.getItem(NAME_KEY)
-      setTimeout(() => navigate(hasSetName ? '/home' : '/setup'), 120)
-      return
-    }
-
-    // Not authenticated → auth gate
-    setTimeout(() => navigate('/auth'), 120)
-  }
+  useEffect(() => {
+    if (!playPressed || authLoading) return
+    const t = setTimeout(() => {
+      if (isRegistered || isGuestMode()) {
+        navigate(localStorage.getItem(NAME_KEY) ? '/home' : '/setup')
+      } else {
+        navigate('/auth')
+      }
+    }, 120)
+    return () => clearTimeout(t)
+  }, [playPressed, authLoading, isRegistered, navigate])
 
   const tier = getTierFromGames(totalGames)
 

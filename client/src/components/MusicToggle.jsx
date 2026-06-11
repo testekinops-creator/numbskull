@@ -11,7 +11,10 @@ export default function MusicToggle() {
   const onGame = !!modeForRoute(pathname, state?.room?.mode)
   if (!onGame) return null
 
+  // Every multiplayer room now hosts music in the action dock, so the standalone
+  // floating button is only for the solo / AI game pages.
   const inRoom = pathname.startsWith('/room/')
+  if (inRoom) return null
 
   return (
     <button

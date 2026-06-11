@@ -10,6 +10,7 @@
     radial-gradient(ellipse 100% 55% at 50% 0%, rgba(83,74,183,0.22) 0%, transparent 65%),
     var(--color-bg);
   position: relative;
+  isolation: isolate;   /* scopes the ambient orbs' z-index:-1 to this screen */
 }
 
 /* Top bar */

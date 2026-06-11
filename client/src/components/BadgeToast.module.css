@@ -1,24 +1,23 @@
-/* Console-style achievement banner — a slim pill drops from the top, holds,
-   then slides back up. Horizontal centering (translateX(-50%)) is baked into
-   EVERY keyframe so the slide animation can never knock it off-centre. */
+/* Achievement card — pops in dead-centre of the screen, holds, then fades out.
+   Centred on BOTH axes so it can never be clipped by a notch / status bar (the
+   old top-drop sat under the notch on some devices). The centring transform is
+   baked into EVERY keyframe so the pop can't knock it off-centre. */
 .toast {
   position: fixed;
-  top: calc(var(--safe-top, 0px) + 12px);
+  top: 50%;
   left: 50%;
   z-index: 1200;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  width: min(360px, 92vw);
-  padding: 10px 18px 10px 14px;
+  width: min(360px, 88vw);
+  padding: 14px 20px 14px 16px;
   border-radius: var(--radius-xl, 18px);
-  background: rgba(38, 33, 92, 0.96);
+  background: #221c54;
   border: 1px solid var(--color-warning);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 22px rgba(255, 215, 64, 0.3);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 0 30px rgba(255, 215, 64, 0.35);
   pointer-events: none;
-  animation: badgeBanner 3.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: badgeBanner 3.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .icon {
@@ -53,21 +52,21 @@
   text-overflow: ellipsis;
 }
 
-/* Drop in (with a tiny overshoot), hold, slide back up. */
+/* Pop in (with a tiny overshoot), hold, fade + shrink out. */
 @keyframes badgeBanner {
-  0%   { transform: translate(-50%, -160%); opacity: 0; }
-  8%   { transform: translate(-50%, 8%);    opacity: 1; }
-  14%  { transform: translate(-50%, 0);     opacity: 1; }
-  86%  { transform: translate(-50%, 0);     opacity: 1; }
-  100% { transform: translate(-50%, -160%); opacity: 0; }
+  0%   { transform: translate(-50%, -50%) scale(0.6);  opacity: 0; }
+  10%  { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+  18%  { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+  84%  { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
 }
 
-/* No vertical motion for reduced-motion — just fade, still centred. */
+/* No scale pop for reduced-motion — just fade, still centred. */
 @media (prefers-reduced-motion: reduce) {
-  .toast { animation: badgeFade 3.2s linear both; }
+  .toast { animation: badgeFade 3.4s linear both; }
 }
 @keyframes badgeFade {
-  0%        { transform: translate(-50%, 0); opacity: 0; }
-  10%, 86%  { transform: translate(-50%, 0); opacity: 1; }
-  100%      { transform: translate(-50%, 0); opacity: 0; }
+  0%        { transform: translate(-50%, -50%); opacity: 0; }
+  10%, 84%  { transform: translate(-50%, -50%); opacity: 1; }
+  100%      { transform: translate(-50%, -50%); opacity: 0; }
 }

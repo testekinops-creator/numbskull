@@ -1,0 +1,54 @@
+.avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--av-size, 40px);
+  height: var(--av-size, 40px);
+  border-radius: 50%;
+  background: var(--av-grad, linear-gradient(150deg, #6a82fb, #fc5c7d));
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.35),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.25),
+    0 3px 10px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Soft top sheen for a glossy disc. */
+.avatar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, 0.4), transparent 55%);
+  pointer-events: none;
+}
+
+.emoji {
+  font-size: calc(var(--av-size, 40px) * 0.56);
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* Accent rings. */
+.ringGold   { box-shadow: 0 0 0 2px rgba(255, 215, 64, 0.95), 0 0 16px rgba(255, 215, 64, 0.5),  inset 0 2px 4px rgba(255,255,255,0.35); }
+.ringSilver { box-shadow: 0 0 0 2px rgba(214, 222, 240, 0.95), 0 0 14px rgba(214, 222, 240, 0.4), inset 0 2px 4px rgba(255,255,255,0.35); }
+.ringBronze { box-shadow: 0 0 0 2px rgba(214, 154, 92, 0.95), 0 0 14px rgba(214, 154, 92, 0.4),  inset 0 2px 4px rgba(255,255,255,0.35); }
+.ringCyan   { box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.9),   0 0 14px rgba(0, 245, 255, 0.4),   inset 0 2px 4px rgba(255,255,255,0.35); }
+
+/* Presence dot (bottom-right). */
+.dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: calc(var(--av-size, 40px) * 0.3);
+  height: calc(var(--av-size, 40px) * 0.3);
+  min-width: 9px;
+  min-height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--color-bg, #14102b);
+}
+.dotOn  { background: var(--color-success, #00e676); box-shadow: 0 0 8px rgba(0, 230, 118, 0.7); }
+.dotOff { background: var(--color-text-disabled, #4a4466); }

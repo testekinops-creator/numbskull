@@ -5,6 +5,7 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
+import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import styles from './LobbyPage.module.css'
 
 const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri' }
@@ -52,8 +53,10 @@ export default function LobbyPage() {
   const startedMatchmakingRef = useRef(false)
   useEffect(() => {
     if (state.matchmaking) startedMatchmakingRef.current = true
+    // 1v1 quick-match lands in SETUP; a grouped party match (Raja Mantri) lands
+    // in LOBBY (host then starts) — accept either so grouped players navigate too.
     if (startedMatchmakingRef.current && !state.matchmaking &&
-        state.room?.id && state.room.phase === 'SETUP') {
+        state.room?.id && (state.room.phase === 'SETUP' || state.room.phase === 'LOBBY')) {
       startedMatchmakingRef.current = false
       celebrateFound(state.room.id)
     }
@@ -64,12 +67,12 @@ export default function LobbyPage() {
   // SOS carries its grid size in the `difficulty` field ('8' | '10').
   const isSos = mode === 'SOS'
   // Raja Mantri: multiplayer-only (no AI — bluffing bots is hollow), exactly 4
-  // players, room-code only (no 4-player quick-match queue).
+  // players. Quick Match groups 4 strangers into one table; Create/Join also work.
   const isRmcs = mode === 'RMCS'
   const mpOnly = isSudoku || isRmcs
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
-  const [mpTab, setMpTab]   = useState(mode === 'RMCS' ? 'create' : 'quick')   // quick | create | join
+  const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
   const [difficulty, setDifficulty] = useState(mode === 'SOS' ? '8' : 'medium')
   const [partySize, setPartySize] = useState(4)   // SPIN party rooms (3–8)
   const [joinCode, setJoinCode] = useState('')
@@ -122,6 +125,7 @@ export default function LobbyPage() {
 
   return (
     <div className={styles.lobbyScreen}>
+      <AmbientOrbs />
       <div className={styles.lobby}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
@@ -218,11 +222,7 @@ export default function LobbyPage() {
               </div>
             )}
             <div className={styles.tabs}>
-              {/* RMCS: no 4-player quick-match queue — room code only. */}
-              {(isRmcs
-                ? [['create', '🏠 Create Room'], ['join', '🔑 Join Room']]
-                : [['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']]
-              ).map(([id, label]) => (
+              {[['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']].map(([id, label]) => (
                 <button
                   key={id}
                   className={`${styles.tab} ${mpTab === id ? styles.activeTab : ''}`}
@@ -243,13 +243,19 @@ export default function LobbyPage() {
                     </div>
                   ) : state.matchmaking ? (
                     <>
-                      <div className={styles.spinner} aria-label="Finding opponent" />
-                      <p className={styles.waitText}>Looking for an opponent… <b>{fmtSecs(searchSecs)}</b></p>
+                      <div className={styles.spinner} aria-label="Finding players" />
+                      <p className={styles.waitText}>
+                        {isRmcs ? 'Finding 4 players for your table…' : 'Looking for an opponent…'} <b>{fmtSecs(searchSecs)}</b>
+                      </p>
                       <button className="btn btn-ghost" onClick={cancelQuickMatch}>Cancel</button>
                     </>
                   ) : state.matchmakingTimedOut ? (
                     <>
-                      <p className={styles.hint}>😴 No opponent showed up. Want to try again, or create a room and share the code?</p>
+                      <p className={styles.hint}>
+                        {isRmcs
+                          ? '😴 Couldn’t find 4 players in time. Try again, or create a room and invite friends.'
+                          : '😴 No opponent showed up. Want to try again, or create a room and share the code?'}
+                      </p>
                       <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
                         Try Again
                       </button>
@@ -257,7 +263,11 @@ export default function LobbyPage() {
                     </>
                   ) : (
                     <>
-                      <p className={styles.hint}>Get matched with a random opponent instantly.</p>
+                      <p className={styles.hint}>
+                        {isRmcs
+                          ? 'Get grouped with 3 random players into a Raja Mantri table.'
+                          : 'Get matched with a random opponent instantly.'}
+                      </p>
                       <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
                         Find Match
                       </button>

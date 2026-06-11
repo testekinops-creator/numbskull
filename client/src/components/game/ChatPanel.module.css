@@ -76,6 +76,17 @@
   text-align: center;
 }
 
+/* Row wraps an optional avatar + the bubble, and handles left/right alignment. */
+.bubbleRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 100%;
+}
+.rowMine   { justify-content: flex-end; }
+.rowTheirs { justify-content: flex-start; }
+.bubbleAvatar { margin-bottom: 2px; }
+
 .bubble {
   max-width: 80%;
   padding: var(--space-2) var(--space-3);

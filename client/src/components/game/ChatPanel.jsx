@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useAutoAnimate } from '@formkit/auto-animate/react'
 import { api } from '../../services/api.js'
+import Avatar from '../avatar/Avatar.jsx'
 import styles from './ChatPanel.module.css'
 
-export default function ChatPanel({ open, onClose, messages, onSend }) {
+export default function ChatPanel({ open, onClose, messages, onSend, players = [] }) {
+  const avatarOf = (pid) => players.find(p => p.id === pid)?.avatar
   const [listRef] = useAutoAnimate()
   const [text, setText]         = useState('')
   const [generating, setGen]    = useState(false)
@@ -91,9 +93,12 @@ export default function ChatPanel({ open, onClose, messages, onSend }) {
           )}
           <div ref={listRef}>
             {messages.map(m => (
-              <div key={m.id} className={`${styles.bubble} ${m.mine ? styles.mine : styles.theirs}`}>
-                {!m.mine && <span className={styles.bubbleName}>{m.fromName}</span>}
-                <span className={styles.bubbleText}>{m.text}</span>
+              <div key={m.id} className={`${styles.bubbleRow} ${m.mine ? styles.rowMine : styles.rowTheirs}`}>
+                {!m.mine && <Avatar id={avatarOf(m.fromPlayerId)} seed={m.fromPlayerId} name={m.fromName} size={28} className={styles.bubbleAvatar} />}
+                <div className={`${styles.bubble} ${m.mine ? styles.mine : styles.theirs}`}>
+                  {!m.mine && <span className={styles.bubbleName}>{m.fromName}</span>}
+                  <span className={styles.bubbleText}>{m.text}</span>
+                </div>
               </div>
             ))}
           </div>

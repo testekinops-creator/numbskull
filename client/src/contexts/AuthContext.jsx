@@ -40,6 +40,15 @@ async function tryRefreshWithStoredToken() {
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, INITIAL)
 
+  // Safety net: never stay in `loading` forever. If the token-verify / refresh
+  // request black-holes (flaky network, hung fetch), protected routes would
+  // render blank with no recovery. Force-resolve to "loaded" after a few seconds
+  // so the app is always interactive; a slow LOGIN that arrives later still wins.
+  useEffect(() => {
+    const t = setTimeout(() => dispatch({ type: 'LOADED' }), 6000)
+    return () => clearTimeout(t)
+  }, [])
+
   useEffect(() => {
     const token    = localStorage.getItem(TOKEN_KEY)
     const userRaw  = localStorage.getItem(USER_KEY)

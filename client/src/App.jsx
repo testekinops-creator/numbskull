@@ -8,6 +8,7 @@ import { AuthProvider }      from './contexts/AuthContext.jsx'
 import GDPRBanner            from './components/GDPRBanner.jsx'
 import PWAInstallBanner      from './components/PWAInstallBanner.jsx'
 import BadgeToast            from './components/BadgeToast.jsx'
+import SystemToast           from './components/SystemToast.jsx'
 import ConnectionBanner      from './components/ConnectionBanner.jsx'
 import GameMusic             from './components/GameMusic.jsx'
 import MusicToggle           from './components/MusicToggle.jsx'
@@ -111,13 +112,25 @@ function AppInner() {
       <GameMusic />
       <MusicToggle />
       <BadgeToast />
+      <SystemToast />
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </>
   )
 }
 
 export default function App() {
-  useEffect(() => { initAnalytics() }, [])
+  useEffect(() => {
+    initAnalytics()
+    // Best-effort portrait lock for installed PWAs. The manifest alone wasn't
+    // being enforced on some devices (the app settled in landscape on launch),
+    // so we also lock at runtime. Only works in an installed/fullscreen PWA on
+    // Android; iOS and desktop ignore it (and some browsers throw synchronously
+    // when unsupported — hence the guard + catch).
+    try {
+      const o = window.screen?.orientation
+      if (o?.lock) o.lock('portrait').catch(() => {})
+    } catch { /* orientation lock unavailable — nothing to do */ }
+  }, [])
   useColorblindMode()
 
   return (
