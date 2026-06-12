@@ -118,4 +118,12 @@
   /* --- Layout --- */
   --panel-max-width: 480px;
   --header-height:   60px;
+
+  /* --- Sudoku board sizing (shared by board, number pad and HUD so every
+         column/row lands on an exact pixel — no sub-pixel drift). The round()
+         floors the cell to a whole pixel; older engines fall back to the line
+         above. Board width = 9 cells + grid padding (3×2) + border (1×2) = +8. */
+  --sudoku-cell:  min(40px, 9.4vw, 6.8vh);
+  --sudoku-cell:  round(down, min(40px, 9.4vw, 6.8vh), 1px);
+  --sudoku-board: calc(var(--sudoku-cell) * 9 + 8px);
 }

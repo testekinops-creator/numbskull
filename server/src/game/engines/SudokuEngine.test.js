@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SudokuEngine } from './SudokuEngine.js'
+import { SudokuEngine, sudokuComboGain } from './SudokuEngine.js'
 
 function validUnit(values) {
   // values: array of 9 numbers 1..9 → must be a permutation
@@ -72,5 +72,21 @@ describe('SudokuEngine', () => {
     e.puzzle.forEach((v, i) => {
       if (v === 0) expect(e.cellSolution(i)).toBeGreaterThanOrEqual(1)
     })
+  })
+})
+
+describe('sudokuComboGain (multiplayer combo scoring)', () => {
+  it('rewards a hot streak with escalating points', () => {
+    expect(sudokuComboGain(1)).toBe(1)   // first correct
+    expect(sudokuComboGain(2)).toBe(2)   // +1 bonus
+    expect(sudokuComboGain(3)).toBe(3)   // +2 bonus
+    expect(sudokuComboGain(4)).toBe(3)
+    expect(sudokuComboGain(5)).toBe(4)   // +3 bonus, capped
+    expect(sudokuComboGain(12)).toBe(4)
+  })
+
+  it('a fresh streak (combo 1) is always the base point', () => {
+    // After a wrong fill the server resets combo to 0; the next correct makes it 1.
+    expect(sudokuComboGain(1)).toBe(1)
   })
 })

@@ -20,6 +20,7 @@ import MultiplayerTutorial from '../tutorial/MultiplayerTutorial.jsx'
 import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
+import SudokuMpHud from './SudokuMpHud.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
 import SosBoard from './SosBoard.jsx'
 import RmcsMatch from './RmcsMatch.jsx'
@@ -306,7 +307,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   return (
     <div className="screen">
-      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : 'match'} />
+      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : mode === 'SUDOKU' ? 'sudoku' : 'match'} />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…
@@ -482,25 +483,7 @@ export default function MatchRoom({ roomId, mode }) {
             )}
             {mode === 'SUDOKU' && match.grid && (
               <>
-                <div className={styles.sudokuHud}>
-                  <span className={styles.hudScore}>
-                    You <b>{match.scores?.[playerId] ?? 0}</b>
-                    {match.mistakeLimit != null && (
-                      <span className={`${styles.mistakeMeter} ${(match.mistakes?.[playerId] ?? 0) >= match.mistakeLimit - 1 ? styles.mistakeDanger : ''}`}>
-                        ❌{match.mistakes?.[playerId] ?? 0}/{match.mistakeLimit}
-                      </span>
-                    )}
-                  </span>
-                  <span className={styles.hudMid}>✅ {match.correctCount}/{match.fillTarget}</span>
-                  <span className={styles.hudScore}>
-                    {opponent?.name || 'Opp'} <b>{opponent ? (match.scores?.[opponent.id] ?? 0) : 0}</b>
-                    {match.mistakeLimit != null && opponent && (
-                      <span className={`${styles.mistakeMeter} ${(match.mistakes?.[opponent.id] ?? 0) >= match.mistakeLimit - 1 ? styles.mistakeDanger : ''}`}>
-                        ❌{match.mistakes?.[opponent.id] ?? 0}/{match.mistakeLimit}
-                      </span>
-                    )}
-                  </span>
-                </div>
+                <SudokuMpHud match={match} playerId={playerId} opponent={opponent} />
                 <SudokuBoard
                   match={match}
                   playerId={playerId}
@@ -690,6 +673,7 @@ export default function MatchRoom({ roomId, mode }) {
         callActive={callActive}
         onCallActiveChange={setCallActive}
         tuckedAway={phase === 'GAME_OVER'}
+        mute={match?.kind === 'RMCS' && match.modifier === 'SILENT' && (match.stage === 'REVEAL' || match.stage === 'GUESS')}
         onEmoji={(e) => sendEmoji(roomId, e)}
         onOpenChat={openChat}
       />

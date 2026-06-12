@@ -1,0 +1,115 @@
+.hud {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: var(--sudoku-board);
+  max-width: 100%;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #c4c4d4);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+.chip b { font-size: 1.05rem; margin-left: 4px; color: var(--color-text-primary, #fff); }
+.me {
+  border-color: rgba(0, 245, 255, 0.3);
+  background: linear-gradient(180deg, rgba(0, 245, 255, 0.12), rgba(0, 245, 255, 0.03));
+  box-shadow: 0 0 14px rgba(0, 245, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.me b { color: var(--color-juice, #00f5ff); }
+
+.miss { margin-left: 6px; font-size: 0.7rem; font-weight: 700; color: var(--color-text-muted, #9a9ab0); }
+.missDanger { color: #ff5470; animation: missPulse 1s ease-in-out infinite; }
+@keyframes missPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.mid {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #9a9ab0);
+  white-space: nowrap;
+}
+.tension {
+  color: #ffd54f;
+  animation: tensionPulse 0.7s ease-in-out infinite;
+}
+@keyframes tensionPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* ── Live lead bar ────────────────────────────────────────────────────────── */
+.leadBar {
+  position: relative;
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.leadMine {
+  background: linear-gradient(90deg, #00f5ff, #38e0ff);
+  transition: width 0.5s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+}
+.leadTheirs {
+  background: linear-gradient(90deg, #ff7eb3, #ff3e8a);
+  transition: width 0.5s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+.comboFlame {
+  position: absolute;
+  top: -22px;
+  left: 8px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #ffb74d;
+  text-shadow: 0 0 8px rgba(255, 152, 0, 0.7);
+  animation: flameBob 0.8s ease-in-out infinite;
+}
+@keyframes flameBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.06); }
+}
+
+/* ── Floating points popup ────────────────────────────────────────────────── */
+.pop {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.3rem;
+  pointer-events: none;
+  z-index: 3;
+  animation: popUp 1s ease-out forwards;
+}
+.popMine   { color: var(--color-juice, #00f5ff); text-shadow: 0 0 12px rgba(0, 245, 255, 0.6); }
+.popTheirs { color: var(--color-pink, #ff3e8a); text-shadow: 0 0 12px rgba(255, 62, 138, 0.6); }
+.popBad    { color: #ff5470 !important; text-shadow: none; }
+@keyframes popUp {
+  0%   { opacity: 0; transform: translate(-50%, 6px) scale(0.7); }
+  25%  { opacity: 1; transform: translate(-50%, -6px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tension, .missDanger, .comboFlame, .pop, .leadMine, .leadTheirs { animation: none; transition: none; }
+}

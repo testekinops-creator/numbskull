@@ -351,17 +351,23 @@ function reducer(state, action) {
       const grid       = [...(state.match.grid || [])];       grid[p.index] = p.value
       const status     = [...(state.match.status || [])];     status[p.index] = p.status
       const wrongOwner = [...(state.match.wrongOwner || [])]; wrongOwner[p.index] = p.wrongOwner
+      const correctOwner = [...(state.match.correctOwner || [])]; correctOwner[p.index] = p.correctOwner ?? null
       const editLock = { ...(state.match.editLock || {}) }; delete editLock[p.index]
       return {
         ...state,
         match: {
           ...state.match,
-          grid, status, wrongOwner, editLock,
+          grid, status, wrongOwner, correctOwner, editLock,
           scores:       arrToScoreMap(p.scores, state.match.scores),
+          combo:        p.combo ?? state.match.combo,
+          bestCombo:    p.bestCombo ?? state.match.bestCombo,
           mistakes:     p.mistakes ?? state.match.mistakes,
           mistakeLimit: p.mistakeLimit ?? state.match.mistakeLimit,
           correctCount: p.correctCount,
           wrongCount:   p.wrongCount,
+          // Transient — drives the combo/points popup. `gained` is undefined for
+          // clear events, so the HUD only animates on an actual fill.
+          lastFill:     { index: p.index, by: p.by, gained: p.gained, combo: (p.combo && p.combo[p.by]) ?? 0, ts: Date.now() },
         },
       }
     }

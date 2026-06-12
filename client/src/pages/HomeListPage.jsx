@@ -42,8 +42,8 @@ const GAMES = [
   {
     mode: 'SUDOKU',
     icon: '🔢',
-    name: 'Sudoku Duel',
-    desc: 'Co-op the same grid in real time. Right cells score, wrong ones cost.',
+    name: 'Sudoku',
+    desc: 'Solo with 3 lives, notes & hints — or duel a rival to claim the grid.',
     accent: 'var(--color-juice)',
   },
   {

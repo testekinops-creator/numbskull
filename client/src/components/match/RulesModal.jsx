@@ -56,9 +56,9 @@ const RULES = {
   SUDOKU: {
     title: '🔢 Sudoku Duel',
     sections: [
-      { h: 'Goal', p: 'You and your rival fill the SAME grid in real time. Tap an empty cell, then a number.' },
-      { h: 'Scoring', list: ['Correct = +1.', 'Wrong = −1 and the cell turns red — only your partner can fix it.', 'Highlights show peers, matching numbers, and rule conflicts.'] },
-      { h: 'Watch out', p: 'Hit the per-player mistake limit and you forfeit. Finish the grid; highest score wins.' },
+      { h: 'Goal', p: 'You and your rival race to fill the SAME grid. Tap an empty cell, then a number — correct cells turn YOUR colour (cyan vs pink). Claim the most.' },
+      { h: 'Combo scoring', list: ['Correct = +1, but a streak pays more: 2 in a row = +2, 3+ = +3, 5+ = +4.', 'A wrong answer is −1 AND breaks your combo.', 'Watch the lead bar 🔥 — a hot streak can swing the whole game.'] },
+      { h: 'Watch out', p: 'Wrong cells turn red — only your rival can fix them. Hit the mistake limit and you forfeit. Last cells left? It’s a sprint to the finish.' },
     ],
   },
   SOS: {

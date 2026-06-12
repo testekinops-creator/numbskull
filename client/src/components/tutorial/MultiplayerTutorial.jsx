@@ -24,11 +24,18 @@ const STEPS = {
     { emoji: '🎰', title: 'Wedges change everything', body: "💀 Bankrupt wipes your bank · 🛡️ Shield blocks it · 🔥/💰/🦹 load you up · ❄️ Freeze chills a rival's turn. Land smart." },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you play.' },
   ],
+  sudoku: [
+    { emoji: '🔢', title: 'Race the grid', body: 'You and your rival fill the SAME Sudoku. Tap an empty cell, then a number. Correct cells turn YOUR colour — cyan vs pink. Claim the most.' },
+    { emoji: '🔥', title: 'Combo scoring', body: 'Correct = +1, but a streak pays more: 2 in a row = +2, 3+ = +3, 5+ = +4. A wrong answer is −1 and breaks your combo. Watch the lead bar.' },
+    { emoji: '⚔️', title: 'Mistakes & the finish', body: 'A wrong cell turns red — only your rival can fix it. Hit the mistake limit and you forfeit. When few cells remain, it’s a sprint!' },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, 📞 to voice-call, and 🙋 to add a friend.' },
+  ],
   rmcs: [
     { emoji: '👑', title: 'Four secret roles', body: 'Every round deals Raja (1000), Mantri (800), Sipahi (500) and Chor (0) — in secret. Tap your chit to see yours. Keep a straight face.' },
     { emoji: '📣', title: 'Two get exposed', body: 'Once all four reveal, the Raja and Mantri are announced. The other two stay hidden — one honest Sipahi, one lying Chor.' },
     { emoji: '🕵️', title: 'The Mantri hunts', body: 'The Mantri has 60s to accuse one of the two. Right: Mantri keeps 800. Wrong: the Chor ESCAPES with the 800!' },
     { emoji: '🥷', title: 'Bluff your way out', body: 'Chat and emoji stay open while the Mantri decides — mislead, provoke, deny. Highest total when the host ends wins.' },
+    { emoji: '🎲', title: 'Twist rounds', body: 'After round 1, rounds can flip the stakes: 💰 Jackpot doubles points, ⚡ Sudden Death triples them, 🥷 Double Steal lets an escaping Chor rob the Raja too, and 🤫 Silent locks all table talk. Watch the banner.' },
   ],
 }
 

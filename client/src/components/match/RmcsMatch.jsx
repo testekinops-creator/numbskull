@@ -20,6 +20,15 @@ export const ROLE_META = {
 const GUESS_SECS = 60
 const REVEAL_SECS = 30
 
+// Twist rounds — mirrors server/src/game/rmcs.js MODIFIER_META. Drives the
+// in-game stakes banner. 'NONE' renders nothing.
+const MODIFIERS = {
+  JACKPOT:      { emoji: '💰', label: 'Jackpot Round',  desc: 'Every payout is DOUBLED.', tone: 'gold' },
+  DOUBLE_STEAL: { emoji: '🥷', label: 'Double Steal',   desc: 'If the Chor escapes, they rob the Raja AND the Mantri.', tone: 'danger' },
+  SUDDEN_DEATH: { emoji: '⚡', label: 'Sudden Death',   desc: 'TRIPLE points — one round can flip the whole game.', tone: 'danger' },
+  SILENT:       { emoji: '🤫', label: 'Silent Round',   desc: 'Chat & emoji are locked. Read them with your eyes.', tone: 'cool' },
+}
+
 // Raja Mantri Chor Sipahi (4-player hidden roles). Stages mirror the server:
 // REVEAL (everyone taps their chit) → GUESS (Mantri picks the Chor from the two
 // unannounced players, table talk open) → RESULT (full reveal + scores; the
@@ -129,6 +138,11 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
   const correct = last?.correct
   const chorId = last ? Object.keys(last.roles).find(id => last.roles[id] === 'CHOR') : null
 
+  // Twist banner — only while the round is live (REVEAL/GUESS); RESULT shows the
+  // tag inline on the result banner instead.
+  const twist = (stage === 'REVEAL' || stage === 'GUESS') ? MODIFIERS[match.modifier] : null
+  const resultTwist = stage === 'RESULT' ? MODIFIERS[last?.modifier] : null
+
   return (
     <div className={`${styles.wrap} ${stage === 'RESULT' && correct ? 'anim-screen-shake' : ''}`}>
       {/* Round + running totals roster */}
@@ -143,6 +157,17 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
           </div>
         ))}
       </div>
+
+      {/* ── Twist round banner (stakes for THIS round) ── */}
+      {twist && (
+        <div className={`${styles.twist} ${styles[`twist_${twist.tone}`]} anim-bounce-land`} role="status">
+          <span className={styles.twistEmoji} aria-hidden="true">{twist.emoji}</span>
+          <span className={styles.twistText}>
+            <b className={styles.twistLabel}>{twist.label}</b>
+            <span className={styles.twistDesc}>{twist.desc}</span>
+          </span>
+        </div>
+      )}
 
       {/* ── REVEAL: tap your chit ── */}
       {stage === 'REVEAL' && (
@@ -235,10 +260,11 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
       {stage === 'RESULT' && last && (
         <div className={styles.stageArea}>
           <div className={`${styles.resultBanner} ${correct ? styles.resultGood : styles.resultBad} anim-bounce-land`}>
+            {resultTwist && <span className={styles.resultTwistTag}>{resultTwist.emoji} {resultTwist.label}</span>}
             {last.timeout && <span className={styles.timeoutTag}>⏰ Time up — auto-pick! </span>}
             {correct
               ? <>🎯 <b>{nameOf(match.mantriId)}</b> caught the Chor!</>
-              : <>🥷 <b>{nameOf(chorId)}</b> ESCAPED with 800!</>}
+              : <>🥷 <b>{nameOf(chorId)}</b> ESCAPED{resultTwist?.label === 'Double Steal' ? ' — and robbed the Raja!' : ' with 800!'}</>}
           </div>
 
           <div className={styles.revealGrid}>

@@ -11,7 +11,7 @@ import styles from './LobbyPage.module.css'
 const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri' }
 const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑' }
 const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS'])
-const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN'])  // "Solo" rather than "vs AI"
+const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
   const navigate = useNavigate()
@@ -69,7 +69,8 @@ export default function LobbyPage() {
   // Raja Mantri: multiplayer-only (no AI — bluffing bots is hollow), exactly 4
   // players. Quick Match groups 4 strangers into one table; Create/Join also work.
   const isRmcs = mode === 'RMCS'
-  const mpOnly = isSudoku || isRmcs
+  // Sudoku now has a full solo mode; only Raja Mantri stays multiplayer-only.
+  const mpOnly = isRmcs
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
@@ -172,8 +173,8 @@ export default function LobbyPage() {
           </div>
         )}
 
-        {/* ── Difficulty selector (Sudoku — host picks puzzle complexity) ── */}
-        {isSudoku && (
+        {/* ── Difficulty selector (Sudoku MP — host picks puzzle complexity) ── */}
+        {isSudoku && topTab === 'multi' && (
           <div className={styles.tabs}>
             {[['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([id, label]) => (
               <button
@@ -197,6 +198,8 @@ export default function LobbyPage() {
                 ? '20 rapid-fire questions, just you against the clock. Sharpen your mental maths — no AI, pure practice.'
                 : mode === 'SPIN'
                 ? 'Solo practice: spin the wheel, call letters, and solve the phrase before five strikes end you.'
+                : mode === 'SUDOKU'
+                ? 'Solo Sudoku: pick Easy, Medium or Hard and race the clock. Notes, hints and 3 lives — three mistakes and you’re out.'
                 : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
             </p>
             <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={playVsAI}>

@@ -9,14 +9,14 @@ import { cancelRoomGrace } from './roomHandlers.js'
 import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
-import { SudokuEngine } from '../game/engines/SudokuEngine.js'
+import { SudokuEngine, sudokuComboGain } from '../game/engines/SudokuEngine.js'
 import { SosEngine } from '../game/engines/SosEngine.js'
 import {
   WHEEL, VOWEL_COST, EXTRA_TURN_BONUS, JACKPOT_BONUS, STEAL_AMOUNT, pickPuzzle, spinWheel,
   countOf, isAllRevealed, maskAnswer, normalizeSolve, isVowel, isConsonant, distinctLetters,
 } from '../game/engines/SpinBattleEngine.js'
 import { recordResult } from '../game/MonthlyLeaderboard.js'
-import { ROLE_POINTS, assignRoles, scoreRound } from '../game/rmcs.js'
+import { ROLE_POINTS, assignRoles, scoreRound, pickModifier } from '../game/rmcs.js'
 import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
@@ -411,6 +411,7 @@ export function registerMatchHandlers(io, socket) {
       const correct = m.solution[index] === val
       let over = false
       let bustedBy = null   // playerId who hit the mistake limit (forfeits)
+      let gained = 0        // points from THIS fill (for the combo popup)
       await roomManager.update(roomId, r => {
         const mm = r.match
         const wasWrong = mm.status[index] === 'wrong'
@@ -418,14 +419,21 @@ export function registerMatchHandlers(io, socket) {
         delete mm.editLock[index]
         if (correct) {
           mm.status[index] = 'correct'
-          mm.scores[playerId] = (mm.scores[playerId] || 0) + 1
+          // Combo: consecutive correct cells accelerate the payout (swingy race).
+          mm.combo[playerId] = (mm.combo[playerId] || 0) + 1
+          if (mm.combo[playerId] > (mm.bestCombo[playerId] || 0)) mm.bestCombo[playerId] = mm.combo[playerId]
+          gained = sudokuComboGain(mm.combo[playerId])
+          mm.scores[playerId] = (mm.scores[playerId] || 0) + gained
           mm.correctCount++
+          mm.correctOwner[index] = playerId   // claim the territory
           mm.wrongOwner[index] = null
           mm.wrongTs[index] = null
           if (mm.correctCount >= mm.fillTarget) over = true
         } else {
           mm.status[index] = 'wrong'
           mm.scores[playerId] = (mm.scores[playerId] || 0) - 1
+          mm.combo[playerId] = 0   // a miss breaks the streak
+          gained = -1
           if (!wasWrong) mm.wrongCount++   // count each new wrong attempt
           mm.mistakes[playerId] = (mm.mistakes[playerId] || 0) + 1   // every wrong submit counts
           mm.wrongOwner[index] = playerId
@@ -436,8 +444,8 @@ export function registerMatchHandlers(io, socket) {
 
       _clearSudokuLockTimer(roomId, index)
       const updated = await roomManager.get(roomId)
-      io.to(roomId).emit('sudoku:update', _sudokuCellUpdate(updated, index, playerId))
-      ack?.({ ok: true, correct })
+      io.to(roomId).emit('sudoku:update', _sudokuCellUpdate(updated, index, playerId, { gained }))
+      ack?.({ ok: true, correct, gained })
 
       if (over) {
         const [a, b] = updated.players
@@ -704,6 +712,7 @@ export function registerMatchHandlers(io, socket) {
         mm.revealed = {}
         mm.stage = 'REVEAL'
         mm.round += 1
+        mm.modifier = pickModifier(mm.round)   // twist rounds kick in after round 1
         mm.lastRound = null
         mm.guessEndsAt = null
         mm.revealEndsAt = Date.now() + RMCS_REVEAL_MS
@@ -844,8 +853,11 @@ async function _startMatch(io, roomId) {
         status,
         wrongOwner: Array(81).fill(null),
         wrongTs:    Array(81).fill(null),
+        correctOwner: Array(81).fill(null),  // who claimed each solved cell (territory)
         editLock:   {},                      // index -> { by, ts }
         scores:     { [a.id]: 0, [b.id]: 0 },
+        combo:      { [a.id]: 0, [b.id]: 0 },   // current correct-streak per player
+        bestCombo:  { [a.id]: 0, [b.id]: 0 },   // longest streak this match
         mistakes:   { [a.id]: 0, [b.id]: 0 },   // cumulative — never decremented
         mistakeLimit: SUDOKU_MISTAKE_LIMIT[room.difficulty] ?? SUDOKU_MISTAKE_LIMIT.medium,
         correctCount: 0,
@@ -932,6 +944,7 @@ async function _startMatch(io, roomId) {
         revealed: {},                  // playerId -> true once their chit is tapped
         stage:    'REVEAL',            // REVEAL → GUESS → RESULT
         round:    1,
+        modifier: 'NONE',              // twist for THIS round; round 1 is always plain
         totals:   Object.fromEntries(ids.map(id => [id, 0])),
         lastRound: null,               // { roles, guessedId, correct, gained, timeout }
         guessEndsAt: null,
@@ -990,7 +1003,7 @@ async function _resolveRmcsGuess(io, roomId, suspectId, timeout) {
     const mm = r.match
     if (!mm || mm.stage !== 'GUESS') return
     const correct = mm.roles[suspectId] === 'CHOR'
-    const pts = scoreRound(correct)
+    const pts = scoreRound(correct, mm.modifier)
     const gained = {}
     for (const [id, role] of Object.entries(mm.roles)) {
       gained[id] = pts[role]
@@ -999,7 +1012,7 @@ async function _resolveRmcsGuess(io, roomId, suspectId, timeout) {
     mm.stage = 'RESULT'
     mm.guessEndsAt = null
     // Roles become public knowledge here — the round is decided.
-    mm.lastRound = { roles: { ...mm.roles }, guessedId: suspectId, correct, gained, timeout }
+    mm.lastRound = { roles: { ...mm.roles }, guessedId: suspectId, correct, gained, timeout, modifier: mm.modifier }
     resolved = true
   })
   if (!resolved) return
@@ -1571,8 +1584,11 @@ function _publicMatch(match) {
       given:        match.given,
       status:       match.status,
       wrongOwner:   match.wrongOwner,
+      correctOwner: match.correctOwner || Array(81).fill(null),
       editLock,
       scores:       match.scores,
+      combo:        match.combo || {},
+      bestCombo:    match.bestCombo || {},
       mistakes:     match.mistakes,
       mistakeLimit: match.mistakeLimit,
       correctCount: match.correctCount,
@@ -1600,6 +1616,7 @@ function _publicMatch(match) {
       kind:     'RMCS',
       stage:    match.stage,
       round:    match.round,
+      modifier: match.modifier || 'NONE',
       revealed: match.revealed || {},
       totals:   match.totals || {},
       lastRound: match.lastRound || null,
@@ -1626,19 +1643,23 @@ function _sudokuEditable(m, index) {
   return true
 }
 
-function _sudokuCellUpdate(room, index, by) {
+function _sudokuCellUpdate(room, index, by, extra = {}) {
   const m = room.match
   return {
     index,
     value:        m.grid[index],
     status:       m.status[index],
     wrongOwner:   m.wrongOwner[index],
+    correctOwner: m.correctOwner ? m.correctOwner[index] : null,
     by,
     scores:       room.players.map(p => ({ id: p.id, score: m.scores[p.id] || 0 })),
+    combo:        m.combo || {},
+    bestCombo:    m.bestCombo || {},
     mistakes:     m.mistakes,
     mistakeLimit: m.mistakeLimit,
     correctCount: m.correctCount,
     wrongCount:   m.wrongCount,
+    ...extra,   // { gained } on a fill
   }
 }
 

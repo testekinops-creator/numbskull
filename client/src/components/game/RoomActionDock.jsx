@@ -12,7 +12,9 @@ import styles from './RoomActionDock.module.css'
 //   • emoji + chat   → only when an opponent is present
 //   • call           → 1v1 rooms only (voice can't group-call)
 //   • help + music   → always
-export default function RoomActionDock({ roomId, mode, hasOpponent, showCall, opponentName, unread = 0, callActive = false, onCallActiveChange, tuckedAway = false, onEmoji, onOpenChat }) {
+//   • mute           → RMCS "Silent Round": table talk is locked, so emoji + chat
+//                      collapse into a single "Silent" lock pill.
+export default function RoomActionDock({ roomId, mode, hasOpponent, showCall, opponentName, unread = 0, callActive = false, onCallActiveChange, tuckedAway = false, mute = false, onEmoji, onOpenChat }) {
   const [musicOn, setMusicOn] = useMusicEnabled()
   const [rulesOpen, setRulesOpen] = useState(false)
   const [hidden, setHidden] = useState(false)
@@ -54,13 +56,19 @@ export default function RoomActionDock({ roomId, mode, hasOpponent, showCall, op
         aria-label="Room actions"
         aria-hidden={tuckedAway || undefined}
       >
-        {hasOpponent && (
+        {hasOpponent && mute && (
+          <div className={styles.silentPill} title="Silent Round — no table talk">
+            <span aria-hidden="true">🤫</span> Silent
+          </div>
+        )}
+
+        {hasOpponent && !mute && (
           <div className={styles.slot}>
             <EmojiPicker onPick={onEmoji} />
           </div>
         )}
 
-        {hasOpponent && (
+        {hasOpponent && !mute && (
           <button className={styles.btn} onClick={onOpenChat} aria-label="Open chat" title="Chat">
             <ChatIcon />
             {unread > 0 && <span className={styles.badge}>{unread > 9 ? '9+' : unread}</span>}

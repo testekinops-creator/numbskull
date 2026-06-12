@@ -85,3 +85,12 @@ export class SudokuEngine {
   isCorrect(index, value) { return this.solution[index] === Number(value) }
   cellSolution(index)     { return this.solution[index] }
 }
+
+// Points awarded for a correct fill, given the player's NEW combo length (the
+// streak of consecutive correct cells including this one). A hot streak
+// accelerates scoring, which makes the multiplayer race swingy and exciting:
+//   combo 1 → +1, combo 2 → +2, combo 3–4 → +3, combo 5+ → +4.
+export function sudokuComboGain(combo) {
+  const bonus = combo >= 5 ? 3 : combo >= 3 ? 2 : combo >= 2 ? 1 : 0
+  return 1 + bonus
+}

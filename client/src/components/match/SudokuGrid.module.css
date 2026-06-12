@@ -1,0 +1,164 @@
+/* ── Premium Sudoku board ─────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  /* Fixed, whole-pixel cells (shared token) → every column and row aligns
+     exactly, and the 3×3 separators sit crisply on the grid lines. */
+  grid-template-columns: repeat(9, var(--sudoku-cell));
+  grid-auto-rows: var(--sudoku-cell);
+  width: var(--sudoku-board);
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  border-radius: 16px;
+  padding: 3px;
+  /* Deep premium field with a soft inner sheen + outer glow. */
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(0, 245, 255, 0.07), transparent 60%),
+    linear-gradient(160deg, #221d49 0%, #191537 55%, #120f2a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.5),
+    0 0 36px rgba(124, 77, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
+  /* Each internal line drawn once: a cell owns only its top + left edge. */
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: var(--color-juice, #00f5ff);
+  font-family: var(--font-display);
+  font-size: clamp(0.85rem, 3.8vw, 1.5rem);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+/* Don't let hover repaint the SELECTED cell — its hover specificity beat
+   `.selected`, so the cyan fill only showed once the cursor moved away. */
+.cell:not(:disabled):not(.selected):hover { background: rgba(255, 255, 255, 0.06); }
+.cell:disabled { cursor: default; }
+
+/* Outer frame is the grid padding — first row/col don't redraw their edge. */
+.firstCol { border-left: none; }
+.firstRow { border-top: none; }
+
+/* 3×3 box separators — a brighter, thicker internal line at cols/rows 3 & 6. */
+.boxV { border-left: 2px solid rgba(0, 245, 255, 0.30); }
+.boxH { border-top:  2px solid rgba(0, 245, 255, 0.30); }
+
+/* Given clues — solid, authoritative. */
+.given {
+  color: #fff;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* A solved cell. */
+.correct {
+  color: var(--color-success, #00e676);
+  background: color-mix(in srgb, var(--color-success, #00e676) 15%, transparent);
+  animation: correctPop 0.36s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+@keyframes correctPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+/* MP territory — tint a claimed correct cell by owner (you = cyan, rival = pink). */
+.mine {
+  color: var(--color-juice, #00f5ff);
+  background: color-mix(in srgb, var(--color-juice, #00f5ff) 17%, transparent);
+}
+.theirs {
+  color: #ffd0e4;
+  background: color-mix(in srgb, var(--color-pink, #ff3e8a) 20%, transparent);
+}
+
+/* A wrong entry — red flash + shake. */
+.wrong {
+  color: #fff;
+  background: color-mix(in srgb, var(--color-pink, #ff3e8a) 42%, transparent);
+  animation: shake 0.32s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* Selection — a strong juice fill + crisp inner ring, fully CONTAINED to the
+   cell (inset only, no outer glow that would bleed into neighbours). */
+.selected {
+  background: color-mix(in srgb, var(--color-juice, #00f5ff) 32%, var(--color-surface, #1b1b2e));
+  /* Outline (not inset shadow) so the ring is measured from the cell's box edge
+     EQUALLY on all four sides — the cells only draw top+left borders, which made
+     an inset ring sit flush on the bottom/right and look like it poked out. */
+  outline: 2px solid rgba(0, 245, 255, 0.9);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+/* Cell currently edited by the other player (MP). */
+.oppLock {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--color-pink, #ff3e8a) 16%, transparent),
+    color-mix(in srgb, var(--color-pink, #ff3e8a) 16%, transparent) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+/* Live assistance — peers, matching numbers, rule conflicts. */
+.peer { background: rgba(255, 255, 255, 0.055); }
+
+.sameNum {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-juice, #00f5ff) 55%, transparent);
+}
+
+.conflict { box-shadow: inset 0 0 0 2px #ffae3b; }
+.conflict.sameNum { box-shadow: inset 0 0 0 2px #ffae3b; }
+
+/* A freshly-revealed hint cell pulses to draw the eye. */
+.hintPulse { animation: hintPulse 1s ease-out 2; }
+@keyframes hintPulse {
+  0%   { box-shadow: inset 0 0 0 0 rgba(255, 214, 0, 0.0); }
+  35%  { box-shadow: inset 0 0 0 3px rgba(255, 214, 0, 0.9), 0 0 18px rgba(255, 214, 0, 0.6); }
+  100% { box-shadow: inset 0 0 0 0 rgba(255, 214, 0, 0.0); }
+}
+
+/* ── Pencil notes (3×3 mini-grid of candidates) ───────────────────────────── */
+.notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  padding: 1px;
+}
+.note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.4rem, 1.5vw, 0.62rem);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-text-muted, #8a82b0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell, .correct, .wrong, .hintPulse { animation: none; transition: none; }
+}

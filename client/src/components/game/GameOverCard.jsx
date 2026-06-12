@@ -4,7 +4,7 @@ import styles from './GameOverCard.module.css'
 import SkullMascot from '../skull/SkullMascot.jsx'
 import { celebrateWin } from '../../utils/celebrate.js'
 
-export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores, roast }) {
+export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores, roast, stats }) {
   // Capped at 100% — beating the worst-case optimal (e.g. 9 guesses vs 10) is a
   // perfect run, not "111%".
   const efficiency = optimalMoves && attempts
@@ -62,8 +62,12 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
         </p>
       )}
 
-      {/* Stats row — centered */}
+      {/* Stats row — centered. A caller can pass a custom `stats` array
+          (e.g. solo Sudoku time / mistakes / best) rendered as stat boxes. */}
       <div className={styles.statsRow}>
+        {Array.isArray(stats) && stats.map((s, i) => (
+          <StatBox key={i} label={s.label} value={s.value} highlight={s.highlight} accent={s.accent} />
+        ))}
         {showGuessCount && <StatBox label="Guesses" value={attempts} />}
         {mode === 'GTN' && optimalMoves && (
           <StatBox label="Optimal" value={optimalMoves} />

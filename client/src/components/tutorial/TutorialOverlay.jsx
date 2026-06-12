@@ -94,19 +94,19 @@ const STEPS = {
   ],
   SUDOKU: [
     {
-      title: "Sudoku Duel",
-      body: "You and your rival fill the SAME grid in real time. Tap an empty cell, then a number. Correct = +1, wrong = −1 and the cell turns red.",
+      title: "Sudoku",
+      body: "Fill the grid so every row, every column and every 3×3 box contains 1–9. Tap an empty cell, then a number.",
       emoji: "🔢",
     },
     {
-      title: "Share the grid",
-      body: "Only one of you can edit a cell at a time. And if you put a wrong number in, you can't fix it — your partner has to. Choose carefully.",
-      emoji: "🤝",
+      title: "Three lives",
+      body: "A wrong number flashes red and costs a heart. Three mistakes and the run is over — so read the board before you tap.",
+      emoji: "❤️",
     },
     {
-      title: "Finish the puzzle",
-      body: "The board completes when every cell is correct. Highest score wins, tie is a draw. Speed helps, but a wrong stab hurts.",
-      emoji: "🏆",
+      title: "Notes · hints · undo",
+      body: "Toggle ✏️ to pencil in candidates, tap 💡 for a hint (3 per puzzle) and ↶ to undo. Solve it fast to beat your best time on each difficulty.",
+      emoji: "💡",
     },
   ],
 }

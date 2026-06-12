@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ROLES, ROLE_POINTS, assignRoles, scoreRound } from './rmcs.js'
+import { ROLES, ROLE_POINTS, assignRoles, scoreRound, pickModifier, MODIFIERS } from './rmcs.js'
 
 const IDS = ['p1', 'p2', 'p3', 'p4']
 
@@ -37,5 +37,34 @@ describe('RMCS scoreRound', () => {
 
   it('chit base points match the classic values', () => {
     expect(ROLE_POINTS).toEqual({ RAJA: 1000, MANTRI: 800, SIPAHI: 500, CHOR: 0 })
+  })
+
+  it('NONE / SILENT modifiers leave scoring at the base', () => {
+    expect(scoreRound(true, 'NONE')).toEqual({ RAJA: 1000, MANTRI: 800, SIPAHI: 500, CHOR: 0 })
+    expect(scoreRound(false, 'SILENT')).toEqual({ RAJA: 1000, MANTRI: 0, SIPAHI: 500, CHOR: 800 })
+  })
+
+  it('JACKPOT doubles every payout', () => {
+    expect(scoreRound(true, 'JACKPOT')).toEqual({ RAJA: 2000, MANTRI: 1600, SIPAHI: 1000, CHOR: 0 })
+    expect(scoreRound(false, 'JACKPOT')).toEqual({ RAJA: 2000, MANTRI: 0, SIPAHI: 1000, CHOR: 1600 })
+  })
+
+  it('SUDDEN_DEATH triples every payout', () => {
+    expect(scoreRound(true, 'SUDDEN_DEATH')).toEqual({ RAJA: 3000, MANTRI: 2400, SIPAHI: 1500, CHOR: 0 })
+  })
+
+  it('DOUBLE_STEAL: an escaping Chor robs the Raja too (1800); a catch is normal', () => {
+    expect(scoreRound(false, 'DOUBLE_STEAL')).toEqual({ RAJA: 0, MANTRI: 0, SIPAHI: 500, CHOR: 1800 })
+    expect(scoreRound(true, 'DOUBLE_STEAL')).toEqual({ RAJA: 1000, MANTRI: 800, SIPAHI: 500, CHOR: 0 })
+  })
+})
+
+describe('RMCS pickModifier', () => {
+  it('round 1 is always NONE; later rounds only ever return known modifiers', () => {
+    for (let i = 0; i < 50; i++) expect(pickModifier(1)).toBe('NONE')
+    const seen = new Set()
+    for (let i = 0; i < 1000; i++) seen.add(pickModifier(5))
+    for (const m of seen) expect(MODIFIERS).toContain(m)
+    expect(seen.has('NONE')).toBe(true)   // normal rounds still happen
   })
 })

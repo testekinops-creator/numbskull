@@ -11,6 +11,13 @@ const ALLOWED_EMOJI = new Set([
   '💯', '🎉', '🥲', '😐', '🤝', '🧊', '🐐', '🤌', '🫵', '🤖',
 ])
 
+// During an RMCS "Silent Round", table talk is the whole gimmick being removed —
+// no chat or emoji while the round is live (REVEAL/GUESS). It re-opens at RESULT.
+function _silenced(room) {
+  const m = room?.match
+  return m?.kind === 'RMCS' && m.modifier === 'SILENT' && (m.stage === 'REVEAL' || m.stage === 'GUESS')
+}
+
 export function registerChatHandlers(io, socket) {
   const auth       = socket.handshake.auth
   const playerId   = auth.playerId || socket.id
@@ -22,6 +29,7 @@ export function registerChatHandlers(io, socket) {
       if (!roomId || typeof text !== 'string') return ack?.({ ok: false })
       const room = await roomManager.get(roomId)
       if (!room) return ack?.({ ok: false, error: 'Room not found' })
+      if (_silenced(room)) return ack?.({ ok: false, error: 'Silent Round — no table talk!' })
 
       const clean = cleanText(text.trim().slice(0, MAX_TEXT))
       if (!clean) return ack?.({ ok: false })
@@ -45,6 +53,7 @@ export function registerChatHandlers(io, socket) {
   socket.on('chat:emoji', async ({ roomId, emoji } = {}, ack) => {
     try {
       if (!roomId || !ALLOWED_EMOJI.has(emoji)) return ack?.({ ok: false })
+      if (_silenced(await roomManager.get(roomId))) return ack?.({ ok: false, error: 'Silent Round' })
       socket.join(roomId)
       socket.to(roomId).emit('chat:emoji', {
         fromPlayerId: playerId,
