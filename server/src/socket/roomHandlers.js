@@ -2,6 +2,7 @@ import { roomManager } from '../game/RoomManager.js'
 import { quickMatch } from '../game/QuickMatch.js'
 import { clearTimer } from '../game/TurnTimer.js'
 import { publicMatchFor, onPartyPlayerLeft } from './matchHandlers.js'
+import { makeBot } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
 export function registerRoomHandlers(io, socket) {
@@ -52,6 +53,50 @@ export function registerRoomHandlers(io, socket) {
       const updated = await roomManager.get(room.id)
       io.to(room.id).emit('room:updated', sanitize(updated, playerId))
       ack?.({ ok: true, room: sanitize(updated, playerId) })
+    } catch (err) {
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── Fill a seat with a bot (RMCS only — so 1–3 friends can still play) ──────
+  socket.on('room:add_bot', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room) return ack?.({ ok: false, error: 'Room not found' })
+      if (room.mode !== 'RMCS') return ack?.({ ok: false, error: 'Bots are only for Raja Mantri' })
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can add bots' })
+      if (room.phase !== 'LOBBY' && room.phase !== 'SETUP') return ack?.({ ok: false, error: 'Game already started' })
+
+      let added = false
+      await roomManager.update(roomId, r => {
+        if (r.players.length >= (r.maxPlayers || 4)) return
+        r.players.push(makeBot(r.players.map(p => p.name)))
+        added = true
+      })
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('room:updated', sanitize(updated, null))
+      ack?.({ ok: added, error: added ? null : 'Table is already full' })
+    } catch (err) {
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  socket.on('room:remove_bot', async ({ roomId, botId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room) return ack?.({ ok: false, error: 'Room not found' })
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can remove bots' })
+      if (room.phase !== 'LOBBY' && room.phase !== 'SETUP') return ack?.({ ok: false, error: 'Game already started' })
+
+      await roomManager.update(roomId, r => {
+        // Remove the named bot, else the most recently added one.
+        let idx = botId ? r.players.findIndex(p => p.isBot && p.id === botId) : -1
+        if (idx < 0) for (let i = r.players.length - 1; i >= 0; i--) if (r.players[i].isBot) { idx = i; break }
+        if (idx >= 0) r.players.splice(idx, 1)
+      })
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('room:updated', sanitize(updated, null))
+      ack?.({ ok: true })
     } catch (err) {
       ack?.({ ok: false, error: err.message })
     }
@@ -307,11 +352,16 @@ async function _handleLeave(io, socket, playerId, playerName, roomId, reason = '
 async function _removeFromParty(io, roomId, leaverId, leaverName, reason) {
   await roomManager.update(roomId, r => {
     r.players = r.players.filter(p => p.id !== leaverId)
-    if (r.hostId === leaverId && r.players[0]) r.hostId = r.players[0].id
+    // Host must be a human — never hand the room to a seat-filler bot.
+    if (r.hostId === leaverId) {
+      const human = r.players.find(p => !p.isBot)
+      r.hostId = human ? human.id : (r.players[0]?.id || r.hostId)
+    }
   })
   const room = await roomManager.get(roomId)
   if (!room) return
-  if (room.players.length === 0) {
+  // Close once no humans remain (an all-bot room is pointless).
+  if (room.players.filter(p => !p.isBot).length === 0) {
     clearTimer(roomId); cancelRoomGrace(roomId)
     await roomManager.delete(roomId)
     io.to(roomId).emit('room:closed', { roomId })
@@ -361,6 +411,7 @@ function sanitize(room, viewerId) {
       avatar: p.avatar ?? null,
       ready: p.ready,
       score: p.score,
+      isBot: !!p.isBot,
       isYou: p.id === viewerId,
     })),
     spectatorCount: room.spectators.length,

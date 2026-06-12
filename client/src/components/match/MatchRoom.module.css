@@ -36,6 +36,20 @@
 }
 .partyItemName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .partyHostTag { font-size: var(--text-xs, 0.75rem); color: var(--color-warning, #ffd740); white-space: nowrap; }
+.partyBotTag { font-size: var(--text-xs, 0.75rem); color: var(--color-juice, #00f5ff); white-space: nowrap; }
+.botRemove {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 62, 138, 0.14);
+  border: 1px solid rgba(255, 62, 138, 0.35);
+  color: var(--color-pink, #ff3e8a);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.botRemove:hover { background: rgba(255, 62, 138, 0.24); }
+.botRow { display: flex; gap: 8px; width: 100%; }
 .partyCode { color: var(--color-text-secondary, #9b93c0); font-size: var(--text-sm, 0.85rem); }
 .partyCode b { color: var(--color-warning, #ffd740); letter-spacing: 0.18em; }
 

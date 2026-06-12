@@ -783,6 +783,9 @@ export function RoomProvider({ children }) {
   const rmcsNext   = useCallback((roomId)            => emitAck(socket, 'rmcs:next',   { roomId }),            [socket])
   const rmcsEnd    = useCallback((roomId)            => emitAck(socket, 'rmcs:end',    { roomId }),            [socket])
   const rmcsRematch = useCallback((roomId)           => emitAck(socket, 'rmcs:rematch', { roomId }),           [socket])
+  // Seat-filler bots (RMCS) — host adds/removes in the lobby so 1–3 friends can play.
+  const addBot    = useCallback((roomId)          => emitAck(socket, 'room:add_bot',    { roomId }),        [socket])
+  const removeBot = useCallback((roomId, botId)   => emitAck(socket, 'room:remove_bot', { roomId, botId }), [socket])
 
   const mathAnswer = useCallback((roomId, index, choice) => {
     socket?.emit('math:answer', { roomId, index, choice })
@@ -885,7 +888,7 @@ export function RoomProvider({ children }) {
       matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
       spinSpin, spinGuess, spinVowel, spinSolve,
-      rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch,
+      rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     }}>
       {children}
     </RoomContext.Provider>

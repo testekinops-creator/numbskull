@@ -40,7 +40,7 @@ export default function MatchRoom({ roomId, mode }) {
     state, matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     spinSpin, spinGuess, spinVowel, spinSolve,
-    rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch,
+    rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -67,6 +67,12 @@ export default function MatchRoom({ roomId, mode }) {
     const r = await hostStart(roomId)
     if (!r?.ok) { setStartErr(r?.error || 'Could not start — try again'); setStarting(false) }
     // on success, match:start flips the phase and this lobby unmounts
+  }
+
+  async function doAddBot() { await addBot(roomId) }
+  async function doFillBots() {
+    const need = 4 - (room?.players?.length || 0)   // server caps at 4, so extra calls are no-ops
+    for (let i = 0; i < need; i++) await addBot(roomId)
   }
 
   async function doRunItBack() {
@@ -391,11 +397,22 @@ export default function MatchRoom({ roomId, mode }) {
                   <li key={p.id} className={styles.partyItem}>
                     <Avatar id={p.avatar} seed={p.id} name={p.name} size={32} ring={p.id === room.hostId ? 'gold' : false} />
                     <span className={styles.partyItemName}>{p.name}{p.id === playerId ? ' (you)' : ''}</span>
+                    {p.isBot && <span className={styles.partyBotTag}>🤖 bot</span>}
                     {p.id === room.hostId && <span className={styles.partyHostTag}>👑 host</span>}
+                    {isHost && p.isBot && (
+                      <button className={styles.botRemove} onClick={() => removeBot(roomId, p.id)} aria-label="Remove bot" title="Remove bot">✕</button>
+                    )}
                   </li>
                 ))}
               </ul>
               <p className={styles.partyCode}>Share code: <b>{room.code}</b></p>
+              {/* RMCS: short a player? fill empty seats with bots so you can start now. */}
+              {isHost && mode === 'RMCS' && room.players.length < 4 && (
+                <div className={styles.botRow}>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={doAddBot}>🤖 Add bot</button>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={doFillBots}>Fill with bots</button>
+                </div>
+              )}
               {isHost ? (
                 <>
                   {/* RMCS needs the full court of 4; other party modes start at 2+. */}

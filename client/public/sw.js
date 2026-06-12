@@ -1,6 +1,10 @@
 // Bump this on every deploy that changes caching behaviour — `activate` purges
 // any cache whose name doesn't match, so old/stale assets can't linger.
-const CACHE_NAME = 'numbskull-v2'
+const CACHE_NAME = 'numbskull-v3'
+// On flaky / mobile-data networks a fetch can stall indefinitely, which would
+// hang the page's chunk load. Time-box the network attempt so we fall back to
+// cache (or fail cleanly) quickly instead of hanging.
+const NETWORK_TIMEOUT_MS = 7000
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -40,13 +44,15 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith((async () => {
     try {
-      const response = await fetch(request)
+      const response = await _fetchWithTimeout(request, NETWORK_TIMEOUT_MS)
       if (response.ok && url.origin === self.location.origin) {
         const clone = response.clone()
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
       }
       return response
     } catch {
+      // Network failed/stalled → serve cache if we have it (a cached chunk lets
+      // the page recover instead of hanging).
       const cached = await caches.match(request)
       if (cached) return cached
       // Only navigations may fall back to the offline shell/page.
@@ -56,6 +62,18 @@ self.addEventListener('fetch', (event) => {
     }
   })())
 })
+
+// fetch() bounded by a timeout — a stalled mobile request rejects instead of
+// hanging the page forever.
+function _fetchWithTimeout(request, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('sw-network-timeout')), ms)
+    fetch(request).then(
+      (res) => { clearTimeout(t); resolve(res) },
+      (err) => { clearTimeout(t); reject(err) },
+    )
+  })
+}
 
 // ── Push notifications ────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {

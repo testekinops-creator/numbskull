@@ -137,7 +137,7 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
         {players.map(p => (
           <div key={p.id} className={`${styles.rosterItem} ${p.id === you ? styles.rosterYou : ''}`}>
             <Avatar id={p.avatar} seed={p.id} name={p.name} size={30} ring={p.id === hostId ? 'gold' : false} />
-            <span className={styles.rosterName}>{p.id === hostId ? '⭐ ' : ''}{nameOf(p.id)}</span>
+            <span className={styles.rosterName}>{p.id === hostId ? '⭐ ' : ''}{nameOf(p.id)}{p.isBot ? ' 🤖' : ''}</span>
             <span className={styles.rosterRole}>{roleChip(p.id)}</span>
             <span className={styles.rosterScore}>{match.totals?.[p.id] ?? 0}</span>
           </div>

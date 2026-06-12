@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { lazyWithRetry } from './utils/lazyWithRetry.js'
 import { GameProvider }      from './contexts/GameContext.jsx'
 import { PlayerProvider }    from './contexts/PlayerContext.jsx'
 import { SocketProvider }    from './contexts/SocketContext.jsx'
@@ -26,36 +27,51 @@ import GamePage              from './pages/GamePage.jsx'
 import ProtectedRoute        from './components/ProtectedRoute.jsx'
 
 // Lazily loaded
-const AuthGatePage        = lazy(() => import('./pages/AuthGatePage.jsx'))
-const HomeListPage        = lazy(() => import('./pages/HomeListPage.jsx'))
-const NameSetupScreen     = lazy(() => import('./pages/NameSetupScreen.jsx'))
-const ModeSelectPage      = lazy(() => import('./pages/ModeSelectPage.jsx'))
-const LobbyPage           = lazy(() => import('./pages/LobbyPage.jsx'))
-const RoomPage            = lazy(() => import('./pages/RoomPage.jsx'))
-const SpectatorPage       = lazy(() => import('./pages/SpectatorPage.jsx'))
-const DailyChallengePage  = lazy(() => import('./pages/DailyChallengePage.jsx'))
-const LeaderboardPage     = lazy(() => import('./pages/LeaderboardPage.jsx'))
-const BadgesPage          = lazy(() => import('./pages/BadgesPage.jsx'))
-const RegisterPage        = lazy(() => import('./pages/RegisterPage.jsx'))
-const LoginPage           = lazy(() => import('./pages/LoginPage.jsx'))
-const ProfilePage         = lazy(() => import('./pages/ProfilePage.jsx'))
-const FriendsPage         = lazy(() => import('./pages/FriendsPage.jsx'))
-const ReplayTheaterPage   = lazy(() => import('./pages/ReplayTheaterPage.jsx'))
-const AdminPage           = lazy(() => import('./pages/AdminPage.jsx'))
-const CountdownPage       = lazy(() => import('./pages/CountdownPage.jsx'))
-const NumberChainPage     = lazy(() => import('./pages/NumberChainPage.jsx'))
-const NumberTowersPage    = lazy(() => import('./pages/NumberTowersPage.jsx'))
-const SettingsPage        = lazy(() => import('./pages/SettingsPage.jsx'))
-const XoxAiPage           = lazy(() => import('./pages/XoxAiPage.jsx'))
-const MathBattleAiPage    = lazy(() => import('./pages/MathBattleAiPage.jsx'))
-const SpinBattleAiPage    = lazy(() => import('./pages/SpinBattleAiPage.jsx'))
-const SosAiPage           = lazy(() => import('./pages/SosAiPage.jsx'))
-const NotFoundPage        = lazy(() => import('./pages/NotFoundPage.jsx'))
+const AuthGatePage        = lazyWithRetry(() => import('./pages/AuthGatePage.jsx'))
+const HomeListPage        = lazyWithRetry(() => import('./pages/HomeListPage.jsx'))
+const NameSetupScreen     = lazyWithRetry(() => import('./pages/NameSetupScreen.jsx'))
+const ModeSelectPage      = lazyWithRetry(() => import('./pages/ModeSelectPage.jsx'))
+const LobbyPage           = lazyWithRetry(() => import('./pages/LobbyPage.jsx'))
+const RoomPage            = lazyWithRetry(() => import('./pages/RoomPage.jsx'))
+const SpectatorPage       = lazyWithRetry(() => import('./pages/SpectatorPage.jsx'))
+const DailyChallengePage  = lazyWithRetry(() => import('./pages/DailyChallengePage.jsx'))
+const LeaderboardPage     = lazyWithRetry(() => import('./pages/LeaderboardPage.jsx'))
+const BadgesPage          = lazyWithRetry(() => import('./pages/BadgesPage.jsx'))
+const RegisterPage        = lazyWithRetry(() => import('./pages/RegisterPage.jsx'))
+const LoginPage           = lazyWithRetry(() => import('./pages/LoginPage.jsx'))
+const ProfilePage         = lazyWithRetry(() => import('./pages/ProfilePage.jsx'))
+const FriendsPage         = lazyWithRetry(() => import('./pages/FriendsPage.jsx'))
+const ReplayTheaterPage   = lazyWithRetry(() => import('./pages/ReplayTheaterPage.jsx'))
+const AdminPage           = lazyWithRetry(() => import('./pages/AdminPage.jsx'))
+const CountdownPage       = lazyWithRetry(() => import('./pages/CountdownPage.jsx'))
+const NumberChainPage     = lazyWithRetry(() => import('./pages/NumberChainPage.jsx'))
+const NumberTowersPage    = lazyWithRetry(() => import('./pages/NumberTowersPage.jsx'))
+const SettingsPage        = lazyWithRetry(() => import('./pages/SettingsPage.jsx'))
+const XoxAiPage           = lazyWithRetry(() => import('./pages/XoxAiPage.jsx'))
+const MathBattleAiPage    = lazyWithRetry(() => import('./pages/MathBattleAiPage.jsx'))
+const SpinBattleAiPage    = lazyWithRetry(() => import('./pages/SpinBattleAiPage.jsx'))
+const SosAiPage           = lazyWithRetry(() => import('./pages/SosAiPage.jsx'))
+const NotFoundPage        = lazyWithRetry(() => import('./pages/NotFoundPage.jsx'))
 
 function PageFallback() {
+  // Never let a slow/stalled chunk leave the user staring at a spinner forever:
+  // after a few seconds, surface a reload escape hatch.
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 8000)
+    return () => clearTimeout(t)
+  }, [])
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
-      <Loader label="Loading…" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', padding: 24, textAlign: 'center' }}>
+      <Loader label={slow ? 'Still loading…' : 'Loading…'} />
+      {slow && (
+        <>
+          <p style={{ color: 'var(--color-text-secondary)', maxWidth: '30ch', margin: 0 }}>
+            This is taking a while — your connection may be slow or unstable.
+          </p>
+          <button className="btn btn-juice" onClick={() => window.location.reload()}>Reload</button>
+        </>
+      )}
     </div>
   )
 }

@@ -17,6 +17,7 @@ import {
 } from '../game/engines/SpinBattleEngine.js'
 import { recordResult } from '../game/MonthlyLeaderboard.js'
 import { ROLE_POINTS, assignRoles, scoreRound } from '../game/rmcs.js'
+import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
 export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS'])
@@ -27,6 +28,11 @@ const RMCS_GUESS_MS = 60_000
 // Window for everyone to tap their chit. On expiry unrevealed chits are flipped
 // by the server — an AFK/dropped player can never freeze the round at REVEAL.
 const RMCS_REVEAL_MS = 30_000
+// Bot pacing: a beat before a bot flips its chit (humans see the stage first),
+// staggered between bots; and a suspenseful pause before a bot Mantri accuses.
+const RMCS_BOT_REVEAL_MS = 900
+const RMCS_BOT_REVEAL_STAGGER_MS = 700
+const RMCS_BOT_GUESS_MS = 3500
 
 // SOS: per-move timer. On expiry we auto-claim any owed lines and pass the turn
 // — never forfeit the whole match.
@@ -647,23 +653,8 @@ export function registerMatchHandlers(io, socket) {
       if (!m || m.stage !== 'REVEAL') return ack?.({ ok: false, error: 'Not in reveal stage' })
       if (!m.roles?.[playerId]) return ack?.({ ok: false, error: 'Not a player in this room' })
 
-      let allRevealed = false
-      await roomManager.update(roomId, r => {
-        const mm = r.match
-        if (!mm || mm.stage !== 'REVEAL') return
-        mm.revealed[playerId] = true
-        // All four chits up → announce Raja+Mantri, open the Mantri's guess window.
-        if (Object.keys(mm.revealed).length === Object.keys(mm.roles).length) {
-          mm.stage = 'GUESS'
-          mm.revealEndsAt = null
-          mm.guessEndsAt = Date.now() + RMCS_GUESS_MS
-          allRevealed = true
-        }
-      })
-      const updated = await roomManager.get(roomId)
-      io.to(roomId).emit('rmcs:update', { match: _publicMatch(updated.match), by: playerId })
+      await _rmcsReveal(io, roomId, playerId)
       ack?.({ ok: true })
-      if (allRevealed) _armRmcsStageTimer(io, roomId, RMCS_GUESS_MS)
     } catch (err) {
       logger.error({ err }, 'rmcs:reveal error')
       ack?.({ ok: false, error: err.message })
@@ -720,6 +711,7 @@ export function registerMatchHandlers(io, socket) {
         s?.emit('rmcs:round', _matchView(updated, p.id))
       }
       _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS)
+      _driveBotReveals(io, roomId)
       ack?.({ ok: true })
     } catch (err) {
       logger.error({ err }, 'rmcs:next error')
@@ -954,7 +946,7 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
   if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'SOS')  _startSosTimer(io, roomId, updated.match.turnId)
-  if (updated.mode === 'RMCS') _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS)
+  if (updated.mode === 'RMCS') { _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS); _driveBotReveals(io, roomId) }
 }
 
 // ── RMCS helpers ──────────────────────────────────────────────────────────────
@@ -1011,6 +1003,65 @@ async function _resolveRmcsGuess(io, roomId, suspectId, timeout) {
   io.to(roomId).emit('rmcs:result', { match: _publicMatch(updated.match) })
 }
 
+// Apply one player's chit reveal (shared by the socket handler and the bot driver).
+// When the last chit flips, the round opens the Mantri's guess window.
+async function _rmcsReveal(io, roomId, playerId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING') return
+  const m = room.match
+  if (!m || m.stage !== 'REVEAL' || !m.roles?.[playerId] || m.revealed?.[playerId]) return
+
+  let allRevealed = false
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    if (!mm || mm.stage !== 'REVEAL') return
+    mm.revealed[playerId] = true
+    if (Object.keys(mm.revealed).length === Object.keys(mm.roles).length) {
+      mm.stage = 'GUESS'
+      mm.revealEndsAt = null
+      mm.guessEndsAt = Date.now() + RMCS_GUESS_MS
+      allRevealed = true
+    }
+  })
+  const updated = await roomManager.get(roomId)
+  if (!updated?.match) return
+  io.to(roomId).emit('rmcs:update', { match: _publicMatch(updated.match), by: playerId })
+  if (allRevealed) {
+    _armRmcsStageTimer(io, roomId, RMCS_GUESS_MS)
+    _maybeScheduleBotGuess(io, roomId)
+  }
+}
+
+// Seat-filler bots auto-flip their chits a beat after the round opens, staggered
+// so it reads naturally. Re-validates on fire, so a stale timer is a no-op.
+function _driveBotReveals(io, roomId) {
+  setTimeout(async () => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING' || room.match?.stage !== 'REVEAL') return
+      const bots = room.players.filter(p => p.isBot && !room.match.revealed?.[p.id])
+      bots.forEach((b, i) => setTimeout(() => {
+        _rmcsReveal(io, roomId, b.id).catch(err => logger.error({ err }, 'bot reveal'))
+      }, i * RMCS_BOT_REVEAL_STAGGER_MS))
+    } catch (err) { logger.error({ err }, 'driveBotReveals error') }
+  }, RMCS_BOT_REVEAL_MS)
+}
+
+// If the Mantri seat is a bot, it accuses after a suspenseful pause (honest
+// coin-flip — the deduction edge is the humans'). The 60s safety timer still
+// covers a human Mantri who stalls.
+function _maybeScheduleBotGuess(io, roomId) {
+  setTimeout(async () => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING' || room.match?.stage !== 'GUESS') return
+      const byRole = _rmcsByRole(room.match.roles)
+      if (!isBotId(byRole.MANTRI)) return
+      await _resolveRmcsGuess(io, roomId, botPickSuspect([byRole.CHOR, byRole.SIPAHI]), false)
+    } catch (err) { logger.error({ err }, 'botGuess error') }
+  }, RMCS_BOT_GUESS_MS)
+}
+
 // Anti-stall stage timer. ONE callback per room (getTimer caches the first
 // callback it's given), so it dispatches on the CURRENT stage when it fires:
 //   REVEAL lapsed → force-flip the remaining chits and open the guess window;
@@ -1034,6 +1085,7 @@ function _armRmcsStageTimer(io, roomId, ms) {
       const updated = await roomManager.get(rid)
       io.to(rid).emit('rmcs:update', { match: _publicMatch(updated.match), by: null, autoRevealed: true })
       _armRmcsStageTimer(io, rid, RMCS_GUESS_MS)
+      _maybeScheduleBotGuess(io, rid)
       return
     }
 
@@ -1308,8 +1360,9 @@ async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = 
     }
   })
   const updated = await roomManager.get(roomId)
-  // Monthly multiplayer leaderboard (server-authoritative).
+  // Monthly multiplayer leaderboard (server-authoritative). Seat-filler bots never count.
   for (const p of updated.players) {
+    if (p.isBot) continue
     const s = _findSocket(io, p.id)
     recordResult({ entrantId: s?.handshake.auth?.userId || p.id, name: p.name, won: p.id === winnerId })
   }
@@ -1573,7 +1626,7 @@ function _roomSummary(room) {
   return {
     id: room.id, code: room.code, mode: room.mode, difficulty: room.difficulty,
     phase: room.phase,
-    players: room.players.map(p => ({ id: p.id, name: p.name, avatar: p.avatar ?? null, ready: p.ready, score: p.score })),
+    players: room.players.map(p => ({ id: p.id, name: p.name, avatar: p.avatar ?? null, ready: p.ready, score: p.score, isBot: !!p.isBot })),
     hostId: room.hostId,
     spectatorCount: room.spectators?.length || 0,
     createdAt: room.createdAt,   // lets the lobby show a truthful "waiting for…" clock
