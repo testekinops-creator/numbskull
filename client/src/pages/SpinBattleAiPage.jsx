@@ -8,6 +8,7 @@ import { recordGameForBadges } from '../services/badges.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
 import Loader from '../components/Loader.jsx'
+import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import SpinBattle from '../components/match/SpinBattle.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { SPIN_MS } from '../components/match/SpinWheel.jsx'
@@ -149,7 +150,7 @@ export default function SpinBattleAiPage() {
   return (
     <div className="screen">
       <TutorialOverlay mode="SPIN" />
-      <div className={`panel ${styles.page}`}>
+      <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
           <span className="badge badge-juice">🎡 Spin Battle</span>
@@ -219,6 +220,7 @@ export default function SpinBattleAiPage() {
           </div>
         )}
       </div>
+      <RoomActionDock mode="SPIN" hasOpponent={false} showCall={false} tuckedAway={phase === 'DONE'} />
     </div>
   )
 }

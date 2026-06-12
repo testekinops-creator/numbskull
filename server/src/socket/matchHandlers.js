@@ -28,6 +28,10 @@ const RMCS_GUESS_MS = 60_000
 // Window for everyone to tap their chit. On expiry unrevealed chits are flipped
 // by the server — an AFK/dropped player can never freeze the round at REVEAL.
 const RMCS_REVEAL_MS = 30_000
+// After the LAST chit flips, hold this beat before opening the guess screen so
+// the final revealer actually sees their own card (it used to jump straight to
+// the "pick the Chor" stage the instant the 4th player tapped).
+const RMCS_REVEAL_HOLD_MS = 2200
 // Bot pacing: a beat before a bot flips its chit (humans see the stage first),
 // staggered between bots; and a suspenseful pause before a bot Mantri accuses.
 const RMCS_BOT_REVEAL_MS = 900
@@ -1016,20 +1020,36 @@ async function _rmcsReveal(io, roomId, playerId) {
     const mm = r.match
     if (!mm || mm.stage !== 'REVEAL') return
     mm.revealed[playerId] = true
-    if (Object.keys(mm.revealed).length === Object.keys(mm.roles).length) {
-      mm.stage = 'GUESS'
-      mm.revealEndsAt = null
-      mm.guessEndsAt = Date.now() + RMCS_GUESS_MS
-      allRevealed = true
-    }
+    allRevealed = Object.keys(mm.revealed).length === Object.keys(mm.roles).length
   })
   const updated = await roomManager.get(roomId)
   if (!updated?.match) return
   io.to(roomId).emit('rmcs:update', { match: _publicMatch(updated.match), by: playerId })
+  // Everyone's chit is up — hold a beat (still in REVEAL) so the LAST revealer
+  // sees their own card, then open the hunt. The 30s reveal safety-timer remains
+  // armed as a backstop if this hold somehow doesn't fire.
   if (allRevealed) {
-    _armRmcsStageTimer(io, roomId, RMCS_GUESS_MS)
-    _maybeScheduleBotGuess(io, roomId)
+    setTimeout(() => _openRmcsGuess(io, roomId).catch(err => logger.error({ err }, 'openRmcsGuess error')), RMCS_REVEAL_HOLD_MS)
   }
+}
+
+// Transition REVEAL → GUESS after the reveal hold. Guarded so a late safety-timer
+// (or a re-call) can't double-open the round.
+async function _openRmcsGuess(io, roomId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'RMCS' || room.phase !== 'PLAYING' || room.match?.stage !== 'REVEAL') return
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    if (!mm || mm.stage !== 'REVEAL') return
+    mm.stage = 'GUESS'
+    mm.revealEndsAt = null
+    mm.guessEndsAt = Date.now() + RMCS_GUESS_MS
+  })
+  const updated = await roomManager.get(roomId)
+  if (!updated?.match) return
+  io.to(roomId).emit('rmcs:update', { match: _publicMatch(updated.match), by: null })
+  _armRmcsStageTimer(io, roomId, RMCS_GUESS_MS)
+  _maybeScheduleBotGuess(io, roomId)
 }
 
 // Seat-filler bots auto-flip their chits a beat after the round opens, staggered

@@ -227,9 +227,10 @@ function GuessRoom() {
     }
   }, [state.rematchStatus, navigate, leaveRoom, roomId])
 
-  useEffect(() => {
-    if (isMyTurn && phase === 'PLAYING') inputRef.current?.focus()
-  }, [isMyTurn, phase])
+  // NOTE: we intentionally do NOT auto-focus the guess input on turn change.
+  // Doing so popped the mobile number keyboard the instant the opponent guessed
+  // (turn passes to you) — covering the Guess History. The player taps the field
+  // when they're ready to type instead.
 
   // ── Sound + haptics on each guess result ──────────────────────────────────
   useEffect(() => {

@@ -5,6 +5,7 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
 import Loader from '../components/Loader.jsx'
+import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { useSound } from '../hooks/useSound.js'
@@ -124,7 +125,7 @@ export default function MathBattleAiPage() {
   return (
     <div className="screen">
       {!tutorialDone && <TutorialOverlay mode="MATH" onDone={() => setTutorialDone(true)} />}
-      <div className={`panel ${styles.page}`}>
+      <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
           <span className="badge badge-juice">🧮 Math Battle</span>
@@ -232,6 +233,7 @@ export default function MathBattleAiPage() {
           </div>
         )}
       </div>
+      <RoomActionDock mode="MATH" hasOpponent={false} showCall={false} tuckedAway={phase === 'DONE'} />
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
 import Loader from '../components/Loader.jsx'
+import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import SosBoard from '../components/match/SosBoard.jsx'
 import { useSound } from '../hooks/useSound.js'
@@ -138,7 +139,7 @@ export default function SosAiPage() {
 
   return (
     <div className="screen">
-      <div className={`panel ${styles.page}`}>
+      <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
           <span className="badge badge-juice">🔠 SOS</span>
@@ -206,6 +207,7 @@ export default function SosAiPage() {
           />
         )}
       </div>
+      <RoomActionDock mode="SOS" hasOpponent={false} showCall={false} tuckedAway={phase === 'GAME_OVER'} />
     </div>
   )
 }

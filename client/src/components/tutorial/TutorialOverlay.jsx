@@ -143,7 +143,7 @@ export default function TutorialOverlay({ mode, onDone }) {
 
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true" aria-label="How to play">
-      <div className={`${styles.panel} card anim-bounce-land`}>
+      <div className={`${styles.panel} anim-bounce-land`}>
         <div className={styles.progress}>
           {steps.map((_, i) => (
             <span

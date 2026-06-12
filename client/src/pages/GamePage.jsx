@@ -10,6 +10,7 @@ import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import DifficultyPicker from '../components/game/DifficultyPicker.jsx'
 import Loader from '../components/Loader.jsx'
+import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getTierFromGames, getSkullExpression } from '../utils/personality.js'
@@ -133,7 +134,7 @@ export default function GamePage() {
   if (state.phase === 'IDLE') {
     return (
       <div className="screen">
-        <div className={`panel ${styles.gamePage}`}>
+        <div className={`panel ${styles.gamePage}`} style={{ paddingBottom: 88 }}>
           <div className={styles.header}>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
             <span className={`badge badge-juice`}>{MODE_LABELS[mode]}</span>
@@ -143,6 +144,7 @@ export default function GamePage() {
             ? <div className={styles.loading}><Loader label="Loading…" /></div>
             : <DifficultyPicker mode={mode} onSelect={choose} />}
         </div>
+        <RoomActionDock mode={mode} hasOpponent={false} showCall={false} />
       </div>
     )
   }
@@ -150,7 +152,7 @@ export default function GamePage() {
   return (
     <div className="screen">
       {!tutorialDone && <TutorialOverlay mode={mode} onDone={() => setTutorialDone(true)} />}
-      <div className={`panel ${styles.gamePage}`}>
+      <div className={`panel ${styles.gamePage}`} style={{ paddingBottom: 88 }}>
         {/* Header */}
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>
@@ -236,6 +238,7 @@ export default function GamePage() {
           />
         )}
       </div>
+      <RoomActionDock mode={mode} hasOpponent={false} showCall={false} tuckedAway={state.phase === 'GAME_OVER'} />
     </div>
   )
 }

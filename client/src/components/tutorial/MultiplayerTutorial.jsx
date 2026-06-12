@@ -49,7 +49,7 @@ export default function MultiplayerTutorial({ variant = 'guess', onDone }) {
 
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true" aria-label="How multiplayer works">
-      <div ref={trapRef} className={`${styles.panel} card anim-bounce-land`}>
+      <div ref={trapRef} className={`${styles.panel} anim-bounce-land`}>
         <div className={styles.progress}>
           {steps.map((_, i) => (
             <span key={i} className={`${styles.dot} ${i === step ? styles.active : ''} ${i < step ? styles.done : ''}`} />

@@ -7,6 +7,7 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
 import Loader from '../components/Loader.jsx'
+import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
@@ -108,7 +109,7 @@ export default function XoxAiPage() {
   return (
     <div className="screen">
       {!tutorialDone && <TutorialOverlay mode="XOX" onDone={() => setTutorialDone(true)} />}
-      <div className={`panel ${styles.page}`}>
+      <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         {/* Header */}
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
@@ -191,6 +192,8 @@ export default function XoxAiPage() {
           />
         )}
       </div>
+      {/* Premium dock — solo games only need help + music (no opponent to chat/call). */}
+      <RoomActionDock mode="XOX" hasOpponent={false} showCall={false} tuckedAway={phase === 'GAME_OVER'} />
     </div>
   )
 }

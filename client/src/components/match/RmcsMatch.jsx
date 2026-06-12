@@ -172,7 +172,9 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
           </div>
           <p className={styles.stageHint}>
             {iRevealed
-              ? `🤫 You are the ${meta?.label} — waiting for the others… (${Object.keys(match.revealed || {}).length}/4)`
+              ? (Object.keys(match.revealed || {}).length >= players.length
+                  ? `🃏 You are the ${meta?.label} — everyone's in. Here we go…`
+                  : `🤫 You are the ${meta?.label} — waiting for the others… (${Object.keys(match.revealed || {}).length}/${players.length})`)
               : 'Your secret chit. Tap it — and keep a straight face. (It flips itself when the bar runs out.)'}
           </p>
         </div>
