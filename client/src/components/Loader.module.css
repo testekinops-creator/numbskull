@@ -1,0 +1,55 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4, 16px);
+  padding: var(--space-6, 24px);
+}
+
+/* A gradient ring carved out of a conic gradient with a radial mask, spinning
+   with a soft cyan glow — premium and GPU-cheap (transform only). */
+.ring {
+  display: inline-block;
+  width: var(--loader-size, 48px);
+  height: var(--loader-size, 48px);
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(0, 245, 255, 0.15) 25%,
+    var(--color-juice, #00f5ff) 70%,
+    var(--color-pink, #ff3e8a) 100%
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 13%), #000 calc(100% - 12%));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 13%), #000 calc(100% - 12%));
+  filter: drop-shadow(0 0 6px rgba(0, 245, 255, 0.45));
+  animation: loaderSpin 0.85s linear infinite;
+}
+
+/* Small ring for inside buttons. */
+.inlineRing {
+  --loader-size: 18px;
+  vertical-align: -3px;
+  margin-right: 8px;
+}
+
+.label {
+  font-size: var(--text-sm, 0.9rem);
+  font-weight: var(--weight-semibold, 600);
+  color: var(--color-text-secondary, #afa9ec);
+  letter-spacing: 0.02em;
+  animation: loaderLabel 1.6s ease-in-out infinite;
+}
+
+@keyframes loaderSpin { to { transform: rotate(360deg); } }
+@keyframes loaderLabel { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+/* Reduced motion: swap the spin for a gentle opacity pulse (still clearly "busy"). */
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: loaderPulse 1.2s ease-in-out infinite;
+  }
+  .label { animation: none; }
+}
+@keyframes loaderPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }

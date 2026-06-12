@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
+import Loader from '../components/Loader.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import SosBoard from '../components/match/SosBoard.jsx'
 import { useSound } from '../hooks/useSound.js'
@@ -39,13 +40,14 @@ export default function SosAiPage() {
   const [winner, setWinner]         = useState(null)
   const [roast, setRoast]           = useState(null)
   const [busy, setBusy]             = useState(false)
+  const [startErr, setStartErr]     = useState('')
 
   const sessionRef  = useRef(null)
   const recordedRef = useRef(false)
   const games = user?.totalGames ?? totalGames
 
   async function startGame() {
-    unlock(); setBusy(true)
+    unlock(); setStartErr(''); setBusy(true)
     try {
       const data = await api.post('/game/start', { mode: 'SOS', boardSize, difficulty, totalGames: games })
       sessionRef.current = data.sessionId
@@ -54,7 +56,7 @@ export default function SosAiPage() {
       setOver(false); setWinner(null); setRoast(null)
       recordedRef.current = false
       setPhase('PLAYING')
-    } catch { /* inline */ }
+    } catch (e) { setStartErr(e?.message || 'Could not start — please try again') }
     finally { setBusy(false) }
   }
 
@@ -163,7 +165,10 @@ export default function SosAiPage() {
               ))}
             </div>
 
-            <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={startGame} disabled={busy}>▶ Start</button>
+            <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={startGame} disabled={busy}>
+              {busy ? <><Loader inline size={16} />Starting…</> : '▶ Start'}
+            </button>
+            {startErr && <p style={{ color: 'var(--color-pink)', textAlign: 'center', marginTop: 'var(--space-2, 8px)' }}>{startErr}</p>}
           </div>
         )}
 

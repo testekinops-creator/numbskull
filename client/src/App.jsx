@@ -13,6 +13,7 @@ import ConnectionBanner      from './components/ConnectionBanner.jsx'
 import GameMusic             from './components/GameMusic.jsx'
 import MusicToggle           from './components/MusicToggle.jsx'
 import ErrorBoundary         from './components/ErrorBoundary.jsx'
+import Loader                from './components/Loader.jsx'
 import { initAnalytics }     from './services/analytics.js'
 import { SkipLink, useColorblindMode } from './components/AppShell.jsx'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js'
@@ -53,8 +54,8 @@ const NotFoundPage        = lazy(() => import('./pages/NotFoundPage.jsx'))
 
 function PageFallback() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', color: 'var(--color-text-muted)' }}>
-      Loading…
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
+      <Loader label="Loading…" />
     </div>
   )
 }

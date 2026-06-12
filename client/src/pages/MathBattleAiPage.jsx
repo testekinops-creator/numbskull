@@ -4,6 +4,7 @@ import { api } from '../services/api.js'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
+import Loader from '../components/Loader.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { useSound } from '../hooks/useSound.js'
@@ -34,6 +35,7 @@ export default function MathBattleAiPage() {
   const [myChoice, setMyChoice]     = useState(null)
   const [doneRoast, setDoneRoast]   = useState(null)
   const [busy, setBusy]             = useState(false)
+  const [startErr, setStartErr]     = useState('')
   const [tutorialDone, setTutorialDone] = useState(false)
 
   const sessionRef  = useRef(null)
@@ -50,6 +52,7 @@ export default function MathBattleAiPage() {
 
   async function startGame() {
     unlock()
+    setStartErr('')
     setBusy(true)
     try {
       const endless = gameMode === 'endless'
@@ -63,7 +66,7 @@ export default function MathBattleAiPage() {
       setLocked(false); setReveal(null); setMyChoice(null); setDoneRoast(null)
       setPhase('PLAYING')
       startTimer()
-    } catch { /* noop */ }
+    } catch (e) { setStartErr(e?.message || 'Could not start — please try again') }
     finally { setBusy(false) }
   }
 
@@ -176,8 +179,9 @@ export default function MathBattleAiPage() {
             </p>
 
             <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={startGame} disabled={busy}>
-              ▶ Start
+              {busy ? <><Loader inline size={16} />Starting…</> : '▶ Start'}
             </button>
+            {startErr && <p style={{ color: 'var(--color-pink)', textAlign: 'center', marginTop: 'var(--space-2, 8px)' }}>{startErr}</p>}
           </div>
         )}
 

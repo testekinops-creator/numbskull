@@ -9,6 +9,7 @@ import PressureMeter from '../components/game/PressureMeter.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import DifficultyPicker from '../components/game/DifficultyPicker.jsx'
+import Loader from '../components/Loader.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getTierFromGames, getSkullExpression } from '../utils/personality.js'
@@ -139,7 +140,7 @@ export default function GamePage() {
             <span />
           </div>
           {picked
-            ? <div className={styles.loading}>Loading…</div>
+            ? <div className={styles.loading}><Loader label="Loading…" /></div>
             : <DifficultyPicker mode={mode} onSelect={choose} />}
         </div>
       </div>

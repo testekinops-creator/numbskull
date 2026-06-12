@@ -7,6 +7,7 @@ import { useSound } from '../hooks/useSound.js'
 import { recordGameForBadges } from '../services/badges.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
+import Loader from '../components/Loader.jsx'
 import SpinBattle from '../components/match/SpinBattle.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { SPIN_MS } from '../components/match/SpinWheel.jsx'
@@ -27,6 +28,7 @@ export default function SpinBattleAiPage() {
   const [difficulty, setDifficulty] = useState('medium')
   const [game, setGame]           = useState(null)
   const [busy, setBusy]           = useState(false)
+  const [startErr, setStartErr]   = useState('')
   const [spinning, setSpinning]   = useState(false)
   const [spinIndex, setSpinIndex] = useState(0)
   const [spinNonce, setSpinNonce] = useState(0)
@@ -38,6 +40,7 @@ export default function SpinBattleAiPage() {
 
   async function startGame() {
     unlock()
+    setStartErr('')
     setBusy(true)
     try {
       const data = await api.post('/game/start', { mode: 'SPIN', difficulty, totalGames })
@@ -47,7 +50,7 @@ export default function SpinBattleAiPage() {
       setFeedback('')
       setSpinNonce(0)
       setPhase('PLAYING')
-    } catch { /* noop */ }
+    } catch (e) { setStartErr(e?.message || 'Could not start — please try again') }
     finally { setBusy(false) }
   }
 
@@ -178,8 +181,9 @@ export default function SpinBattleAiPage() {
             </p>
 
             <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={startGame} disabled={busy}>
-              ▶ Start
+              {busy ? <><Loader inline size={16} />Starting…</> : '▶ Start'}
             </button>
+            {startErr && <p style={{ color: 'var(--color-pink)', textAlign: 'center', marginTop: 'var(--space-2, 8px)' }}>{startErr}</p>}
           </div>
         )}
 

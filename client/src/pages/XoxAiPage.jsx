@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
 import GameLogo from '../components/GameLogo.jsx'
+import Loader from '../components/Loader.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
@@ -35,6 +36,7 @@ export default function XoxAiPage() {
   const [result, setResult]         = useState(null)  // 'win' | 'lose' | 'draw' (board reveal)
   const [roast, setRoast]           = useState(null)
   const [busy, setBusy]             = useState(false)
+  const [startErr, setStartErr]     = useState('')
   const [tutorialDone, setTutorialDone] = useState(false)
 
   const sessionRef  = useRef(null)
@@ -43,6 +45,7 @@ export default function XoxAiPage() {
 
   async function startGame() {
     unlock()
+    setStartErr('')
     setBusy(true)
     try {
       const data = await api.post('/game/start', { mode: 'XOX', difficulty, symbol, totalGames: games })
@@ -53,7 +56,7 @@ export default function XoxAiPage() {
       setOver(false); setWon(false); setDraw(false); setResult(null); setRoast(null)
       recordedRef.current = false
       setPhase('PLAYING')
-    } catch { /* surfaced via inline state if needed */ }
+    } catch (e) { setStartErr(e?.message || 'Could not start — please try again') }
     finally { setBusy(false) }
   }
 
@@ -151,8 +154,9 @@ export default function XoxAiPage() {
             )}
 
             <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={startGame} disabled={busy}>
-              ▶ Start
+              {busy ? <><Loader inline size={16} />Starting…</> : '▶ Start'}
             </button>
+            {startErr && <p style={{ color: 'var(--color-pink)', textAlign: 'center', marginTop: 'var(--space-2, 8px)' }}>{startErr}</p>}
           </div>
         )}
 

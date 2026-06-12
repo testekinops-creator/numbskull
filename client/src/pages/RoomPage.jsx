@@ -24,6 +24,7 @@ import { useDelayedFlag } from '../hooks/useDelayedFlag.js'
 import { useAwayTimeout } from '../hooks/useAwayTimeout.js'
 import { useLeaveOnExit } from '../hooks/useLeaveOnExit.js'
 import MatchRoom from '../components/match/MatchRoom.jsx'
+import Loader from '../components/Loader.jsx'
 import styles from './RoomPage.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
@@ -102,10 +103,7 @@ export default function RoomPage() {
               </div>
             </>
           ) : (
-            <>
-              <div className={styles.spinner} />
-              <p>Connecting to room…</p>
-            </>
+            <Loader label="Connecting to room…" />
           )}
         </div>
       </div>
@@ -324,8 +322,7 @@ function GuessRoom() {
     return (
       <div className="screen">
         <div className={styles.loading}>
-          <div className={styles.spinner} />
-          <p>Connecting to room…</p>
+          <Loader label="Connecting to room…" />
         </div>
       </div>
     )
