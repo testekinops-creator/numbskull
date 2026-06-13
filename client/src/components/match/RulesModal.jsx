@@ -75,7 +75,7 @@ const RULES = {
         'Drag across the three cells (or tap a highlighted cell) to claim each line.',
         'Every line you make = +1 and another go. Draw them all to continue.',
       ] },
-      { h: 'Turn timer', p: 'You get 30s per turn. Run out and the game makes a move for you — a non-scoring one where possible (it won’t gift you a point) — so nobody can stall to dodge a tricky endgame move.' },
+      { h: 'Turn timer', p: 'You get 40s per turn. Miss it and your turn passes — and your opponent pockets +2 points. So don’t dawdle.' },
       { h: 'Winning', p: 'When the board is full, the player with the most S‑O‑S lines wins. Equal lines is a draw.' },
     ],
   },

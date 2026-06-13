@@ -42,6 +42,7 @@ const INITIAL = {
   // XOX best-of-3: transient round-over banner (between games of the series)
   xoxRound:             null,
   sosLastCell:          null,   // SOS: last placed cell (board highlight)
+  sosTimeout:           null,   // SOS: transient timeout event (premium centre flash)
   seriesScore:          null,   // final series tally shown at match over
   // Rematch state machine: idle | requesting | incoming | declined
   rematchStatus:        'idle',
@@ -207,6 +208,10 @@ function reducer(state, action) {
           ? action.match.turnId === action.playerId
           : state.myTurn,
         sosLastCell: action.lastCell !== undefined ? action.lastCell : state.sosLastCell,
+        // Transient: a turn timed out. Drives the premium centre-screen flash.
+        sosTimeout: action.timedOut
+          ? { by: action.by, bonusTo: action.bonusTo || null, amount: action.bonusAmount || 0, ts: Date.now() }
+          : state.sosTimeout,
       }
 
     // RMCS: public match patch (reveal progress / stage moves / round result).
@@ -573,8 +578,8 @@ export function RoomProvider({ children }) {
     })
 
     // SOS: placement / claim / timeout — server sends the full public match.
-    socket.on('sos:update', ({ match, lastCell } = {}) => {
-      dispatch({ type: 'SOS_UPDATE', match, lastCell, playerId })
+    socket.on('sos:update', ({ match, lastCell, timedOut, by, bonusTo, bonusAmount } = {}) => {
+      dispatch({ type: 'SOS_UPDATE', match, lastCell, timedOut, by, bonusTo, bonusAmount, playerId })
     })
     socket.on('sos:claimed', ({ match } = {}) => {
       dispatch({ type: 'SOS_UPDATE', match, playerId })

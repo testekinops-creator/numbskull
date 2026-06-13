@@ -18,6 +18,7 @@ import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import RoomSocialCluster from '../components/game/RoomSocialCluster.jsx'
 import RoomToasts from '../components/game/RoomToasts.jsx'
 import MultiplayerTutorial from '../components/tutorial/MultiplayerTutorial.jsx'
+import ConfirmDialog from '../components/common/ConfirmDialog.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { useDelayedFlag } from '../hooks/useDelayedFlag.js'
@@ -148,6 +149,7 @@ function GuessRoom() {
   // Premium action dock (emoji · chat · call · help · music). GTN/B&C are always
   // 1v1, so voice is available whenever an opponent is present.
   const [callActive, setCallActive] = useState(false)
+  const [confirmLeave, setConfirmLeave] = useState(false)   // premium "leave the game?" guard
   const showCall = !!opponent
   useEffect(() => { if (!showCall) setCallActive(false) }, [showCall])
   // Reserve bottom space so the dock / call bar never cover the board or result
@@ -332,6 +334,16 @@ function GuessRoom() {
   return (
     <div className="screen">
       <MultiplayerTutorial variant="guess" />
+      <ConfirmDialog
+        open={confirmLeave}
+        icon="🚪"
+        title="Leave the game?"
+        message={phase === 'PLAYING' ? 'The match is in progress — leaving forfeits it to your opponent.' : 'You’ll leave this room and head back home.'}
+        confirmLabel="Leave"
+        cancelLabel="Keep playing"
+        onConfirm={() => { setConfirmLeave(false); leaveRoom(roomId); navigate('/home') }}
+        onCancel={() => setConfirmLeave(false)}
+      />
       {/* You are offline (your own socket dropped) — debounced */}
       {showOffline && (
         <div className={`${styles.connBanner} ${styles.connOffline}`}>
@@ -348,7 +360,7 @@ function GuessRoom() {
       <div className={`panel ${styles.roomPage}`} style={{ paddingBottom: dockPad }}>
         {/* Header */}
         <div className={styles.header}>
-          <button className="btn btn-ghost btn-sm" onClick={() => { leaveRoom(roomId); navigate('/home') }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmLeave(true)}>
             ✕ Leave
           </button>
           <span className={`badge badge-juice`}>{mode === 'GTN' ? 'Guess The Number' : 'Bulls & Cows'}</span>

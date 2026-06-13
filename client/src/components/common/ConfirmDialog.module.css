@@ -1,0 +1,98 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal, 200);
+  padding: var(--space-4, 16px);
+  animation: backdrop-blur-in var(--duration-slow, 0.35s) var(--ease-out, ease) both;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  text-align: center;
+  max-width: 340px;
+  width: 100%;
+  position: relative;
+  isolation: isolate;
+  padding: var(--space-7, 28px) var(--space-6, 24px) var(--space-6, 24px);
+  border-radius: var(--radius-2xl, 24px);
+  background: linear-gradient(160deg, #2c2557 0%, #1b1640 55%, #14102e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(124, 77, 255, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* Soft top sheen. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(120% 70% at 50% 0%, rgba(255, 62, 138, 0.14), transparent 58%);
+  pointer-events: none;
+}
+
+/* Icon presented as a glowing disc (matches the tutorial / game-over language). */
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  font-size: 2rem;
+  line-height: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 62, 138, 0.3), transparent 62%),
+    linear-gradient(160deg, rgba(124, 77, 255, 0.45), rgba(255, 62, 138, 0.3));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.4),
+    0 0 28px rgba(255, 62, 138, 0.28),
+    inset 0 2px 6px rgba(255, 255, 255, 0.25);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+}
+
+.title {
+  font-size: var(--text-xl, 1.3rem);
+  font-weight: var(--weight-black, 800);
+  background: linear-gradient(180deg, #ffffff, #c9c2f5);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}
+
+.message {
+  color: var(--color-text-secondary, #c4c4d4);
+  line-height: var(--leading-loose, 1.6);
+  font-size: var(--text-sm, 0.9rem);
+  max-width: 32ch;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3, 12px);
+  align-items: center;
+  width: 100%;
+  margin-top: var(--space-2, 8px);
+}
+.actions > * { flex: 1; }
+
+/* Danger CTA — premium pink gradient with glow. */
+.confirmDanger {
+  background: linear-gradient(135deg, #ff5470, #ff3e8a);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 22px rgba(255, 62, 138, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.confirmDanger:hover { filter: brightness(1.06); }
+.confirmDanger:active { transform: scale(0.96); }

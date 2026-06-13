@@ -38,13 +38,12 @@ const RMCS_BOT_REVEAL_MS = 900
 const RMCS_BOT_REVEAL_STAGGER_MS = 700
 const RMCS_BOT_GUESS_MS = 3500
 
-// SOS per-turn timer (30s). The endgame is a zugzwang — whoever is forced to
-// place into the last cells hands S-O-S lines to the other player. Simply
-// passing the turn on timeout let a player stall to dump that forced move on the
-// opponent (cheating). So on expiry we AUTO-PLAY a move for them — a NON-scoring
-// placement when possible (a stall must never gift a point), scoring only when
-// unavoidable — consuming a cell so the stall can't dodge the turn.
-const SOS_TURN_MS = 30_000
+// SOS per-turn timer (40s). On expiry the turn passes to the opponent and — as a
+// penalty for missing — the opponent is awarded +2. (No auto-move: we never place
+// a letter for the player.) A formed-but-undrawn S-O-S is still auto-claimed
+// (they earned it) without any penalty.
+const SOS_TURN_MS = 40_000
+const SOS_MISS_BONUS = 2   // points the opponent gets when you miss your turn
 
 // Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
 const SPIN_BEST_OF = 3
@@ -1313,6 +1312,16 @@ export async function endMatch(io, roomId, { winnerId = null, draw = false } = {
   return _endMatch(io, roomId, { winnerId, draw })
 }
 
+// A 1v1 player left/disconnected mid-match → the OTHER player wins by forfeit:
+// records the win and emits match:over so they see the game-over card (rather
+// than the room just closing). Called from roomHandlers for the new match modes.
+export async function forfeitMatch(io, roomId, leaverId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.phase !== 'PLAYING') return
+  const winnerId = room.players.find(p => p.id !== leaverId)?.id || null
+  await _endMatch(io, roomId, { winnerId, draw: false, reason: 'opponent_left' })
+}
+
 // ── XOX best-of-3 series ────────────────────────────────────────────────────
 const XOX_INTERMISSION_MS = 2600
 
@@ -1470,24 +1479,23 @@ function _sosResult(match) {
   return { winnerId: sa > sb ? a : b, draw: false }
 }
 
-// SOS per-turn timer. On expiry we never just hand the turn over — that let a
-// staller dump the forced endgame move on the opponent. Instead:
-//   • formed an S-O-S but didn't draw it → auto-claim what they earned, then pass;
-//   • otherwise (true stall) → AUTO-PLAY a NON-scoring move (SosEngine.neutralMove)
-//     so the stall can't gift a point; it only scores when scoring is unavoidable,
-//     and such a forced S-O-S keeps the turn (bonus), like a real placement.
-// Either way a cell is consumed, so a stall can't dodge the player's turn.
+// SOS per-turn timer. On expiry:
+//   • formed an S-O-S but didn't draw it → auto-claim what they earned (no penalty);
+//   • otherwise (missed the turn) → the turn passes AND the opponent gets +2
+//     (SOS_MISS_BONUS). No auto-move — we never place a letter for the player.
+// The client shows a premium centre-screen flash announcing the miss bonus.
 function _startSosTimer(io, roomId, currentTurnId) {
   const timer = getTimer(roomId, async (rid) => {
     const room = await roomManager.get(rid)
     if (!room || room.mode !== 'SOS' || room.phase !== 'PLAYING') return
     if (room.match?.turnId !== currentTurnId) return
 
-    let over = false, keptTurn = false, autoCell = null
+    let over = false, bonusTo = null
     await roomManager.update(rid, r => {
       const mm = r.match
+      const opponentId = r.players.find(p => p.id !== currentTurnId)?.id
       if (mm.pendingBy === currentTurnId && mm.pending.length) {
-        // Formed an S-O-S but didn't draw it → auto-claim (they earned it) + pass.
+        // Formed an S-O-S but didn't draw it → auto-claim (they earned it), no penalty.
         if (mm.pending.length >= 2) mm.scores[currentTurnId] = (mm.scores[currentTurnId] || 0) + mm.pending.length - 1
         for (const cells of mm.pending) {
           mm.lines.push({ cells, by: currentTurnId })
@@ -1495,32 +1503,23 @@ function _startSosTimer(io, roomId, currentTurnId) {
         }
         mm.pending = []; mm.pendingBy = null; mm.comboSize = 0
       } else {
-        // True stall (no move placed) → auto-play a NON-scoring move so the stall
-        // can't gift them a point; only scores when scoring is unavoidable.
+        // Missed the turn (no move) → penalty: the opponent gets +SOS_MISS_BONUS.
+        // No auto-move — we never place a letter for the player.
         mm.pending = []; mm.pendingBy = null; mm.comboSize = 0
-        const mv = SosEngine.neutralMove(mm.board, mm.size)
-        if (mv) {
-          autoCell = mv.cell
-          mm.board[mv.cell] = mv.letter
-          const formed = SosEngine.linesAt(mm.board, mm.size, mv.cell)
-          if (formed.length) {
-            for (const cells of formed) {
-              mm.lines.push({ cells, by: currentTurnId })
-              mm.scores[currentTurnId] = (mm.scores[currentTurnId] || 0) + 1
-            }
-            if (formed.length >= 2) mm.scores[currentTurnId] += formed.length - 1
-            keptTurn = true   // forming an S-O-S keeps the turn (bonus)
-          }
+        if (opponentId) {
+          mm.scores[opponentId] = (mm.scores[opponentId] || 0) + SOS_MISS_BONUS
+          bonusTo = opponentId
         }
       }
-      if (!keptTurn) {
-        mm.turnId = r.players.find(p => p.id !== currentTurnId)?.id || mm.turnId
-      }
+      mm.turnId = opponentId || mm.turnId
       if (SosEngine.isFull(mm.board)) over = true
     })
 
     const updated = await roomManager.get(rid)
-    io.to(rid).emit('sos:update', { match: _publicMatch(updated.match), lastCell: autoCell, by: currentTurnId, timedOut: true })
+    io.to(rid).emit('sos:update', {
+      match: _publicMatch(updated.match), lastCell: null, by: currentTurnId, timedOut: true,
+      bonusTo, bonusAmount: bonusTo ? SOS_MISS_BONUS : 0,
+    })
     if (over) {
       const { winnerId, draw } = _sosResult(updated.match)
       await _endMatch(io, rid, { winnerId, draw, reason: 'complete' })

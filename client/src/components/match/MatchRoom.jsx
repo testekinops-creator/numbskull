@@ -14,6 +14,7 @@ import TurnTimer from '../game/TurnTimer.jsx'
 import EmojiBurst from '../game/EmojiBurst.jsx'
 import ChatPanel from '../game/ChatPanel.jsx'
 import RoomActionDock from '../game/RoomActionDock.jsx'
+import ConfirmDialog from '../common/ConfirmDialog.jsx'
 import RoomSocialCluster from '../game/RoomSocialCluster.jsx'
 import RoomToasts from '../game/RoomToasts.jsx'
 import MultiplayerTutorial from '../tutorial/MultiplayerTutorial.jsx'
@@ -21,6 +22,7 @@ import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
 import SudokuMpHud from './SudokuMpHud.jsx'
+import SosTimeoutFlash from './SosTimeoutFlash.jsx'
 import TurnGlow from '../game/TurnGlow.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
 import SosBoard from './SosBoard.jsx'
@@ -61,6 +63,7 @@ export default function MatchRoom({ roomId, mode }) {
   const [rematching, setRematching] = useState(false)
   const [rematchErr, setRematchErr] = useState('')
   const [callActive, setCallActive] = useState(false)   // a voice call is live (lifts/widens the bottom chrome)
+  const [confirmLeave, setConfirmLeave] = useState(false)   // premium "leave the game?" guard
   // Ignore a brief opponent drop (e.g. a page refresh) — only alarm after ~2.5s.
   const showOppLost = useDelayedFlag(connected && state.opponentConnLost, 2500)
 
@@ -337,6 +340,17 @@ export default function MatchRoom({ roomId, mode }) {
   return (
     <div className="screen">
       <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : 'match'} />
+      {mode === 'SOS' && <SosTimeoutFlash event={state.sosTimeout} playerId={playerId} opponentName={opponent?.name} />}
+      <ConfirmDialog
+        open={confirmLeave}
+        icon="🚪"
+        title="Leave the game?"
+        message={phase === 'PLAYING' ? 'The match is in progress — leaving forfeits it to your opponent.' : 'You’ll leave this room and head back home.'}
+        confirmLabel="Leave"
+        cancelLabel="Keep playing"
+        onConfirm={() => { setConfirmLeave(false); leaveRoom(roomId); navigate('/home') }}
+        onCancel={() => setConfirmLeave(false)}
+      />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…
@@ -351,7 +365,7 @@ export default function MatchRoom({ roomId, mode }) {
       <div className={`panel ${roomStyles.roomPage}`} style={{ paddingBottom: dockPad }}>
         {/* Header */}
         <div className={roomStyles.header}>
-          <button className="btn btn-ghost btn-sm" onClick={() => { leaveRoom(roomId); navigate('/home') }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmLeave(true)}>
             ✕ Leave
           </button>
           <span className="badge badge-juice">{MODE_NAMES[mode] || mode}</span>
@@ -654,6 +668,9 @@ export default function MatchRoom({ roomId, mode }) {
               onPlayAgain={null}
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
+            {state.won && state.overReason === 'opponent_left' && (
+              <p className={styles.seriesLine}>🚪 Opponent left — you win by forfeit.</p>
+            )}
             {mode === 'SUDOKU' && match && (
               <>
                 {state.overReason === 'mistakes' && (

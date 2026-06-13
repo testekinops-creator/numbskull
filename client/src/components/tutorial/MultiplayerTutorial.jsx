@@ -27,7 +27,7 @@ const STEPS = {
   sos: [
     { emoji: '🔠', title: 'Spell S‑O‑S', body: 'Take turns placing an S or an O. Spell S‑O‑S in any direction — across, down or diagonally — to score. Most lines when the board fills wins.' },
     { emoji: '✏️', title: 'Draw to score', body: 'When you form an S‑O‑S the board locks — drag across it (or tap it) to claim the line. Every line is +1 and another turn.' },
-    { emoji: '⏱️', title: '30 seconds a turn', body: "Don't dawdle — run out of time and we play a move for you (a non-scoring one where possible), so no one can stall to dodge a tricky move." },
+    { emoji: '⏱️', title: '40 seconds a turn', body: "Don't dawdle — miss your turn and it passes to your rival, who pockets +2 points. Speed matters." },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, 📞 to voice-call, and 🙋 to add a friend.' },
   ],
   sudoku: [

@@ -295,6 +295,12 @@ async function _nextGuessRound(io, roomId) {
   io.to(roomId).emit('game:rematch_start', _sanitizeForRoom(fresh))
 }
 
+// A 1v1 GTN/BC player left/disconnected mid-game → the other player wins by
+// forfeit (records the win + shows them the game-over card). Called by roomHandlers.
+export function forfeitGuessGame(io, roomId, leaverId) {
+  return _handleForfeit(io, roomId, leaverId)
+}
+
 async function _handleForfeit(io, roomId, forfeitId) {
   clearTimer(roomId)
   const room = await roomManager.get(roomId)

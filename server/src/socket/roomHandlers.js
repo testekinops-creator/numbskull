@@ -1,7 +1,8 @@
 import { roomManager } from '../game/RoomManager.js'
 import { quickMatch } from '../game/QuickMatch.js'
 import { clearTimer } from '../game/TurnTimer.js'
-import { publicMatchFor, onPartyPlayerLeft } from './matchHandlers.js'
+import { publicMatchFor, onPartyPlayerLeft, forfeitMatch } from './matchHandlers.js'
+import { forfeitGuessGame } from './gameHandlers.js'
 import { makeBot } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
@@ -323,6 +324,8 @@ function _scheduleDisconnectClose(io, playerId, playerName, roomId) {
     if (_playerHasLiveSocket(io, playerId, roomId)) return
     // Party rooms (>2): drop just this player and keep the room going.
     if ((room.maxPlayers || 2) > 2) return _removeFromParty(io, roomId, playerId, leaver.name || playerName, 'disconnected')
+    // Live 1v1 match → the player who stayed wins by forfeit (grace already expired).
+    if (room.phase === 'PLAYING' && room.players.length > 1) return _forfeitToOpponent(io, room, roomId, playerId)
     await _closeRoomNotifying(io, room, roomId, leaver.name || playerName, 'disconnected')
   }, DISCONNECT_GRACE_MS)
   disconnectTimers.set(key, t)
@@ -359,7 +362,19 @@ async function _handleLeave(io, socket, playerId, playerName, roomId, reason = '
   socket.leave?.(roomId)
   // Party rooms (>2): remove just this player and keep the room going.
   if ((room.maxPlayers || 2) > 2) return _removeFromParty(io, roomId, playerId, leaver?.name || playerName, reason)
+  // Live 1v1 match → the remaining player WINS by forfeit and sees the game-over
+  // card (win recorded), instead of the room silently closing. Lobby/setup/over
+  // leaves (no live game) just notify + close as before.
+  if (room.phase === 'PLAYING' && room.players.length > 1) return _forfeitToOpponent(io, room, roomId, playerId)
   await _closeRoomNotifying(io, room, roomId, leaver?.name || playerName, reason)
+}
+
+// 1v1 mid-match departure → opponent wins by forfeit (mode-appropriate end path,
+// which records the win + emits the game-over so they see their win card). The
+// room is left intact (expires via TTL) so the winner can sit on the result.
+async function _forfeitToOpponent(io, room, roomId, leaverId) {
+  if (room.mode === 'GTN' || room.mode === 'BC') return forfeitGuessGame(io, roomId, leaverId)
+  return forfeitMatch(io, roomId, leaverId)
 }
 
 // Remove one player from a party room and keep the rest playing (close only when

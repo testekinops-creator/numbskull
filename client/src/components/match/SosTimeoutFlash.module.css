@@ -1,0 +1,68 @@
+.wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-toast, 300);
+  pointer-events: none;
+  padding: var(--space-4, 16px);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: var(--space-6, 24px) var(--space-7, 28px);
+  border-radius: var(--radius-2xl, 24px);
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(160deg, #2c2557 0%, #1b1640 55%, #14102e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  /* Pop in → hold → fade out, all within the 2s the component is mounted. */
+  animation: sosTimeoutFlash 2s var(--ease-out, ease) both;
+}
+/* Tone glow: cyan when you benefit, pink when you missed. */
+.good { box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 44px rgba(0, 245, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08); border-color: rgba(0, 245, 255, 0.4); }
+.bad  { box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 44px rgba(255, 62, 138, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08); border-color: rgba(255, 62, 138, 0.4); }
+
+.icon {
+  font-size: 2.4rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.title {
+  font-family: var(--font-brand, sans-serif);
+  font-size: var(--text-2xl, 1.6rem);
+  font-weight: var(--weight-black, 800);
+  background: linear-gradient(180deg, #ffffff, #c9c2f5);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}
+
+.sub {
+  font-size: var(--text-sm, 0.9rem);
+  font-weight: 700;
+  color: var(--color-text-secondary, #cfc9f5);
+}
+.good .sub { color: #9ff3ff; }
+.bad  .sub { color: #ffb3cf; }
+
+@keyframes sosTimeoutFlash {
+  0%   { opacity: 0; transform: scale(0.7) translateY(8px); }
+  12%  { opacity: 1; transform: scale(1.06) translateY(0); }
+  20%  { transform: scale(1); }
+  78%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+}
