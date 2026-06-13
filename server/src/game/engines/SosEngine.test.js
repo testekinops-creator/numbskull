@@ -126,3 +126,34 @@ describe('SosEngine.bestMove', () => {
     expect(SosEngine.linesAt(b, 8, mv.cell).length).toBeGreaterThan(0)
   })
 })
+
+describe('SosEngine.neutralMove (timeout auto-move)', () => {
+  it('returns null on a full board', () => {
+    expect(SosEngine.neutralMove(Array(64).fill('S'), 8)).toBe(null)
+  })
+
+  it('AVOIDS scoring when a non-scoring move is available', () => {
+    const b = Array(64).fill(null)
+    b[0] = 'S'; b[1] = 'O'                          // placing S at 2 WOULD score
+    // Lots of empty cells → plenty of non-scoring options exist.
+    for (let i = 0; i < 200; i++) {
+      const mv = SosEngine.neutralMove([...b], 8)
+      const probe = [...b]; probe[mv.cell] = mv.letter
+      expect(SosEngine.linesAt(probe, 8, mv.cell).length).toBe(0)   // never scores
+    }
+  })
+
+  it('scores only when EVERY remaining move would form an S-O-S (forced)', () => {
+    // Fill the board so cell 1 is the only empty, and BOTH letters there score:
+    //  • O at 1 completes the horizontal 0-1-2 (S O S)
+    //  • S at 1 completes the vertical   1-9-17 (S O S)
+    const b = Array(64).fill('S')
+    b[9] = 'O'                                       // vertical middle
+    b[1] = null                                      // the only empty cell
+    const mv = SosEngine.neutralMove(b, 8)
+    expect(mv).not.toBeNull()
+    expect(mv.cell).toBe(1)
+    const probe = [...b]; probe[mv.cell] = mv.letter
+    expect(SosEngine.linesAt(probe, 8, mv.cell).length).toBeGreaterThan(0)  // forced to score
+  })
+})

@@ -178,6 +178,39 @@ export class SosEngine {
     return safe.length ? safe[Math.floor(Math.random() * safe.length)] : rand()
   }
 
+  // Auto-move for a player whose turn TIMED OUT. A stall must never gift a point,
+  // so we deliberately AVOID scoring: prefer a placement that completes no S-O-S
+  // (and, among those, one that doesn't set the opponent up). Only when every
+  // remaining placement would form an S-O-S — i.e. scoring is unavoidable — do we
+  // take a scoring move. Returns { cell, letter } | null (board full).
+  static neutralMove(board, size) {
+    const empties = []
+    for (let i = 0; i < board.length; i++) if (board[i] === null) empties.push(i)
+    if (empties.length === 0) return null
+
+    const nonScoringSafe = []   // forms no S-O-S AND opponent can't score next
+    const nonScoringRisky = []  // forms no S-O-S, but opponent could score next
+    const scoring = []          // forms an S-O-S (last resort)
+
+    for (const cell of empties) {
+      for (const letter of ['S', 'O']) {
+        board[cell] = letter
+        if (SosEngine.linesAt(board, size, cell).length > 0) {
+          scoring.push({ cell, letter })
+        } else {
+          const risky = SosEngine._anyImmediateSos(board, size)
+          ;(risky ? nonScoringRisky : nonScoringSafe).push({ cell, letter })
+        }
+        board[cell] = null
+      }
+    }
+
+    const pool = nonScoringSafe.length ? nonScoringSafe
+               : nonScoringRisky.length ? nonScoringRisky
+               : scoring
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
   // Could ANY single placement now complete an SOS? (hard AI uses this to avoid
   // setting the opponent up).
   static _anyImmediateSos(board, size) {

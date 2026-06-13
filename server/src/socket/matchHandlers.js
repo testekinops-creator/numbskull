@@ -41,8 +41,9 @@ const RMCS_BOT_GUESS_MS = 3500
 // SOS per-turn timer (30s). The endgame is a zugzwang — whoever is forced to
 // place into the last cells hands S-O-S lines to the other player. Simply
 // passing the turn on timeout let a player stall to dump that forced move on the
-// opponent (cheating). So on expiry we AUTO-PLAY their move (best placement,
-// scoring any line it forms) — consuming a cell so a stall can't dodge a turn.
+// opponent (cheating). So on expiry we AUTO-PLAY a move for them — a NON-scoring
+// placement when possible (a stall must never gift a point), scoring only when
+// unavoidable — consuming a cell so the stall can't dodge the turn.
 const SOS_TURN_MS = 30_000
 
 // Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
@@ -1472,8 +1473,9 @@ function _sosResult(match) {
 // SOS per-turn timer. On expiry we never just hand the turn over — that let a
 // staller dump the forced endgame move on the opponent. Instead:
 //   • formed an S-O-S but didn't draw it → auto-claim what they earned, then pass;
-//   • otherwise (true stall) → AUTO-PLAY their best move (scoring any line). A move
-//     that forms an S-O-S keeps the turn (bonus), exactly like a real placement.
+//   • otherwise (true stall) → AUTO-PLAY a NON-scoring move (SosEngine.neutralMove)
+//     so the stall can't gift a point; it only scores when scoring is unavoidable,
+//     and such a forced S-O-S keeps the turn (bonus), like a real placement.
 // Either way a cell is consumed, so a stall can't dodge the player's turn.
 function _startSosTimer(io, roomId, currentTurnId) {
   const timer = getTimer(roomId, async (rid) => {
@@ -1493,10 +1495,10 @@ function _startSosTimer(io, roomId, currentTurnId) {
         }
         mm.pending = []; mm.pendingBy = null; mm.comboSize = 0
       } else {
-        // True stall (no move placed) → auto-play their best move so they can't
-        // offload the forced move by idling.
+        // True stall (no move placed) → auto-play a NON-scoring move so the stall
+        // can't gift them a point; only scores when scoring is unavoidable.
         mm.pending = []; mm.pendingBy = null; mm.comboSize = 0
-        const mv = SosEngine.bestMove(mm.board, mm.size, 'hard')
+        const mv = SosEngine.neutralMove(mm.board, mm.size)
         if (mv) {
           autoCell = mv.cell
           mm.board[mv.cell] = mv.letter

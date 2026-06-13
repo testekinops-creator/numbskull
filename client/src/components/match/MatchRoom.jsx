@@ -336,7 +336,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   return (
     <div className="screen">
-      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : mode === 'SUDOKU' ? 'sudoku' : 'match'} />
+      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : 'match'} />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…

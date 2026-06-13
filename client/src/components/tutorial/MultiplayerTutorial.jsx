@@ -24,6 +24,12 @@ const STEPS = {
     { emoji: '🎰', title: 'Wedges change everything', body: "💀 Bankrupt wipes your bank · 🛡️ Shield blocks it · 🔥/💰/🦹 load you up · ❄️ Freeze chills a rival's turn. Land smart." },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you play.' },
   ],
+  sos: [
+    { emoji: '🔠', title: 'Spell S‑O‑S', body: 'Take turns placing an S or an O. Spell S‑O‑S in any direction — across, down or diagonally — to score. Most lines when the board fills wins.' },
+    { emoji: '✏️', title: 'Draw to score', body: 'When you form an S‑O‑S the board locks — drag across it (or tap it) to claim the line. Every line is +1 and another turn.' },
+    { emoji: '⏱️', title: '30 seconds a turn', body: "Don't dawdle — run out of time and we play a move for you (a non-scoring one where possible), so no one can stall to dodge a tricky move." },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, 📞 to voice-call, and 🙋 to add a friend.' },
+  ],
   sudoku: [
     { emoji: '🔢', title: 'Race the grid', body: 'You and your rival fill the SAME Sudoku. Tap an empty cell, then a number. Correct cells turn YOUR colour — cyan vs pink. Claim the most.' },
     { emoji: '🔥', title: 'Combo scoring', body: 'Correct = +1, but a streak pays more: 2 in a row = +2, 3+ = +3, 5+ = +4. A wrong answer is −1 and breaks your combo. Watch the lead bar.' },
