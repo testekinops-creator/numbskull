@@ -571,9 +571,7 @@ export default function MatchRoom({ roomId, mode }) {
                     </span>
                     <span className={styles.hudScore}>{opponent?.name || 'Opp'} <b>{oppScore}</b></span>
                   </div>
-                  {/* No turn timer in SOS — take your time; the turn label above
-                      shows whose move it is. The "your turn" glow hugs the board
-                      itself (see SosBoard `glow`). */}
+                  <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} total={state.turnTimeTotal} />
                   <SosBoard
                     size={match.size}
                     board={match.board}
