@@ -492,6 +492,26 @@ textarea:focus-visible {
   }
 }
 
+/* --- "Your turn" premium glow ---------------------------------------------
+   Reusable across every game: toggle this class on the active board/play area
+   when it's the player's move. A soft pulsing juice ring draws the eye to where
+   they should act. No sizing of its own — it frames whatever it's put on (a
+   board wrapper hugs the board; a full play column frames the column). */
+.your-turn-glow {
+  border-radius: 20px;
+  animation: yourTurnGlow 1.8s ease-in-out infinite;
+}
+@keyframes yourTurnGlow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.28), 0 0 16px rgba(0, 245, 255, 0.16); }
+  50%      { box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.55), 0 0 34px rgba(0, 245, 255, 0.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .your-turn-glow {
+    animation: none;
+    box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.45), 0 0 20px rgba(0, 245, 255, 0.25);
+  }
+}
+
 /* --- Scrollbar --- */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--color-bg); }

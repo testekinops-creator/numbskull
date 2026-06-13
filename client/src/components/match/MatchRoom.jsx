@@ -21,6 +21,7 @@ import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
 import SudokuMpHud from './SudokuMpHud.jsx'
+import TurnGlow from '../game/TurnGlow.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
 import SosBoard from './SosBoard.jsx'
 import RmcsMatch from './RmcsMatch.jsx'
@@ -101,6 +102,23 @@ export default function MatchRoom({ roomId, mode }) {
     ? (callActive ? '72px' : 'var(--space-8, 32px)')
     : (callActive ? '156px' : '100px')
 
+  // Is it the player's move right now? Drives the premium "your turn" glow around
+  // the play area. Per-mode, since turn semantics differ (Sudoku is a free race
+  // with no turns, so it never glows).
+  const myMove = phase === 'PLAYING' && !!match && (() => {
+    switch (mode) {
+      case 'XOX':  return state.myTurn && !state.xoxRound
+      case 'SOS':
+      case 'SPIN': return state.myTurn
+      case 'MATH': return !!match.question && !match.resolved && mathChoice == null
+      case 'RMCS':
+        if (match.stage === 'REVEAL') return !match.revealed?.[playerId]
+        if (match.stage === 'GUESS')  return match.mantriId === playerId
+        return false
+      default:     return false   // SUDOKU: simultaneous race, no turn
+    }
+  })()
+
   const enteredRoomRef = useRef(false)
   useEffect(() => { if (room) enteredRoomRef.current = true }, [room])
 
@@ -142,6 +160,17 @@ export default function MatchRoom({ roomId, mode }) {
   // the room is dead; go to the game list instead of a stale board. Only while a
   // game is actually in progress, so we never yank you off the results screen.
   useAwayTimeout(!!room && phase !== 'GAME_OVER', () => { leaveRoom(roomId); navigate('/home') })
+
+  // Keep the room's server-side TTL fresh while we're present. Turn-less / slow
+  // games (e.g. SOS, which has no turn timer) don't refresh it via moves, so an
+  // idle-but-present player would otherwise get evicted and bounced to the lobby.
+  useEffect(() => {
+    if (!socket || !roomId || phase === 'GAME_OVER') return
+    const ping = () => socket.emit('room:heartbeat', { roomId })
+    ping()                                   // touch immediately…
+    const id = setInterval(ping, 120_000)    // …then every 2 min (well under the 10-min TTL)
+    return () => clearInterval(id)
+  }, [socket, roomId, phase])
 
   // Reconnected while the opponent was mid-grace: when their grace runs out the
   // server closes the room (and we get opponent_left), but guarantee we leave on
@@ -463,23 +492,27 @@ export default function MatchRoom({ roomId, mode }) {
                     <p key={state.myTurn ? 'me' : 'opp'} className={`${styles.turnLabel} anim-msg`}>
                       {state.myTurn ? 'Your move' : `${opponent?.name || 'Opponent'} is playing…`}
                     </p>
-                    <XoxBoard board={match.board} onCell={handleCell} disabled={!state.myTurn} />
+                    <TurnGlow active={myMove} maxWidth={332}>
+                      <XoxBoard board={match.board} onCell={handleCell} disabled={!state.myTurn} />
+                    </TurnGlow>
                   </>
                 )}
               </>
             )}
             {mode === 'MATH' && match.question && (
-              <MathBattle
-                question={match.question}
-                myScore={match.scores?.[playerId] ?? 0}
-                oppScore={opponent ? (match.scores?.[opponent.id] ?? 0) : 0}
-                oppName={opponent?.name || 'Opponent'}
-                onAnswer={handleMathAnswer}
-                locked={match.resolved}
-                myChoice={mathChoice}
-                reveal={mathReveal}
-                durationMs={15000}
-              />
+              <TurnGlow active={myMove} maxWidth={432}>
+                <MathBattle
+                  question={match.question}
+                  myScore={match.scores?.[playerId] ?? 0}
+                  oppScore={opponent ? (match.scores?.[opponent.id] ?? 0) : 0}
+                  oppName={opponent?.name || 'Opponent'}
+                  onAnswer={handleMathAnswer}
+                  locked={match.resolved}
+                  myChoice={mathChoice}
+                  reveal={mathReveal}
+                  durationMs={15000}
+                />
+              </TurnGlow>
             )}
             {mode === 'SUDOKU' && match.grid && (
               <>
@@ -496,29 +529,33 @@ export default function MatchRoom({ roomId, mode }) {
               </>
             )}
             {mode === 'SPIN' && match.wheel && (
-              <SpinBattleMatch
-                match={match}
-                you={playerId}
-                players={room.players}
-                opponent={opponent}
-                spin={state.spin}
-                onSpin={() => { unlock(); spinSpin(roomId) }}
-                onGuess={(l) => { unlock(); spinGuess(roomId, l) }}
-                onBuyVowel={(l) => { unlock(); spinVowel(roomId, l) }}
-                onSolve={(t) => { unlock(); spinSolve(roomId, t) }}
-              />
+              <TurnGlow active={myMove} maxWidth={468}>
+                <SpinBattleMatch
+                  match={match}
+                  you={playerId}
+                  players={room.players}
+                  opponent={opponent}
+                  spin={state.spin}
+                  onSpin={() => { unlock(); spinSpin(roomId) }}
+                  onGuess={(l) => { unlock(); spinGuess(roomId, l) }}
+                  onBuyVowel={(l) => { unlock(); spinVowel(roomId, l) }}
+                  onSolve={(t) => { unlock(); spinSolve(roomId, t) }}
+                />
+              </TurnGlow>
             )}
             {mode === 'RMCS' && match.stage && (
-              <RmcsMatch
-                match={match}
-                you={playerId}
-                players={room.players}
-                hostId={room.hostId}
-                onReveal={() => rmcsReveal(roomId)}
-                onGuess={(suspectId) => rmcsGuess(roomId, suspectId)}
-                onNext={() => rmcsNext(roomId)}
-                onEnd={() => rmcsEnd(roomId)}
-              />
+              <TurnGlow active={myMove} maxWidth={432}>
+                <RmcsMatch
+                  match={match}
+                  you={playerId}
+                  players={room.players}
+                  hostId={room.hostId}
+                  onReveal={() => rmcsReveal(roomId)}
+                  onGuess={(suspectId) => rmcsGuess(roomId, suspectId)}
+                  onNext={() => rmcsNext(roomId)}
+                  onEnd={() => rmcsEnd(roomId)}
+                />
+              </TurnGlow>
             )}
             {mode === 'SOS' && match.board && (() => {
               const myPending = match.pendingBy === playerId ? (match.pending || []) : []
@@ -534,7 +571,9 @@ export default function MatchRoom({ roomId, mode }) {
                     </span>
                     <span className={styles.hudScore}>{opponent?.name || 'Opp'} <b>{oppScore}</b></span>
                   </div>
-                  <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} total={state.turnTimeTotal} />
+                  {/* No turn timer in SOS — take your time; the turn label above
+                      shows whose move it is. The "your turn" glow hugs the board
+                      itself (see SosBoard `glow`). */}
                   <SosBoard
                     size={match.size}
                     board={match.board}
@@ -545,6 +584,7 @@ export default function MatchRoom({ roomId, mode }) {
                     onClaim={(cells) => { unlock(); sosClaim(roomId, cells) }}
                     disabled={!state.myTurn}
                     lastCell={state.sosLastCell}
+                    glow={myMove || claiming}
                   />
                 </>
               )

@@ -38,9 +38,11 @@ const RMCS_BOT_REVEAL_MS = 900
 const RMCS_BOT_REVEAL_STAGGER_MS = 700
 const RMCS_BOT_GUESS_MS = 3500
 
-// SOS: per-move timer. On expiry we auto-claim any owed lines and pass the turn
-// — never forfeit the whole match.
-const SOS_TURN_MS = 20_000
+// SOS has NO per-move timer (removed): the endgame is a zugzwang — whoever is
+// forced to place into the last cells hands S-O-S lines to the other player. A
+// countdown that auto-passed the turn let a player stall to dump that forced
+// move on the opponent (felt like cheating). Players now take as long as they
+// need; the turn only moves on an actual move/claim.
 
 // Spin Battle: best-of-3 rounds; a short pause between rounds to read the board.
 const SPIN_BEST_OF = 3
@@ -246,9 +248,8 @@ export function registerMatchHandlers(io, socket) {
       if (over) {
         const { winnerId, draw } = _sosResult(updated.match)
         await _endMatch(io, roomId, { winnerId, draw, reason: 'complete' })
-      } else {
-        _startSosTimer(io, roomId, updated.match.turnId)
       }
+      // No turn timer — the sos:update above already carried the new turnId.
     } catch (err) {
       logger.error({ err }, 'sos:move error')
       ack?.({ ok: false, error: err.message })
@@ -269,7 +270,7 @@ export function registerMatchHandlers(io, socket) {
       if (!Array.isArray(cells) || cells.length !== 3) return ack?.({ ok: false, error: 'Bad claim' })
       const key = [...cells].sort((a, b) => a - b).join(',')
 
-      let claimed = false, over = false, emptied = false
+      let claimed = false, over = false
       await roomManager.update(roomId, r => {
         const mm = r.match
         const i = mm.pending.findIndex(t => [...t].sort((a, b) => a - b).join(',') === key)
@@ -279,7 +280,7 @@ export function registerMatchHandlers(io, socket) {
         mm.scores[playerId] = (mm.scores[playerId] || 0) + 1
         claimed = true
         if (mm.pending.length === 0) {
-          mm.pendingBy = null; emptied = true
+          mm.pendingBy = null
           // Combo bonus once the whole multi-SOS move is drawn (DOUBLE +1, TRIPLE +2…).
           if ((mm.comboSize || 0) >= 2) mm.scores[playerId] += mm.comboSize - 1
           mm.comboSize = 0
@@ -295,10 +296,8 @@ export function registerMatchHandlers(io, socket) {
       if (over) {
         const { winnerId, draw } = _sosResult(updated.match)
         await _endMatch(io, roomId, { winnerId, draw, reason: 'complete' })
-      } else if (emptied) {
-        clearTimer(roomId)
-        _startSosTimer(io, roomId, updated.match.turnId)   // bonus turn (same player)
       }
+      // No turn timer — sos:claimed above already carried the (bonus) turnId.
     } catch (err) {
       logger.error({ err }, 'sos:claim error')
       ack?.({ ok: false, error: err.message })
@@ -962,7 +961,7 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
   if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
-  if (updated.mode === 'SOS')  _startSosTimer(io, roomId, updated.match.turnId)
+  // SOS intentionally has no turn timer (see note by the SOS constants).
   if (updated.mode === 'RMCS') { _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS); _driveBotReveals(io, roomId) }
 }
 
@@ -1464,40 +1463,6 @@ function _sosResult(match) {
   const sa = match.scores[a] || 0, sb = match.scores[b] || 0
   if (sa === sb) return { winnerId: null, draw: true }
   return { winnerId: sa > sb ? a : b, draw: false }
-}
-
-// SOS per-turn timer: on expiry, auto-claim any lines the stalling player is
-// owed (must-draw means they earned them), then pass the turn — never forfeit.
-function _startSosTimer(io, roomId, currentTurnId) {
-  const timer = getTimer(roomId, async (rid) => {
-    const room = await roomManager.get(rid)
-    if (!room || room.mode !== 'SOS' || room.phase !== 'PLAYING') return
-    if (room.match?.turnId !== currentTurnId) return
-    let over = false
-    await roomManager.update(rid, r => {
-      const mm = r.match
-      if (mm.pendingBy === currentTurnId && mm.pending.length) {
-        if (mm.pending.length >= 2) mm.scores[currentTurnId] = (mm.scores[currentTurnId] || 0) + mm.pending.length - 1
-        for (const cells of mm.pending) {
-          mm.lines.push({ cells, by: currentTurnId })
-          mm.scores[currentTurnId] = (mm.scores[currentTurnId] || 0) + 1
-        }
-      }
-      mm.pending = []; mm.pendingBy = null; mm.comboSize = 0
-      mm.turnId = r.players.find(p => p.id !== currentTurnId)?.id || mm.turnId
-      if (SosEngine.isFull(mm.board)) over = true
-    })
-    const updated = await roomManager.get(rid)
-    io.to(rid).emit('sos:update', { match: _publicMatch(updated.match), lastCell: null, by: currentTurnId, timedOut: true })
-    if (over) {
-      const { winnerId, draw } = _sosResult(updated.match)
-      await _endMatch(io, rid, { winnerId, draw, reason: 'complete' })
-    } else {
-      _startSosTimer(io, rid, updated.match.turnId)
-    }
-  })
-  timer.start(SOS_TURN_MS)
-  io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: SOS_TURN_MS })
 }
 
 // ── Views ──────────────────────────────────────────────────────────────────

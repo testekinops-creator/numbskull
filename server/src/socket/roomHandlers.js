@@ -11,6 +11,21 @@ export function registerRoomHandlers(io, socket) {
   const playerName = auth.playerName || 'Anonymous'
   const playerAvatar = auth.avatar || null   // chosen emoji-avatar id (else client falls back to a playerId-seeded one)
 
+  // ── Keep-alive heartbeat ───────────────────────────────────────────────────
+  // Rooms are evicted after ROOM_TTL_MS of no update. Most games refresh that via
+  // their move/turn handlers, but turn-less or slow games (e.g. SOS, which now has
+  // no turn timer) can sit idle while players are still present — so the room
+  // would expire and bounce everyone to the lobby. A periodic touch from a
+  // connected member keeps it alive; abandoned rooms (no client) still expire.
+  socket.on('room:heartbeat', async ({ roomId } = {}) => {
+    try {
+      if (!roomId) return
+      const room = await roomManager.get(roomId)
+      if (!room || !room.players.some(p => p.id === playerId)) return
+      await roomManager.update(roomId, () => {})   // no-op fn → just bumps updatedAt + TTL
+    } catch { /* best-effort keep-alive */ }
+  })
+
   // ── Create room ──────────────────────────────────────────────────────────
   socket.on('room:create', async ({ mode = 'GTN', difficulty = 'medium', isPublic = true, maxPlayers = 2 } = {}, ack) => {
     try {

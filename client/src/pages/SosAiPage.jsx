@@ -192,6 +192,7 @@ export default function SosAiPage() {
               onClaim={handleClaim}
               disabled={!myTurn || busy}
               lastCell={lastCell}
+              glow={myTurn || claiming}
             />
           </div>
         )}

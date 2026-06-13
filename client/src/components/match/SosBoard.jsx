@@ -29,6 +29,7 @@ export default function SosBoard({
   onClaim,               // (cells)
   disabled = false,
   lastCell = null,
+  glow = false,          // pulsing "your turn" ring, hugging the board frame
 }) {
   const wrapRef = useRef(null)
   const [drag, setDrag] = useState(null)        // { startCell, x, y } during a claim draw
@@ -146,7 +147,7 @@ export default function SosBoard({
     <div className={`${styles.outer} ${combo ? 'anim-screen-shake' : ''}`}>
       <div
         ref={wrapRef}
-        className={`${styles.board} ${claimMode ? styles.claiming : ''}`}
+        className={`${styles.board} ${claimMode ? styles.claiming : ''} ${glow ? styles.glow : ''}`}
         style={{ '--n': size }}
         onPointerDown={onDown}
         onPointerMove={onMove}

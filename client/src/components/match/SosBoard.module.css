@@ -35,6 +35,25 @@
 .claiming { touch-action: none; }
 .claiming .cell { pointer-events: none; }
 
+/* "Your turn" glow — drawn on the board itself (pseudo-element) so the ring hugs
+   the board frame exactly with an even 3px offset on every side, regardless of
+   the board's responsive width. Reuses the global `yourTurnGlow` keyframes. */
+.glow::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: calc(var(--radius-xl, 18px) + 3px);
+  pointer-events: none;
+  z-index: 3;
+  animation: yourTurnGlow 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow::after {
+    animation: none;
+    box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.45), 0 0 20px rgba(0, 245, 255, 0.25);
+  }
+}
+
 .cell {
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.08);

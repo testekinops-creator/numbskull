@@ -10,6 +10,7 @@ import Loader from '../components/Loader.jsx'
 import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import GameOverCard from '../components/game/GameOverCard.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
+import TurnGlow from '../components/game/TurnGlow.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
@@ -176,7 +177,9 @@ export default function XoxAiPage() {
                   {result === 'draw' ? '🤝 Draw!' : result === 'win' ? '🎉 You win!' : '💀 You lose'}
                 </div>
               : roast && <p className={`${styles.roast} anim-slide-up`} key={roast}>"{roast}"</p>}
-            <XoxBoard board={board} onCell={handleCell} disabled={!myTurn || busy || !!result} lastCell={lastCell} />
+            <TurnGlow active={myTurn && !result} maxWidth={332}>
+              <XoxBoard board={board} onCell={handleCell} disabled={!myTurn || busy || !!result} lastCell={lastCell} />
+            </TurnGlow>
           </div>
         )}
 
