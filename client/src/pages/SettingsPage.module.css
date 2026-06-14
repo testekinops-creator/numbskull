@@ -79,30 +79,32 @@
 
 /* ── Toggle ──────────────────────────────────────────────────────── */
 .toggle {
-  width: 46px; height: 27px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  position: relative;
-  transition: background var(--duration-normal) var(--ease-default), box-shadow 0.2s, border-color 0.2s;
+  width: 48px; height: 28px;
   flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  position: relative;
   cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
 }
 .toggleOn {
   background: linear-gradient(90deg, #00c8ff, #00f5ff);
-  border-color: transparent;
-  box-shadow: 0 0 16px rgba(0, 245, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 16px rgba(0, 245, 255, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
+/* 22px thumb, 3px inset all round → 20px travel (48 − 22 − 3 − 3). Symmetric. */
 .toggleThumb {
   position: absolute;
-  top: 2px; left: 2px;
-  width: 21px; height: 21px;
+  top: 3px; left: 3px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   transition: transform var(--duration-normal) var(--ease-spring);
 }
-.toggleOn .toggleThumb { transform: translateX(19px); }
+.toggleOn .toggleThumb { transform: translateX(20px); }
 
 /* ── Select ──────────────────────────────────────────────────────── */
 .select {
