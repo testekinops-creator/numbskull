@@ -173,10 +173,11 @@
   cursor: pointer;
   text-align: left;
   text-decoration: none;
+  user-select: none;
   transition: background 0.15s, padding-left 0.15s;
 }
 .linkRow:last-child { border-bottom: none; }
-.linkRow:hover { background: rgba(0, 245, 255, 0.06); padding-left: calc(var(--space-5) + 3px); }
+.linkRow:hover { background: rgba(0, 245, 255, 0.06); padding-left: calc(var(--space-5) + 3px); text-decoration: none; }
 
 /* Icon in a subtle disc for a premium, consistent look. */
 .linkIcon {

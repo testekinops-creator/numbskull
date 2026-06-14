@@ -50,6 +50,10 @@ a {
 }
 a:hover { text-decoration: underline; }
 
+/* Buttons (and link-rows styled as buttons) aren't text: no I-beam cursor and no
+   accidental text selection when pressing/dragging. */
+button { -webkit-user-select: none; user-select: none; }
+
 button {
   font-family: inherit;
   cursor: pointer;
