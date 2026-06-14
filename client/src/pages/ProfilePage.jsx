@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import Avatar from '../components/avatar/Avatar.jsx'
 import AvatarPicker from '../components/avatar/AvatarPicker.jsx'
+import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import { getTierFromGames } from '../utils/personality.js'
 import styles from './ProfilePage.module.css'
 
@@ -30,8 +31,9 @@ export default function ProfilePage() {
   if (!isRegistered) {
     return (
       <div className="screen">
-        <div className={`panel ${styles.page}`}>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
+        <AmbientOrbs />
+        <div className={styles.page}>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')} style={{ alignSelf: 'flex-start' }}>← Back</button>
           <div className={styles.guestBanner}>
             <button className={styles.avatarBtn} onClick={() => setPickerOpen(o => !o)} aria-label="Change avatar" title="Change avatar">
               <Avatar id={avatar} seed={playerId} name={playerName} size={80} ring="cyan" />
@@ -61,7 +63,8 @@ export default function ProfilePage() {
 
   return (
     <div className="screen">
-      <div className={`panel ${styles.page}`}>
+      <AmbientOrbs />
+      <div className={styles.page}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
           <button className="btn btn-ghost btn-sm" onClick={handleLogout}>Log out</button>
@@ -96,9 +99,21 @@ export default function ProfilePage() {
         </div>
 
         <div className={styles.links}>
-          <Link to="/badges" className="btn btn-ghost" style={{ width: '100%' }}>🏅 My Badges</Link>
-          <Link to="/leaderboard" className="btn btn-ghost" style={{ width: '100%' }}>🏆 Leaderboard</Link>
-          <Link to="/friends" className="btn btn-ghost" style={{ width: '100%' }}>👥 Friends</Link>
+          <Link to="/badges" className={styles.navBtn}>
+            <span className={`${styles.navIcon} ${styles.navBadges}`}>🏅</span>
+            <span className={styles.navLabel}>My Badges</span>
+            <span className={styles.navChev} aria-hidden="true">›</span>
+          </Link>
+          <Link to="/leaderboard" className={styles.navBtn}>
+            <span className={`${styles.navIcon} ${styles.navBoard}`}>🏆</span>
+            <span className={styles.navLabel}>Leaderboard</span>
+            <span className={styles.navChev} aria-hidden="true">›</span>
+          </Link>
+          <Link to="/friends" className={styles.navBtn}>
+            <span className={`${styles.navIcon} ${styles.navFriends}`}>👥</span>
+            <span className={styles.navLabel}>Friends</span>
+            <span className={styles.navChev} aria-hidden="true">›</span>
+          </Link>
         </div>
       </div>
     </div>

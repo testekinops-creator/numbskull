@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { setSoundVolume } from '../hooks/useSound.js'
 import AboutModal from '../components/AboutModal.jsx'
+import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import { VERSION_LINE, BUILD_DATE, COMMIT_MSG } from '../utils/buildInfo.js'
 import styles from './SettingsPage.module.css'
 
@@ -92,7 +93,8 @@ export default function SettingsPage() {
 
   return (
     <div className="screen">
-      <div className={`panel ${styles.page}`}>
+      <AmbientOrbs />
+      <div className={styles.page}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>← Back</button>
           <h1 className={styles.title}>Settings</h1>
@@ -256,6 +258,7 @@ function SliderRow({ label, description, value, onChange }) {
           value={value}
           onChange={e => onChange(parseInt(e.target.value, 10))}
           className={styles.slider}
+          style={{ '--fill': `${value}%` }}
           aria-label={label}
         />
         <span className={styles.sliderVal}>{value === 0 ? '🔇' : `${value}%`}</span>
