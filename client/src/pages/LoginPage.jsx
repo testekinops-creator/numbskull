@@ -1,15 +1,19 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import GameLogo from '../components/GameLogo.jsx'
 import styles from './AuthPage.module.css'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, isRegistered } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Already signed in (e.g. browser Back onto this page) → go to the app.
+  // (After all hooks, so hook order stays stable.)
+  if (isRegistered) return <Navigate to="/home" replace />
 
   function set(field) { return e => setForm(f => ({ ...f, [field]: e.target.value })) }
 

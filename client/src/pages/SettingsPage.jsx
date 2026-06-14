@@ -4,7 +4,8 @@ import { setColorblindMode } from '../components/AppShell.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { setSoundVolume } from '../hooks/useSound.js'
-import { api } from '../services/api.js'
+import AboutModal from '../components/AboutModal.jsx'
+import { VERSION_LINE, BUILD_DATE, COMMIT_MSG } from '../utils/buildInfo.js'
 import styles from './SettingsPage.module.css'
 
 const CB_KEY      = 'ns_colorblind_mode'
@@ -70,32 +71,11 @@ export default function SettingsPage() {
     else delete document.documentElement.dataset.perf
   }, [perf])
 
-  const [exporting, setExporting] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
 
   async function handleLogout() {
     await logout()
     navigate('/')
-  }
-
-  // Fetch the GDPR export (auth + correct base) and save it as a JSON file.
-  async function exportData() {
-    if (exporting) return
-    setExporting(true)
-    try {
-      const blob = await api.getBlob('/gdpr/export')
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href = url
-      a.download = 'numbskull-data.json'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    } catch {
-      alert('Could not export your data — please make sure you are signed in and try again.')
-    } finally {
-      setExporting(false)
-    }
   }
 
   // Registered users get their account id; guests get their guest playerId.
@@ -148,10 +128,7 @@ export default function SettingsPage() {
           </div>
 
           {isRegistered && (
-            <>
-              <ButtonRow icon="📦" label={exporting ? 'Exporting…' : 'Export My Data'} onClick={exportData} />
-              <ButtonRow icon="🚪" label="Log Out" danger onClick={handleLogout} />
-            </>
+            <ButtonRow icon="🚪" label="Log Out" danger onClick={handleLogout} />
           )}
         </Section>
 
@@ -209,8 +186,24 @@ export default function SettingsPage() {
           <LinkRow icon="🐞" label="Report a Problem" href={`mailto:${SUPPORT_EMAIL}?subject=Numbskull%20bug%20report`} external />
         </Section>
 
-        <p className={styles.version}>Numbskull · v1.0</p>
+        {/* ── About ── */}
+        <Section icon="ℹ️" title="About">
+          <ButtonRow icon="🎮" label="About Numbskull" onClick={() => setAboutOpen(true)} />
+          <div className={styles.row}>
+            <div className={styles.rowInfo}>
+              <span className={styles.rowLabel}>🏷️ Version</span>
+              <span className={styles.rowDesc}>
+                {VERSION_LINE}{BUILD_DATE ? ` · ${BUILD_DATE}` : ''}
+                {COMMIT_MSG ? <><br /><span className={styles.whatsNew}>✨ {COMMIT_MSG}</span></> : null}
+              </span>
+            </div>
+          </div>
+        </Section>
+
+        <p className={styles.version}>Numbskull · {VERSION_LINE}</p>
       </div>
+
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   )
 }

@@ -3,6 +3,10 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-3, 12px);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-inline: 4px;
 }
 
 .category {
@@ -17,24 +21,32 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px 14px;
+  gap: 10px 12px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .word {
   display: flex;
+  /* Long words must WRAP their letters (centred) rather than overflow the screen. */
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 4px;
+  max-width: 100%;
 }
 
 .tile {
-  width: clamp(22px, 7vw, 34px);
-  height: clamp(28px, 9vw, 42px);
+  /* Shrinks on narrow screens so more letters fit per line before wrapping. */
+  width: clamp(17px, 6vw, 34px);
+  height: clamp(23px, 7.8vw, 42px);
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
   font-family: var(--font-display, sans-serif);
   font-weight: 800;
-  font-size: clamp(1rem, 4.5vw, 1.5rem);
+  font-size: clamp(0.85rem, 4vw, 1.5rem);
   color: var(--color-text-primary, #fff);
   background: rgba(255, 255, 255, 0.04);
   border-bottom: 3px solid rgba(255, 255, 255, 0.12);

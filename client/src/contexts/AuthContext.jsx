@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
 import { api } from '../services/api.js'
+import { clearGuestMode } from '../utils/guestMode.js'
 
 const AuthContext = createContext(null)
 const TOKEN_KEY   = 'ns_access_token'
@@ -93,6 +94,7 @@ export function AuthProvider({ children }) {
     const data = await api.post('/auth/register', { email, username, password, guestId })
     api.setToken(data.accessToken)
     saveAuth(data.accessToken, data.refreshToken, data.user)
+    clearGuestMode()   // a real account supersedes any guest session
     dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
     return data.user
   }, [])
@@ -101,6 +103,18 @@ export function AuthProvider({ children }) {
     const data = await api.post('/auth/login', { email, password })
     api.setToken(data.accessToken)
     saveAuth(data.accessToken, data.refreshToken, data.user)
+    clearGuestMode()
+    dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
+    return data.user
+  }, [])
+
+  // Social sign-in. `provider` is 'google' | 'facebook'; `payload` carries the
+  // verified provider token ({ credential } for Google, { accessToken } for FB).
+  const socialLogin = useCallback(async (provider, payload) => {
+    const data = await api.post(`/auth/${provider}`, payload)
+    api.setToken(data.accessToken)
+    saveAuth(data.accessToken, data.refreshToken, data.user)
+    clearGuestMode()
     dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
     return data.user
   }, [])
@@ -109,6 +123,7 @@ export function AuthProvider({ children }) {
     await api.post('/auth/logout', {}).catch(() => {})
     api.setToken(null)
     clearAuth()
+    clearGuestMode()   // logging out should fully sign out — not drop back into guest
     dispatch({ type: 'LOGOUT' })
   }, [])
 
@@ -134,7 +149,7 @@ export function AuthProvider({ children }) {
   const isRegistered = !!state.user
 
   return (
-    <AuthContext.Provider value={{ ...state, isRegistered, register, login, logout, updateUser, refreshUser }}>
+    <AuthContext.Provider value={{ ...state, isRegistered, register, login, socialLogin, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

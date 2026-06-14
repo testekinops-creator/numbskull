@@ -1,33 +1,32 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext.jsx'
 import GameLogo from '../components/GameLogo.jsx'
 import GlitchWordmark from '../components/GlitchWordmark.jsx'
+import SocialLoginButtons from '../components/auth/SocialLoginButtons.jsx'
+// Guest-mode helpers now live in utils/guestMode.js (no-import module → no cycle).
+// Re-exported here so existing `from './AuthGatePage.jsx'` imports keep working.
+import { setGuestMode, isGuestMode, clearGuestMode } from '../utils/guestMode.js'
 import styles from './AuthGatePage.module.css'
 
-const GUEST_KEY = 'ns_guest_mode'
-const NAME_KEY  = 'ns_name_set'
+export { setGuestMode, isGuestMode, clearGuestMode }
 
-// Use sessionStorage — resets every new tab/browser session
-// Guest mode is intentional per-session, not permanent
-export function setGuestMode() {
-  sessionStorage.setItem(GUEST_KEY, '1')
-  // Clean up any stale localStorage flag from old builds
-  localStorage.removeItem(GUEST_KEY)
-}
-
-export function isGuestMode() {
-  return !!sessionStorage.getItem(GUEST_KEY)
-}
-
-export function clearGuestMode() {
-  sessionStorage.removeItem(GUEST_KEY)
-}
+const NAME_KEY = 'ns_name_set'
 
 export default function AuthGatePage() {
   const navigate = useNavigate()
+  const { isRegistered } = useAuth()
+
+  // A signed-in user pressing Back onto the gate → straight to the app. (Guests
+  // still see the gate, so they can sign into an existing account if they want.)
+  if (isRegistered) return <Navigate to="/home" replace />
 
   function handleGuest() {
     setGuestMode()
-    navigate('/setup')
+    // Guest = play now. They already have an auto-generated name (changeable in
+    // Settings), so skip the name-setup screen — that intermediate "Skip" step was
+    // confusing ("why am I a guest after Skip?"). NAME_KEY stops a re-prompt.
+    localStorage.setItem(NAME_KEY, '1')
+    navigate('/home')
   }
 
   return (
@@ -56,20 +55,13 @@ export default function AuthGatePage() {
             Log In
           </button>
 
-          {/* Divider */}
-          <div className={styles.divider}>
-            <span className={styles.line} />
-            <span className={styles.orText}>or</span>
-            <span className={styles.line} />
-          </div>
-
-          {/* Tertiary — plain text link */}
-          <button className={styles.guestLink} onClick={handleGuest}>
-            Continue as Guest
-          </button>
-          <p className={styles.guestWarning}>
-            ⚠️ Progress &amp; stats won't be saved
-          </p>
+          {/* Social + guest — a compact premium icon row (Google/Facebook appear
+              once configured; Guest is always available). */}
+          <SocialLoginButtons
+            label="or continue with"
+            onGuest={handleGuest}
+            onDone={() => { localStorage.setItem(NAME_KEY, '1'); navigate('/home') }}
+          />
 
         </div>
       </div>

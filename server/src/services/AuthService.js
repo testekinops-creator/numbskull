@@ -161,6 +161,54 @@ export const AuthService = {
     return prisma.user.update({ where: { id }, data: patch })
   },
 
+  // Social sign-in (Google / Facebook). The route has already VERIFIED the
+  // provider token and the email; here we just find-or-create by that verified
+  // email and issue our own tokens — no password (OAuth-only) account.
+  async oauthLogin({ email, name, guestId }) {
+    if (!email) { const e = new Error('No email from provider'); e.code = 'OAUTH_EMAIL'; e.status = 400; throw e }
+    const lower = email.toLowerCase()
+    const existing = await prisma.user.findUnique({ where: { email: lower } })
+    if (existing) {
+      if (existing.banned) { const e = new Error('Account banned'); e.code = 'BANNED'; e.status = 403; throw e }
+      return this._tokenPair(existing)
+    }
+    // New account linked to the verified email.
+    let linkGuestId = null
+    if (guestId) {
+      const claimed = await prisma.user.findUnique({ where: { guestId } })
+      if (!claimed) linkGuestId = guestId
+    }
+    const base = name || lower.split('@')[0]
+    try {
+      const user = await prisma.user.create({
+        data: { email: lower, username: await this._uniqueUsername(base), role: 'user', guestId: linkGuestId },
+      })
+      return this._tokenPair(user)
+    } catch (err) {
+      // A concurrent signup or username/guest clash → retry with a fresh username, no guest link.
+      if (err.code === 'P2002') {
+        const user = await prisma.user.create({
+          data: { email: lower, username: await this._uniqueUsername(base, true), role: 'user', guestId: null },
+        })
+        return this._tokenPair(user)
+      }
+      throw err
+    }
+  },
+
+  // Derive a unique username (2–20 chars, [A-Za-z0-9_-]) from a display name/email.
+  async _uniqueUsername(base, forceSuffix = false) {
+    let s = String(base || 'player').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 14)
+    if (s.length < 2) s = 'player'
+    let candidate = forceSuffix ? `${s}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 20) : s
+    for (let i = 0; i < 8; i++) {
+      const taken = await prisma.user.findUnique({ where: { username: candidate } })
+      if (!taken) return candidate
+      candidate = `${s}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 20)
+    }
+    return `${s}${Date.now().toString().slice(-6)}`.slice(0, 20)
+  },
+
   publicProfile(user) {
     if (!user) return null
     return {

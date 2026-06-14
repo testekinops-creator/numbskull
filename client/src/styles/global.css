@@ -220,6 +220,15 @@ input, textarea, select {
   box-shadow: 0 0 0 3px var(--color-juice-glow);
 }
 .input::placeholder { color: var(--color-text-disabled); }
+/* Keep browser-autofilled fields on-theme — kill the white/yellow autofill box. */
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface-2) inset;
+  caret-color: var(--color-text-primary);
+  transition: background-color 9999s ease-out 0s;
+}
 
 /* --- Badge --- */
 .badge {

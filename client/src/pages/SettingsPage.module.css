@@ -12,6 +12,7 @@
 .rowInfo { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .rowLabel { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 .rowDesc { font-size: var(--text-xs); color: var(--color-text-muted); }
+.whatsNew { color: var(--color-warning, #ffd740); }
 
 .toggle { width: 44px; height: 26px; border-radius: var(--radius-full); background: var(--color-surface-3); position: relative; transition: background var(--duration-normal) var(--ease-default); flex-shrink: 0; min-width: 44px; min-height: 26px; }
 .toggleOn { background: var(--color-juice); }

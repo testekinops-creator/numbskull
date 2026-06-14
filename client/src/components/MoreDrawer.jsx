@@ -81,30 +81,70 @@ export default function MoreDrawer({ open, onClose }) {
         <nav className={styles.nav}>
           {isAuthenticated && isRegistered && (
             <button className={styles.row} onClick={() => go('/profile')}>
-              <span className={styles.rowIcon}>👤</span>
+              <span className={`${styles.disc} ${styles.discProfile}`}><ProfileIcon /></span>
               <span className={styles.rowLabel}>{user?.username || 'Profile'}</span>
+              <span className={styles.chev} aria-hidden="true">›</span>
             </button>
           )}
 
           <button className={styles.row} onClick={() => go('/settings')}>
-            <span className={styles.rowIcon}>⚙️</span>
+            <span className={`${styles.disc} ${styles.discSettings}`}><SettingsIcon /></span>
             <span className={styles.rowLabel}>Settings</span>
+            <span className={styles.chev} aria-hidden="true">›</span>
           </button>
 
           {isAuthenticated && !isRegistered && (
             <>
               <button className={styles.row} onClick={() => go('/register')}>
-                <span className={styles.rowIcon}>✨</span>
+                <span className={`${styles.disc} ${styles.discSignup}`}><SignUpIcon /></span>
                 <span className={styles.rowLabel}>Sign Up</span>
+                <span className={styles.chev} aria-hidden="true">›</span>
               </button>
               <button className={styles.row} onClick={() => go('/login')}>
-                <span className={styles.rowIcon}>🔑</span>
+                <span className={`${styles.disc} ${styles.discLogin}`}><LoginIcon /></span>
                 <span className={styles.rowLabel}>Log In</span>
+                <span className={styles.chev} aria-hidden="true">›</span>
               </button>
             </>
           )}
         </nav>
       </div>
     </>
+  )
+}
+
+/* ── Crafted premium icons (stroke-based) ──────────────────────────────────── */
+function ProfileIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+function SettingsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 2.6v2.3M12 19.1v2.3M21.4 12h-2.3M5 12H2.6M18.6 5.4l-1.6 1.6M7 17l-1.6 1.6M18.6 18.6 17 17M7 7 5.4 5.4"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+function SignUpIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="10" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 20c0-3.5 3.1-6 7-6 1.1 0 2.2.2 3.1.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M18.5 14v6M21.5 17h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+function LoginIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="4.2" stroke="currentColor" strokeWidth="2" />
+      <path d="M10.9 10.9 20 20M16.5 19l2-2M14.5 21l2-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }

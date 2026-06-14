@@ -82,7 +82,9 @@
   align-items: flex-end;
   gap: 8px;
   max-width: 100%;
+  margin-bottom: 10px;   /* breathing room so consecutive bubbles don't touch */
 }
+.bubbleRow:last-child { margin-bottom: 0; }
 .rowMine   { justify-content: flex-end; }
 .rowTheirs { justify-content: flex-start; }
 .bubbleAvatar { margin-bottom: 2px; }
