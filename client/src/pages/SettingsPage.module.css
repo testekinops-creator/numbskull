@@ -77,34 +77,43 @@
 .rowDesc { font-size: var(--text-xs); color: var(--color-text-muted); line-height: 1.45; }
 .whatsNew { color: var(--color-warning, #ffd740); font-weight: 700; }
 
-/* ── Toggle ──────────────────────────────────────────────────────── */
+/* ── Toggle — sleek elongated pill (green "creative checkbox" style) ──
+   Longer + thinner than the reference; premium gradient fill + soft depth.
+   Half-width fill slides 0→50%, so it always lands flush (never overflows). */
 .toggle {
-  width: 48px; height: 28px;
+  width: 54px; height: 14px;       /* longer + thinner = sleek, premium */
   flex-shrink: 0;
-  padding: 0;
-  border: none;
+  display: block;
+  padding: 2px;
+  border: 2px solid #cfd3d8;       /* grey outline when OFF */
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-  position: relative;
+  background: #f6f7f9;             /* light interior, like the reference card */
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
   cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.25s;
 }
 .toggleOn {
-  background: linear-gradient(90deg, #00c8ff, #00f5ff);
-  box-shadow: 0 0 16px rgba(0, 245, 255, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  border-color: #00f5ff;           /* cyan outline when ON */
+  background: #e7feff;
 }
-/* 22px thumb, 3px inset all round → 20px travel (48 − 22 − 3 − 3). Symmetric. */
+.toggle:focus-visible { box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.3); }
 .toggleThumb {
-  position: absolute;
-  top: 3px; left: 3px;
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
-  transition: transform var(--duration-normal) var(--ease-spring);
+  display: block;
+  width: 50%;                      /* exactly half — slides flush, never overflows */
+  height: 100%;
+  margin-left: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #e2e4e8, #c6cad0);   /* grey fill OFF */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  transition: all 0.25s;
 }
-.toggleOn .toggleThumb { transform: translateX(20px); }
+.toggleOn .toggleThumb {
+  margin-left: 50%;                /* slides to the right half */
+  background: linear-gradient(180deg, #5ffbff, #00c8e6);   /* premium cyan gradient ON */
+  box-shadow: 0 1px 4px rgba(0, 245, 255, 0.55);
+}
 
 /* ── Select ──────────────────────────────────────────────────────── */
 .select {
