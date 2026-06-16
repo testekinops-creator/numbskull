@@ -279,6 +279,16 @@ export default function MatchRoom({ roomId, mode }) {
     }).catch(() => {})
   }
 
+  // Share a read-only "watch" link so friends can spectate this (even private) game.
+  const [watchCopied, setWatchCopied] = useState(false)
+  function copyWatchLink() {
+    const url = `${window.location.origin}/spectate/${roomId}`
+    navigator.clipboard?.writeText(url).then(() => {
+      setWatchCopied(true)
+      setTimeout(() => setWatchCopied(false), 2000)
+    }).catch(() => {})
+  }
+
   // XOX: let the finished board (with its winning line) sit for a beat before
   // showing the game-over card. Other modes reveal immediately.
   useEffect(() => {
@@ -375,6 +385,12 @@ export default function MatchRoom({ roomId, mode }) {
           <span className={`badge ${room.isPublic ? 'badge-juice' : 'badge-pink'}`}>
             {room.isPublic ? 'Public' : room.code}
           </span>
+          {room.spectatorCount > 0 && (
+            <span className="badge badge-pink" title="People watching">👁 {room.spectatorCount}</span>
+          )}
+          <button className="btn btn-ghost btn-sm" onClick={copyWatchLink} title="Copy a link for friends to watch" style={{ marginLeft: 'auto' }}>
+            {watchCopied ? '✓ Link' : '📺 Watch'}
+          </button>
         </div>
 
         {/* Room code while waiting for an opponent */}

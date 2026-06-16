@@ -1112,6 +1112,9 @@ async function _startMatch(io, roomId) {
     const s = _findSocket(io, p.id)
     s?.emit('match:start', _matchView(updated, p.id))
   }
+  // Spectators don't receive the per-player match:start — give them a public sync
+  // so a fresh deal / next game renders for watchers. Players ignore this event.
+  io.to(roomId).emit('spectate:sync', { room: _roomSummary(updated), match: _publicMatch(updated.match) })
 
   if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)

@@ -149,6 +149,11 @@ export default function HomeListPage() {
         ))}
       </div>
 
+      {/* Watch live games */}
+      <button className={styles.watchLive} onClick={() => navigate('/spectate')}>
+        👀 Watch Live Games →
+      </button>
+
       {/* Guest upsell */}
       {!isRegistered && (
         <button className={styles.upsell} onClick={() => navigate('/register')}>

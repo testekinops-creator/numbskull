@@ -239,3 +239,19 @@
   text-align: center;
 }
 .upsell:hover { background: linear-gradient(135deg, rgba(0,245,255,0.1), rgba(83,74,183,0.2)); }
+
+.watchLive {
+  width: 100%;
+  max-width: var(--panel-max-width);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(255,62,138,0.08), rgba(124,77,255,0.12));
+  border: 1px solid rgba(255,62,138,0.28);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s var(--ease-spring, ease);
+  text-align: center;
+}
+.watchLive:hover { background: linear-gradient(135deg, rgba(255,62,138,0.14), rgba(124,77,255,0.2)); transform: translateY(-1px); }

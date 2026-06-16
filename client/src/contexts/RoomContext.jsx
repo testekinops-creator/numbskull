@@ -24,6 +24,7 @@ const INITIAL = {
   room:                 null,
   phase:                'IDLE',
   guesses:              [],
+  isSpectator:          false,   // true while watching someone else's game
   myTurn:               false,
   turnTimeLeft:         30,
   turnTimeTotal:        30,   // full per-turn duration (server-driven; for the bar)
@@ -513,6 +514,42 @@ function reducer(state, action) {
     case 'ERROR':
       return { ...state, error: action.error }
 
+    // Watching someone else's game — full public snapshot (no secrets, no turn).
+    case 'SPECTATE_RESTORE': {
+      const s = action.snapshot
+      if (!s) return state
+      const m = s.match || null
+      const isOver = s.phase === 'GAME_OVER'
+      return {
+        ...state,
+        isSpectator: true,
+        room:    s.room,
+        phase:   s.phase || 'IDLE',
+        guesses: s.guesses || [],
+        match:   m,
+        myTurn:  false,
+        won:     null,
+        draw:    isOver ? !!(m && m.draw) : false,
+        winnerId: s.winnerId || null,
+        spin: m?.kind === 'SPIN' && m.turnCountdownMs
+          ? { ...(state.spin || {}), turnEndsAt: Date.now() + m.turnCountdownMs } : state.spin,
+        roomClosedByOpponent: false,
+        opponentLeftMessage: null,
+      }
+    }
+
+    // Public re-sync for watchers on a fresh deal / next game. Players ignore it.
+    case 'SPECTATE_SYNC':
+      if (!state.isSpectator) return state
+      return {
+        ...state,
+        room:  action.room ? { ...state.room, ...action.room } : state.room,
+        phase: 'PLAYING',
+        match: action.match || state.match,
+        myTurn: false,
+        won: null, draw: false, winnerId: null, xoxRound: null,
+      }
+
     case 'RESET':
       return INITIAL
 
@@ -584,6 +621,12 @@ export function RoomProvider({ children }) {
     // ── New game modes (XOX / Math Battle / Sudoku) ────────────────────────
     socket.on('match:start', ({ room, match } = {}) => {
       dispatch({ type: 'MATCH_START', room, match, playerId })
+    })
+
+    // Public re-sync for spectators on a fresh deal / next game (reducer ignores
+    // it unless this client is actually spectating).
+    socket.on('spectate:sync', ({ room, match } = {}) => {
+      dispatch({ type: 'SPECTATE_SYNC', room, match })
     })
 
     socket.on('xox:update', ({ board, turnId } = {}) => {
@@ -713,6 +756,7 @@ export function RoomProvider({ children }) {
       socket.off('game:round_over')
       socket.off('game:forfeit')
       socket.off('match:start')
+      socket.off('spectate:sync')
       socket.off('xox:update')
       socket.off('xox:roundover')
       socket.off('sos:update')
@@ -871,8 +915,16 @@ export function RoomProvider({ children }) {
     dispatch({ type: 'RESET' })
   }, [])
 
-  const spectate = useCallback((roomId) => {
-    socket?.emit('room:spectate', { roomId })
+  // Start watching: get the public snapshot back, then receive live broadcasts.
+  const spectate = useCallback(async (roomId) => {
+    const r = await emitAck(socket, 'room:spectate', { roomId })
+    if (r?.ok) dispatch({ type: 'SPECTATE_RESTORE', snapshot: r, playerId })
+    return r || { ok: false }
+  }, [socket, playerId])
+
+  const unspectate = useCallback((roomId) => {
+    socket?.emit('room:unspectate', { roomId })
+    dispatch({ type: 'RESET' })
   }, [socket])
 
   // ── Chat + emoji actions ──────────────────────────────────────────────
@@ -920,7 +972,7 @@ export function RoomProvider({ children }) {
   return (
     <RoomContext.Provider value={{
       state, createRoom, joinRoom, quickMatch, cancelQuickMatch,
-      setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate,
+      setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate, unspectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
       clearChatToast, sendFriendRequest, acceptFriendRequest, checkFriendStatus, clearIncomingFriend,
       matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,

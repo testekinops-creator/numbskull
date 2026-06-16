@@ -171,11 +171,34 @@ export function registerRoomHandlers(io, socket) {
     const room = await roomManager.get(roomId)
     if (!room) return ack?.({ ok: false, error: 'Room not found' })
     if (!room.spectators.includes(playerId)) {
-      await roomManager.update(roomId, r => r.spectators.push(playerId))
+      await roomManager.update(roomId, r => { if (!r.spectators.includes(playerId)) r.spectators.push(playerId) })
     }
     socket.join(roomId)
+    socket.data.spectatingRoom = roomId   // so disconnect skips player-drop logic + cleans up
     const updated = await roomManager.get(roomId)
-    ack?.({ ok: true, room: sanitize(updated, playerId) })
+    const round = updated.round || {}
+    // Refresh everyone's viewer count.
+    io.to(roomId).emit('room:updated', sanitize(updated, null))
+    // Public snapshot so the watcher can render the live board immediately
+    // (mirrors the reconnect snapshot, but secrets are already stripped).
+    ack?.({
+      ok: true,
+      room:     sanitize(updated, playerId),
+      phase:    updated.phase,
+      match:    publicMatchFor(updated),
+      turnId:   round.turnId || null,
+      winnerId: updated.winnerId || null,
+      guesses:  (round.guesses || []).map(g => ({ guesser: g.playerId, guess: g.guess, result: g.result })),
+    })
+  })
+
+  // Stop spectating (leaving the watch page) — drop from the room + update count.
+  socket.on('room:unspectate', async ({ roomId } = {}, ack) => {
+    const rid = roomId || socket.data.spectatingRoom
+    if (rid) socket.leave?.(rid)
+    socket.data.spectatingRoom = null
+    await _removeSpectator(io, playerId, rid)
+    ack?.({ ok: true })
   })
 
   // ── Leave room ────────────────────────────────────────────────────────────
@@ -257,6 +280,9 @@ export function registerRoomHandlers(io, socket) {
   socket.on('disconnecting', () => {
     for (const r of socket.rooms) {
       if (r === socket.id) continue
+      // A spectator leaving is NOT a player drop — never flash "opponent dropped"
+      // or schedule a room close for the room they were merely watching.
+      if (r === socket.data.spectatingRoom) continue
       // If the SAME player already reconnected on another socket (rapid phone
       // lock/unlock), this is just the stale socket dying — ignore it so we don't
       // flash a false "opponent dropped" or schedule a needless close.
@@ -270,7 +296,18 @@ export function registerRoomHandlers(io, socket) {
   socket.on('disconnect', () => {
     quickMatch.dequeue(playerId)
     _clearQuickmatchTimeout(playerId)
+    if (socket.data?.spectatingRoom) _removeSpectator(io, playerId, socket.data.spectatingRoom)
   })
+}
+
+// Drop a watcher from a room's spectator list and refresh the viewer count.
+async function _removeSpectator(io, playerId, roomId) {
+  if (!roomId) return
+  const room = await roomManager.get(roomId)
+  if (!room || !room.spectators?.includes(playerId)) return
+  await roomManager.update(roomId, r => { r.spectators = r.spectators.filter(id => id !== playerId) })
+  const updated = await roomManager.get(roomId)
+  if (updated) io.to(roomId).emit('room:updated', sanitize(updated, null))
 }
 
 // ── Quick-match queue timeout (no opponent found → stop searching) ───────────
