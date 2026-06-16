@@ -66,6 +66,7 @@ const GAMES = [
     name: 'Raja Mantri',
     desc: 'The classic Raja Mantri Chor Sipahi — read faces, bluff hard, catch the Chor. 4 players.',
     accent: 'var(--color-warning)',
+    hidden: true,   // temporarily disabled — flip to re-enable
   },
   {
     mode: 'RUMMY',
@@ -73,6 +74,7 @@ const GAMES = [
     name: 'Rummy',
     desc: '13-card Indian Rummy — draw, discard, form sequences & sets, declare to win. 2–6 players.',
     accent: 'var(--color-pink)',
+    hidden: true,   // temporarily disabled — flip to re-enable
   },
 ]
 
@@ -130,7 +132,7 @@ export default function HomeListPage() {
       {/* Game list */}
       <div className={styles.sectionLabel}>Choose a game</div>
       <div className={styles.gameList}>
-        {GAMES.map((g, i) => (
+        {GAMES.filter(g => !g.hidden).map((g, i) => (
           <button
             key={g.mode}
             className={`${styles.gameCard} anim-slide-up`}
