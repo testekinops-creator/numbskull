@@ -9,6 +9,7 @@ import { engagementRouter } from './routes/engagement.js'
 import { usersRouter } from './routes/users.js'
 import { replaysRouter } from './routes/replays.js'
 import { pushRouter } from './routes/push.js'
+import { shopRouter } from './routes/shop.js'
 import { gdprRouter } from './routes/gdpr.js'
 import { adminRouter } from './routes/admin.js'
 import { turnRouter } from './routes/turn.js'
@@ -53,6 +54,7 @@ app.use('/api', engagementRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/replays', replaysRouter)
 app.use('/api/push', pushRouter)
+app.use('/api/shop', shopRouter)
 app.use('/api/gdpr', gdprRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/turn', turnRouter)

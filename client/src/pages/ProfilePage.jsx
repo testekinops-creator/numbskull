@@ -6,6 +6,7 @@ import Avatar from '../components/avatar/Avatar.jsx'
 import AvatarPicker from '../components/avatar/AvatarPicker.jsx'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import { getTierFromGames } from '../utils/personality.js'
+import { levelProgress } from '../utils/progression.js'
 import styles from './ProfilePage.module.css'
 
 export default function ProfilePage() {
@@ -72,14 +73,31 @@ export default function ProfilePage() {
 
         <div className={styles.avatar}>
           <button className={styles.avatarBtn} onClick={() => setPickerOpen(o => !o)} aria-label="Change avatar" title="Change avatar">
-            <Avatar id={avatar} seed={playerId} name={displayName} size={96} ring="cyan" />
+            <Avatar id={avatar} seed={playerId} name={displayName} size={96} ring={user?.equippedFrame || 'cyan'} />
             <span className={styles.editPip} aria-hidden="true">✏️</span>
           </button>
           <div className={styles.identity}>
             <h1 className={styles.username}>{displayName}</h1>
+            {user?.equippedTitle && <span className={styles.equippedTitle}>{user.equippedTitle}</span>}
             <span className={`badge badge-pink`}>{tier}</span>
           </div>
         </div>
+
+        {/* Level / XP / coins */}
+        {(() => {
+          const xp = user?.xp ?? 0
+          const lp = levelProgress(xp)
+          return (
+            <div className={styles.levelCard}>
+              <div className={styles.levelTop}>
+                <span className={styles.levelBadge}>LV {user?.level ?? lp.level}</span>
+                <span className={styles.coinsChip}>🪙 {user?.coins ?? 0}</span>
+              </div>
+              <div className={styles.xpTrack}><div className={styles.xpFill} style={{ width: `${lp.pct}%` }} /></div>
+              <div className={styles.xpMeta}>{xp} XP · {Math.max(0, lp.nextLevelXp - xp)} to level {lp.level + 1}</div>
+            </div>
+          )
+        })()}
 
         {pickerOpen && (
           <div className={styles.pickerCard}>
@@ -113,6 +131,11 @@ export default function ProfilePage() {
           <Link to="/friends" className={styles.navBtn}>
             <span className={`${styles.navIcon} ${styles.navFriends}`}>👥</span>
             <span className={styles.navLabel}>Friends</span>
+            <span className={styles.navChev} aria-hidden="true">›</span>
+          </Link>
+          <Link to="/shop" className={styles.navBtn}>
+            <span className={`${styles.navIcon} ${styles.navShop}`}>🛍️</span>
+            <span className={styles.navLabel}>Shop</span>
             <span className={styles.navChev} aria-hidden="true">›</span>
           </Link>
         </div>

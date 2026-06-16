@@ -3,9 +3,12 @@ import { todaysChallenge, getDailyChallenge } from '../game/DailyChallenge.js'
 import { getLeaderboard, submitScore, getPlayerRank } from '../game/Leaderboard.js'
 import { getMonthly, getMonthlyRank } from '../game/MonthlyLeaderboard.js'
 import { BADGES, checkBadges } from '../game/Badges.js'
-import { getWeeklyQuests, claimQuest } from '../game/WeeklyQuests.js'
+import { getWeeklyQuests, claimQuest, weekSeed } from '../game/WeeklyQuests.js'
 import { announcements } from './admin.js'
 import { getActiveEvent, getAllEvents } from '../game/SeasonalEvents.js'
+import { requireAuth } from '../middleware/auth.js'
+import { AuthService } from '../services/AuthService.js'
+import { prisma } from '../config/prisma.js'
 
 export const engagementRouter = Router()
 
@@ -66,6 +69,33 @@ engagementRouter.post('/badges/check', (req, res) => {
 engagementRouter.get('/quests', (_req, res) => {
   const quests = getWeeklyQuests()
   res.json({ success: true, data: { quests } })
+})
+
+// Claim a completed quest's XP + coins (registered users). Idempotent per
+// quest-week via feature_unlocks (feature = quest_<id>_<week>). Progress is
+// client-reported — same trust model as the client-tracked badges; the
+// idempotency lock prevents double-claims.
+engagementRouter.post('/quests/claim', requireAuth, async (req, res, next) => {
+  try {
+    const questId  = String(req.body?.questId || '')
+    const progress = Number(req.body?.progress) || 0
+    const result = claimQuest(questId, progress)
+    if (!result) return res.status(400).json({ success: false, error: { code: 'NO_QUEST', message: 'Unknown quest', status: 400 } })
+    if (!result.completed) return res.json({ success: true, data: { claimed: false } })
+
+    const feature = `quest_${questId}_${weekSeed()}`
+    const already = await prisma.featureUnlock.findUnique({ where: { userId_feature: { userId: req.userId, feature } } })
+    if (already) return res.json({ success: true, data: { claimed: false, already: true } })
+
+    const user  = await AuthService.getUser(req.userId)
+    if (!user) return res.status(404).json({ success: false, error: { code: 'NO_USER', message: 'User not found', status: 404 } })
+    const coins = Math.round(result.xp / 5)   // a small coin reward alongside the XP
+    const [updated] = await prisma.$transaction([
+      prisma.user.update({ where: { id: req.userId }, data: { xp: (user.xp || 0) + result.xp, coins: (user.coins || 0) + coins } }),
+      prisma.featureUnlock.create({ data: { userId: req.userId, feature } }),
+    ])
+    res.json({ success: true, data: { claimed: true, xp: result.xp, coins, user: AuthService.publicProfile(updated) } })
+  } catch (err) { next(err) }
 })
 
 // ── Announcements (public read) ────────────────────────────────────────────

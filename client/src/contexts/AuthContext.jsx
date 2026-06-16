@@ -131,6 +131,13 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((user) => {
     if (!user) return
     const token = localStorage.getItem(TOKEN_KEY)
+    // Level-up celebration: compare against the previously cached profile.
+    try {
+      const prev = JSON.parse(localStorage.getItem(USER_KEY) || 'null')
+      if (prev && typeof prev.level === 'number' && typeof user.level === 'number' && user.level > prev.level) {
+        window.dispatchEvent(new CustomEvent('ns-level-up', { detail: { level: user.level } }))
+      }
+    } catch { /* ignore */ }
     if (token) saveAuth(token, localStorage.getItem(REFRESH_KEY), user)
     dispatch({ type: 'UPDATE_USER', user })
   }, [])

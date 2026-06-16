@@ -8,7 +8,7 @@ import styles from './Avatar.module.css'
 //   size   — px diameter (default 40)
 //   ring   — 'gold' | 'silver' | 'bronze' | 'cyan' | false — accent ring
 //   online — true/false to show a presence dot; omit for no dot
-const RING_CLASS = { gold: 'ringGold', silver: 'ringSilver', bronze: 'ringBronze', cyan: 'ringCyan' }
+const RING_CLASS = { gold: 'ringGold', silver: 'ringSilver', bronze: 'ringBronze', cyan: 'ringCyan', neon: 'ringNeon', rainbow: 'ringRainbow' }
 export default function Avatar({ id, seed, name, size = 40, ring = false, online, className = '' }) {
   const { emoji, grad } = resolveAvatar(id, seed ?? name)
   const ringClass = styles[RING_CLASS[ring]] || ''

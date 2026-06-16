@@ -8,6 +8,7 @@ import { createError } from '../middleware/errorHandler.js'
 import { optionalAuth } from '../middleware/auth.js'
 import { AuthService } from '../services/AuthService.js'
 import { generateRoast } from '../game/RoastGenerator.js'
+import { awardForGame, levelForXp, COINS_PER_LEVEL } from '../game/progression.js'
 
 export const gameRouter = Router()
 
@@ -20,6 +21,7 @@ gameRouter.get('/roast', (_req, res) => {
 const recordSchema = z.object({
   mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'RUMMY']),
   won:  z.boolean(),
+  multiplayer: z.boolean().optional().default(false),
 })
 
 // Anti-inflation: a real game can't finish more than once every few seconds.
@@ -28,7 +30,7 @@ const RECORD_COOLDOWN_MS = 3000
 
 gameRouter.post('/record', optionalAuth, async (req, res, next) => {
   try {
-    const { mode, won } = recordSchema.parse(req.body)
+    const { mode, won, multiplayer } = recordSchema.parse(req.body)
     // Guests have no DB record — silently skip
     if (!req.userId) return res.json({ success: true, data: { recorded: false } })
 
@@ -51,8 +53,20 @@ gameRouter.post('/record', optionalAuth, async (req, res, next) => {
     if (won && mode === 'SUDOKU') patch.sudokuWins = (user.sudokuWins || 0) + 1
     if (won && mode === 'RUMMY')  patch.rummyWins  = (user.rummyWins  || 0) + 1
 
+    // Progression: award XP + coins, with a bonus when this game crosses a level.
+    const { xp: xpGain, coins: coinGain } = awardForGame({ won, multiplayer })
+    const oldXp = user.xp || 0
+    const newXp = oldXp + xpGain
+    const levelsGained = Math.max(0, levelForXp(newXp) - levelForXp(oldXp))
+    patch.xp = newXp
+    patch.coins = (user.coins || 0) + coinGain + levelsGained * COINS_PER_LEVEL
+
     const updated = await AuthService.updateUser(req.userId, patch)
-    res.json({ success: true, data: { recorded: true, user: AuthService.publicProfile(updated) } })
+    res.json({ success: true, data: {
+      recorded: true,
+      user: AuthService.publicProfile(updated),
+      gained: { xp: xpGain, coins: coinGain + levelsGained * COINS_PER_LEVEL, levelsGained },
+    } })
   } catch (err) { next(err) }
 })
 

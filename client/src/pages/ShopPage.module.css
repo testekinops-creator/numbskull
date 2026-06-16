@@ -1,0 +1,84 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-6) var(--space-4) var(--space-10);
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.title {
+  font-family: var(--font-brand, sans-serif);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-black, 800);
+  background: linear-gradient(180deg, #ffffff, #c9c2f5);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}
+.coins {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--color-warning, #ffd740);
+  background: rgba(255, 215, 64, 0.12);
+  border: 1px solid rgba(255, 215, 64, 0.3);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+.levelLine { color: var(--color-text-muted); font-size: var(--text-sm); margin-top: -8px; }
+.guest, .loading { color: var(--color-text-secondary); text-align: center; padding: var(--space-6) 0; }
+.msg {
+  text-align: center; font-weight: 700; font-size: var(--text-sm);
+  color: var(--color-juice, #00f5ff);
+  background: rgba(0, 245, 255, 0.08);
+  border: 1px solid rgba(0, 245, 255, 0.22);
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--space-2) var(--space-3);
+}
+
+.section { display: flex; flex-direction: column; gap: var(--space-3); }
+.sectionTitle {
+  font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em;
+  font-weight: 800; color: var(--color-text-muted); padding-left: 2px;
+}
+
+/* ── Quests ── */
+.questList { display: flex; flex-direction: column; gap: var(--space-2); }
+.quest {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg, 12px);
+  background: linear-gradient(160deg, rgba(40, 34, 90, 0.5), rgba(24, 21, 58, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.questInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.questTitle { font-weight: 700; font-size: var(--text-sm); color: var(--color-text-primary); }
+.questMeta { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* ── Cosmetic grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+.card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-xl, 16px);
+  background: linear-gradient(160deg, rgba(40, 34, 90, 0.55), rgba(24, 21, 58, 0.62));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.cardEquipped { border-color: rgba(0, 245, 255, 0.45); box-shadow: 0 0 18px rgba(0, 245, 255, 0.18), inset 0 1px 0 rgba(255,255,255,0.08); }
+.preview { display: grid; place-items: center; min-height: 60px; }
+.titlePreview {
+  font-family: var(--font-display); font-weight: 800; font-size: 0.95rem;
+  color: var(--color-juice, #00f5ff); text-align: center; line-height: 1.2;
+}
+.cardName { font-size: var(--text-sm); font-weight: 700; color: var(--color-text-primary); text-align: center; }
+.cardSub { font-size: var(--text-xs); color: var(--color-text-muted); }
+.cardBtn { width: 100%; }

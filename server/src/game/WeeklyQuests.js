@@ -9,7 +9,7 @@ const QUEST_POOL = [
   { id: 'q_speed',      title: 'Win GTN in under 10s',     goal: 1,  mode: 'GTN',  type: 'speed',   xp: 200 },
 ]
 
-function weekSeed(date = new Date()) {
+export function weekSeed(date = new Date()) {
   const d = new Date(date)
   d.setHours(0,0,0,0)
   d.setDate(d.getDate() - d.getDay())

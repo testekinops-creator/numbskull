@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '../config/prisma.js'
+import { levelForXp } from '../game/progression.js'
 
 const SALT_ROUNDS = 12
 const ACCESS_EXPIRES  = process.env.JWT_ACCESS_EXPIRES_IN  || '15m'
@@ -222,6 +223,11 @@ export const AuthService = {
       mathWins:   user.mathWins   ?? 0,
       sudokuWins: user.sudokuWins ?? 0,
       rummyWins:  user.rummyWins  ?? 0,
+      xp:         user.xp ?? 0,
+      level:      levelForXp(user.xp ?? 0),
+      coins:      user.coins ?? 0,
+      equippedFrame: user.equippedFrame ?? null,
+      equippedTitle: user.equippedTitle ?? null,
       createdAt:  user.createdAt,
     }
   },

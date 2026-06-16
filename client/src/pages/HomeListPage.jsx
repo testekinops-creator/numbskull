@@ -120,6 +120,7 @@ export default function HomeListPage() {
           </h1>
           <div className={styles.metaRow}>
             <span className={styles.tier}>{tier}</span>
+            {isRegistered && user && <span className={styles.levelChip}>LV {user.level ?? 1} · 🪙 {user.coins ?? 0}</span>}
             {games > 0 && <span className={styles.gamesCount}>{games} games played</span>}
             {!isRegistered && <span className={styles.guestTag}>Guest</span>}
           </div>

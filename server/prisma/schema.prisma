@@ -40,6 +40,10 @@ model User {
   mathWins     Int      @default(0)
   sudokuWins   Int      @default(0)
   rummyWins    Int      @default(0)
+  xp           Int      @default(0)
+  coins        Int      @default(0)
+  equippedFrame String?
+  equippedTitle String?
   failedLogins Int      @default(0)
   banned       Boolean  @default(false)
   bannedAt     DateTime?

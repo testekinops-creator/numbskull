@@ -9,6 +9,7 @@ import { AuthProvider }      from './contexts/AuthContext.jsx'
 import GDPRBanner            from './components/GDPRBanner.jsx'
 import PWAInstallBanner      from './components/PWAInstallBanner.jsx'
 import BadgeToast            from './components/BadgeToast.jsx'
+import LevelUpToast          from './components/LevelUpToast.jsx'
 import SystemToast           from './components/SystemToast.jsx'
 import ConnectionBanner      from './components/ConnectionBanner.jsx'
 import GameMusic             from './components/GameMusic.jsx'
@@ -41,6 +42,7 @@ const RegisterPage        = lazyWithRetry(() => import('./pages/RegisterPage.jsx
 const LoginPage           = lazyWithRetry(() => import('./pages/LoginPage.jsx'))
 const ProfilePage         = lazyWithRetry(() => import('./pages/ProfilePage.jsx'))
 const FriendsPage         = lazyWithRetry(() => import('./pages/FriendsPage.jsx'))
+const ShopPage            = lazyWithRetry(() => import('./pages/ShopPage.jsx'))
 const ReplayTheaterPage   = lazyWithRetry(() => import('./pages/ReplayTheaterPage.jsx'))
 const AdminPage           = lazyWithRetry(() => import('./pages/AdminPage.jsx'))
 const CountdownPage       = lazyWithRetry(() => import('./pages/CountdownPage.jsx'))
@@ -118,6 +120,7 @@ function AppInner() {
           <Route path="/towers"             element={<ProtectedRoute><NumberTowersPage /></ProtectedRoute>} />
           <Route path="/profile"            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/friends"            element={<FriendsPage />} />
+          <Route path="/shop"               element={<ProtectedRoute><ShopPage /></ProtectedRoute>} />
           <Route path="/settings"           element={<SettingsPage />} />
           <Route path="/admin"              element={<AdminPage />} />
           <Route path="*"                   element={<NotFoundPage />} />
@@ -131,6 +134,7 @@ function AppInner() {
       <GameMusic />
       <MusicToggle />
       <BadgeToast />
+      <LevelUpToast />
       <SystemToast />
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </>

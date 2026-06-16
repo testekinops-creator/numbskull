@@ -250,7 +250,7 @@ export default function MatchRoom({ roomId, mode }) {
       const won = state.won === true
       recordGameForBadges({ mode, won, multiplayer: true, gtnRange1000Win: mode === 'GTN' && won })
       if (isRegistered) {
-        api.post('/game/record', { mode, won })
+        api.post('/game/record', { mode, won, multiplayer: true })
           .then(d => { if (d.user) updateUser(d.user) })
           .catch(() => {})
       }

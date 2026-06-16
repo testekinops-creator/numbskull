@@ -136,7 +136,52 @@
 .navBadges  { background: linear-gradient(160deg, #ffd36b, #ff8a3d); }
 .navBoard   { background: linear-gradient(160deg, #7df9ff, #00f5ff); }
 .navFriends { background: linear-gradient(160deg, #8b7bff, #6a5cff); }
+.navShop    { background: linear-gradient(160deg, #ffd740, #ff8a3d); }
 .navLabel { flex: 1; font-size: var(--text-base); font-weight: var(--weight-bold, 700); color: var(--color-text-primary); }
+
+/* Equipped title under the username. */
+.equippedTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: linear-gradient(90deg, #7df9ff, #00f5ff);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}
+
+/* Level / XP / coins card. */
+.levelCard {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: var(--space-4);
+  border-radius: var(--radius-xl, 16px);
+  background: linear-gradient(160deg, rgba(40, 34, 90, 0.55), rgba(24, 21, 58, 0.62));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.levelTop { display: flex; align-items: center; justify-content: space-between; }
+.levelBadge {
+  font-family: var(--font-display); font-weight: 900; font-size: var(--text-lg);
+  background: linear-gradient(180deg, #d6fcff, var(--color-juice, #00f5ff));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 12px rgba(0, 245, 255, 0.35));
+}
+.coinsChip {
+  font-family: var(--font-display); font-weight: 800; font-size: var(--text-sm);
+  color: var(--color-warning, #ffd740);
+  background: rgba(255, 215, 64, 0.12);
+  border: 1px solid rgba(255, 215, 64, 0.3);
+  padding: 2px 10px; border-radius: 999px;
+}
+.xpTrack { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.xpFill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #00c8ff, #00f5ff);
+  box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+  transition: width 0.4s var(--ease-spring, ease);
+}
+.xpMeta { font-size: var(--text-xs); color: var(--color-text-muted); }
 .navChev { color: var(--color-text-muted, #8a82b0); font-size: 1.4rem; line-height: 1; transition: transform 0.18s, color 0.18s; }
 .navBtn:hover .navChev { color: var(--color-juice, #00f5ff); transform: translateX(3px); }
 

@@ -38,6 +38,25 @@
 .ringBronze { box-shadow: 0 0 0 2px rgba(214, 154, 92, 0.95), 0 0 14px rgba(214, 154, 92, 0.4),  inset 0 2px 4px rgba(255,255,255,0.35); }
 .ringCyan   { box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.9),   0 0 14px rgba(0, 245, 255, 0.4),   inset 0 2px 4px rgba(255,255,255,0.35); }
 
+/* Premium animated cosmetic frames (shop). */
+.ringNeon    { animation: neonRing 1.2s ease-in-out infinite alternate; }
+.ringRainbow { animation: rainbowRing 3s linear infinite; }
+
+@keyframes neonRing {
+  from { box-shadow: 0 0 0 2px rgba(124, 77, 255, 0.9),  0 0 10px rgba(124, 77, 255, 0.5), inset 0 2px 4px rgba(255,255,255,0.35); }
+  to   { box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.95),  0 0 22px rgba(0, 245, 255, 0.85), inset 0 2px 4px rgba(255,255,255,0.35); }
+}
+@keyframes rainbowRing {
+  0%   { box-shadow: 0 0 0 2px hsl(0, 90%, 60%),   0 0 16px hsla(0, 90%, 60%, 0.6),   inset 0 2px 4px rgba(255,255,255,0.35); }
+  33%  { box-shadow: 0 0 0 2px hsl(120, 90%, 55%), 0 0 16px hsla(120, 90%, 55%, 0.6), inset 0 2px 4px rgba(255,255,255,0.35); }
+  66%  { box-shadow: 0 0 0 2px hsl(240, 90%, 65%), 0 0 16px hsla(240, 90%, 65%, 0.6), inset 0 2px 4px rgba(255,255,255,0.35); }
+  100% { box-shadow: 0 0 0 2px hsl(360, 90%, 60%), 0 0 16px hsla(360, 90%, 60%, 0.6), inset 0 2px 4px rgba(255,255,255,0.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ringNeon    { animation: none; box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.95), 0 0 14px rgba(0, 245, 255, 0.6), inset 0 2px 4px rgba(255,255,255,0.35); }
+  .ringRainbow { animation: none; box-shadow: 0 0 0 2px hsl(280, 90%, 62%),     0 0 14px hsla(280, 90%, 62%, 0.6), inset 0 2px 4px rgba(255,255,255,0.35); }
+}
+
 /* Presence dot (bottom-right). */
 .dot {
   position: absolute;
