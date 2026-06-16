@@ -131,6 +131,18 @@ export function useSound() {
     } catch {}
   }, [])
 
+  // Countdown ticker — a short clock click each second as time runs out. `urgent`
+  // (final seconds) makes it higher, sharper and louder for rising tension.
+  const playTick = useCallback((urgent = false) => {
+    if (!isSoundEnabled()) return
+    const ctx = ensureCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    try {
+      tone(ctx, urgent ? 1480 : 920, 0, urgent ? 0.06 : 0.045, 'square', urgent ? 0.22 : 0.12)
+    } catch {}
+  }, [])
+
   const playWin = useCallback(() => {
     if (!isSoundEnabled()) return
     const ctx = ensureCtx()
@@ -156,5 +168,5 @@ export function useSound() {
     } catch {}
   }, [])
 
-  return { playTone, playSpin, playWin, playLose, unlock }
+  return { playTone, playSpin, playTick, playWin, playLose, unlock }
 }
