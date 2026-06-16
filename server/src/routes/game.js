@@ -18,7 +18,7 @@ gameRouter.get('/roast', (_req, res) => {
 
 // ── Record a finished game for the logged-in user ──────────────────────────
 const recordSchema = z.object({
-  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN']),
+  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'RUMMY']),
   won:  z.boolean(),
 })
 
@@ -49,6 +49,7 @@ gameRouter.post('/record', optionalAuth, async (req, res, next) => {
     if (won && mode === 'XOX')    patch.xoxWins    = (user.xoxWins    || 0) + 1
     if (won && mode === 'MATH')   patch.mathWins   = (user.mathWins   || 0) + 1
     if (won && mode === 'SUDOKU') patch.sudokuWins = (user.sudokuWins || 0) + 1
+    if (won && mode === 'RUMMY')  patch.rummyWins  = (user.rummyWins  || 0) + 1
 
     const updated = await AuthService.updateUser(req.userId, patch)
     res.json({ success: true, data: { recorded: true, user: AuthService.publicProfile(updated) } })

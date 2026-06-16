@@ -1,4 +1,35 @@
+import { api } from './api.js'
+
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
+
+// High-level enable/disable used by the Settings toggle: request permission,
+// subscribe via the service worker, and register the subscription server-side.
+// Returns { ok, reason } so the UI can explain failures. No-ops cleanly in dev
+// (no service worker) or when VAPID isn't configured.
+export async function enablePushNotifications() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (!VAPID_PUBLIC_KEY) return { ok: false, reason: 'not-configured' }
+  const reg = await navigator.serviceWorker.getRegistration()
+  if (!reg) return { ok: false, reason: 'unsupported' }   // dev / no SW → push unavailable
+  const perm = await Notification.requestPermission()
+  if (perm !== 'granted') return { ok: false, reason: 'denied' }
+  const sub = await subscribeToPush()
+  if (!sub) return { ok: false, reason: 'subscribe-failed' }
+  try {
+    await api.post('/push/subscribe', sub.toJSON ? sub.toJSON() : sub)
+    return { ok: true }
+  } catch {
+    return { ok: false, reason: 'server' }
+  }
+}
+
+export async function disablePushNotifications() {
+  try { await api.del('/push/subscribe') } catch { /* best effort */ }
+  await unsubscribeFromPush()
+  return { ok: true }
+}
 
 export async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return null

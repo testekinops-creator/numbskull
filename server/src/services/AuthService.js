@@ -221,6 +221,7 @@ export const AuthService = {
       xoxWins:    user.xoxWins    ?? 0,
       mathWins:   user.mathWins   ?? 0,
       sudokuWins: user.sudokuWins ?? 0,
+      rummyWins:  user.rummyWins  ?? 0,
       createdAt:  user.createdAt,
     }
   },

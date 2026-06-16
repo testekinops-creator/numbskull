@@ -1,0 +1,130 @@
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+/* ── Opponents ─────────────────────────────────────────────────────────── */
+.opponents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 12px);
+  justify-content: center;
+}
+.opp { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.oppOut { opacity: 0.4; filter: grayscale(1); }
+.oppName { font-size: var(--text-xs, 0.75rem); color: var(--color-text-muted, #9a93c0); font-weight: 700; }
+
+/* ── Table (stock / discard / wild) ───────────────────────────────────── */
+.table {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-5, 20px);
+  padding: var(--space-4, 16px);
+  border-radius: var(--radius-xl, 16px);
+  background: linear-gradient(160deg, rgba(20, 60, 40, 0.45), rgba(12, 30, 24, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.pileCol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pileLabel { font-size: var(--text-xs, 0.7rem); color: var(--color-text-muted, #9a93c0); text-transform: uppercase; letter-spacing: 0.06em; }
+.emptyPile { width: 54px; height: 76px; border-radius: 11px; border: 2px dashed rgba(255, 255, 255, 0.18); }
+
+/* ── Cards (premium playing-card look) ─────────────────────────────────── */
+.card {
+  position: relative;
+  width: 54px; height: 76px;
+  flex-shrink: 0;
+  padding: 6px 7px;
+  border-radius: 11px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: linear-gradient(157deg, #ffffff 0%, #f3f5f9 62%, #e6eaf1 100%);
+  color: #15182b;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  transition: transform 0.14s var(--ease-spring, ease), box-shadow 0.14s ease;
+}
+.cardSm { width: 42px; height: 58px; padding: 4px 5px; border-radius: 9px; }
+.card:disabled { cursor: default; }
+.static { cursor: default; }
+.card.red { color: #e01f43; }
+.card .rank { font-size: 1.2rem; line-height: 1; letter-spacing: -0.02em; }
+.card .suit { font-size: 1.4rem; line-height: 1; align-self: flex-end; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12)); }
+.cardSm .rank { font-size: 0.92rem; }
+.cardSm .suit { font-size: 1.05rem; }
+.jokerFace { font-size: 1.9rem; margin: auto; }
+.cardSm .jokerFace { font-size: 1.4rem; }
+.wildPip { position: absolute; top: 3px; right: 4px; font-size: 0.7rem; color: #00a3b5; filter: drop-shadow(0 0 4px rgba(0,200,229,0.6)); }
+.card.selected { transform: translateY(-14px) scale(1.04); box-shadow: 0 14px 24px rgba(0, 245, 255, 0.45), 0 0 0 2px var(--color-juice, #00f5ff); }
+.card.dim { opacity: 0.45; }
+.card:not(:disabled):hover { transform: translateY(-6px); }
+
+/* Face-down stack (opponents / stock) */
+.stack { position: relative; width: 54px; height: 76px; border: none; background: none; padding: 0; cursor: pointer; }
+.stack:disabled { cursor: default; }
+.back {
+  position: absolute; inset: 0;
+  border-radius: 11px;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(124, 77, 255, 0.45), transparent 60%),
+    repeating-linear-gradient(45deg, #25255f, #25255f 6px, #36369a 6px, #36369a 12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.stackCount {
+  position: absolute; bottom: -8px; right: -6px;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--color-juice, #00f5ff); color: #07223a;
+  font-size: 0.7rem; font-weight: 800;
+}
+
+/* ── Status / hand / actions ───────────────────────────────────────────── */
+.status { text-align: center; font-size: var(--text-sm, 0.85rem); color: var(--color-text-secondary, #c9c2f5); font-weight: 600; min-height: 1.2em; }
+.handScroll { overflow-x: auto; padding: 14px 10px 6px; -webkit-overflow-scrolling: touch; }
+/* `safe center` centers when the hand fits but never clips the first card when it
+   overflows (plain `center` makes the start unreachable in a scroll container). */
+.hand { display: flex; gap: 6px; justify-content: safe center; min-width: min-content; }
+
+.groups { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.group {
+  position: relative;
+  display: flex; gap: 3px; padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(0, 245, 255, 0.08);
+  border: 1px solid rgba(0, 245, 255, 0.25);
+}
+/* Small, refined remove button (was a big solid pink disc). */
+.groupX {
+  position: absolute; top: -6px; right: -6px;
+  width: 17px; height: 17px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(18, 14, 38, 0.9);
+  color: #ff6b9d;
+  font-size: 0.55rem; line-height: 1; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: background 0.14s, color 0.14s, transform 0.14s;
+}
+.groupX:hover { background: var(--color-pink, #ff3e8a); color: #fff; transform: scale(1.12); }
+.hint { font-size: var(--text-xs, 0.75rem); color: var(--color-text-muted, #9a93c0); }
+.declareHint { text-align: center; font-size: var(--text-xs, 0.78rem); color: #7df9ff; font-weight: 700; }
+
+.actions { display: flex; gap: var(--space-2, 8px); justify-content: center; flex-wrap: wrap; }
+.err { text-align: center; color: var(--color-pink, #ff6b9d); font-size: var(--text-sm, 0.85rem); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}

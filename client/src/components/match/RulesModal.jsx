@@ -97,6 +97,28 @@ const RULES = {
       { h: 'Rounds', p: 'The host deals the next round (new secret roles) or ends the game. Totals carry across rounds.' },
     ],
   },
+  RUMMY: {
+    title: '🃏 Rummy (13-card)',
+    sections: [
+      { h: 'Goal', p: 'Be first to arrange all 13 cards into valid groups and declare. 2–6 players; your hand is secret — rivals see only your card count.' },
+      { h: 'On your turn', list: [
+        'Draw one card — from the closed stock or the open discard pile.',
+        'Then discard one card to the pile (turn passes), or declare.',
+        'A 45-second timer keeps things moving — miss it and a card is auto-discarded.',
+      ] },
+      { h: 'Valid groups', list: [
+        'Run: 3+ consecutive cards of the SAME suit (e.g. 5♥ 6♥ 7♥).',
+        'Set: 3–4 cards of the same rank in DIFFERENT suits.',
+        'The cut wild-joker rank and the printed 🃏 jokers substitute any missing card.',
+      ] },
+      { h: 'Declaring', list: [
+        'You need at least ONE pure sequence (a run with no joker) and TWO sequences total.',
+        'Group all 13 cards, leave one to finish, then Show & Declare.',
+        'A wrong declaration loses you the round — be sure before you show.',
+      ] },
+      { h: 'Winning', p: 'The first valid declaration wins the round (and counts toward the monthly leaderboard).' },
+    ],
+  },
   GTN: {
     title: '🎯 Guess The Number',
     sections: [

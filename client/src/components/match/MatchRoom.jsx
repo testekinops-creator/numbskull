@@ -27,6 +27,7 @@ import TurnGlow from '../game/TurnGlow.jsx'
 import SpinBattleMatch from './SpinBattleMatch.jsx'
 import SosBoard from './SosBoard.jsx'
 import RmcsMatch from './RmcsMatch.jsx'
+import RummyBoard from './RummyBoard.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
@@ -36,7 +37,7 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri' }
+const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy' }
 
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
@@ -45,6 +46,7 @@ export default function MatchRoom({ roomId, mode }) {
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     spinSpin, spinGuess, spinVowel, spinSolve,
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
+    rummyDraw, rummyDiscard, rummyDeclare,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -112,6 +114,7 @@ export default function MatchRoom({ roomId, mode }) {
     switch (mode) {
       case 'XOX':  return state.myTurn && !state.xoxRound
       case 'SOS':
+      case 'RUMMY':
       case 'SPIN': return state.myTurn
       case 'MATH': return !!match.question && !match.resolved && mathChoice == null
       case 'RMCS':
@@ -339,7 +342,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   return (
     <div className="screen">
-      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : 'match'} />
+      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : 'match'} />
       {mode === 'SOS' && <SosTimeoutFlash event={state.sosTimeout} playerId={playerId} opponentName={opponent?.name} />}
       <ConfirmDialog
         open={confirmLeave}
@@ -601,6 +604,22 @@ export default function MatchRoom({ roomId, mode }) {
                 </>
               )
             })()}
+            {mode === 'RUMMY' && match.handCounts && (
+              <>
+                <TurnTimer active={state.myTurn} seconds={state.turnTimeLeft} total={state.turnTimeTotal} />
+                <TurnGlow active={myMove} maxWidth={560}>
+                  <RummyBoard
+                    match={match}
+                    myTurn={state.myTurn}
+                    playerId={playerId}
+                    players={room.players}
+                    onDraw={(source) => { unlock(); rummyDraw(roomId, source) }}
+                    onDiscard={(cardId) => { unlock(); rummyDiscard(roomId, cardId) }}
+                    onDeclare={(groups, discardCardId) => { unlock(); return rummyDeclare(roomId, groups, discardCardId) }}
+                  />
+                </TurnGlow>
+              </>
+            )}
           </div>
         )}
 

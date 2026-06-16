@@ -27,10 +27,16 @@ export class TurnTimer {
 const timers = new Map()
 
 export function getTimer(roomId, onExpire) {
-  if (!timers.has(roomId)) {
-    timers.set(roomId, new TurnTimer(roomId, onExpire))
+  let t = timers.get(roomId)
+  if (!t) {
+    t = new TurnTimer(roomId, onExpire)
+    timers.set(roomId, t)
+  } else if (onExpire) {
+    // Re-arming (e.g. next turn) must use the LATEST callback, not the one this
+    // timer was first created with — otherwise it fires a stale closure.
+    t._onExpire = onExpire
   }
-  return timers.get(roomId)
+  return t
 }
 
 export function clearTimer(roomId) {

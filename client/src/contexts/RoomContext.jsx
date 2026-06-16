@@ -222,6 +222,22 @@ function reducer(state, action) {
         match: action.match ? { ...state.match, ...action.match } : state.match,
       }
 
+    // RUMMY: draw / discard / timeout. The public patch omits `myHand`, so merging
+    // preserves the hand last sent privately via _matchView; a personal patch
+    // (after my own draw/discard) carries the fresh `myHand`.
+    case 'RUMMY_UPDATE':
+      return {
+        ...state,
+        match: action.match ? { ...state.match, ...action.match } : state.match,
+        myTurn: action.match?.turnId !== undefined
+          ? action.match.turnId === action.playerId
+          : state.myTurn,
+      }
+
+    // RUMMY: someone declared — stash the reveal (winner's groups / why invalid).
+    case 'RUMMY_DECLARED':
+      return { ...state, rummyReveal: action.payload || null }
+
     // RMCS: the host dealt a fresh round — per-viewer payload REPLACES the match
     // (it carries my new private role; the old round's must not linger).
     case 'RMCS_ROUND':
@@ -590,6 +606,10 @@ export function RoomProvider({ children }) {
     socket.on('rmcs:result', ({ match } = {}) => dispatch({ type: 'RMCS_UPDATE', match }))
     socket.on('rmcs:round',  (view = {})      => dispatch({ type: 'RMCS_ROUND', match: view.match }))
 
+    // RUMMY: draw/discard/timeout patches (public, or personal with myHand).
+    socket.on('rummy:update',   ({ match } = {}) => dispatch({ type: 'RUMMY_UPDATE', match, playerId }))
+    socket.on('rummy:declared', (payload = {})   => dispatch({ type: 'RUMMY_DECLARED', payload }))
+
     socket.on('math:question', (payload = {}) => {
       dispatch({ type: 'MATH_QUESTION', payload, playerId })
     })
@@ -700,6 +720,8 @@ export function RoomProvider({ children }) {
       socket.off('rmcs:update')
       socket.off('rmcs:result')
       socket.off('rmcs:round')
+      socket.off('rummy:update')
+      socket.off('rummy:declared')
       socket.off('math:question')
       socket.off('math:resolved')
       socket.off('sudoku:update')
@@ -807,6 +829,11 @@ export function RoomProvider({ children }) {
   const sudokuFill   = useCallback((roomId, index, value) => socket?.emit('sudoku:fill',   { roomId, index, value }), [socket])
   const sudokuClear  = useCallback((roomId, index)        => socket?.emit('sudoku:clear',  { roomId, index }),        [socket])
 
+  // Rummy — acks surface "Not your turn" / invalid-declaration reasons to the UI.
+  const rummyDraw    = useCallback((roomId, source)              => emitAck(socket, 'rummy:draw',    { roomId, source }),                  [socket])
+  const rummyDiscard = useCallback((roomId, cardId)              => emitAck(socket, 'rummy:discard', { roomId, cardId }),                  [socket])
+  const rummyDeclare = useCallback((roomId, groups, discardCardId) => emitAck(socket, 'rummy:declare', { roomId, groups, discardCardId }), [socket])
+
   const spinSpin  = useCallback((roomId)          => socket?.emit('spin:spin',  { roomId }),          [socket])
   const spinGuess = useCallback((roomId, letter)  => socket?.emit('spin:guess', { roomId, letter }),  [socket])
   const spinVowel = useCallback((roomId, letter)  => socket?.emit('spin:vowel', { roomId, letter }),  [socket])
@@ -900,6 +927,7 @@ export function RoomProvider({ children }) {
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
       spinSpin, spinGuess, spinVowel, spinSolve,
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
+      rummyDraw, rummyDiscard, rummyDeclare,
     }}>
       {children}
     </RoomContext.Provider>

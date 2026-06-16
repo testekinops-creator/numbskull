@@ -36,6 +36,12 @@ const STEPS = {
     { emoji: '⚔️', title: 'Mistakes & the finish', body: 'A wrong cell turns red — only your rival can fix it. Hit the mistake limit and you forfeit. When few cells remain, it’s a sprint!' },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, 📞 to voice-call, and 🙋 to add a friend.' },
   ],
+  rummy: [
+    { emoji: '🃏', title: '13-card Rummy — live', body: 'You get 13 cards. On your turn, draw one (from the closed stock or the open discard), then discard one. Your hand stays secret — rivals see only how many cards you hold.' },
+    { emoji: '🔗', title: 'Sequences & sets', body: 'Arrange all 13 into groups of 3+: runs (consecutive, same suit) and sets (same rank, different suits). The cut card’s rank — and the jokers — are wild and fill gaps.' },
+    { emoji: '🏆', title: 'Declare to win', body: 'You MUST have at least one PURE sequence (a run with no joker) and two sequences in total. When your hand is valid, discard your last card and Declare. A wrong declare loses the round!' },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you play.' },
+  ],
   rmcs: [
     { emoji: '👑', title: 'Four secret roles', body: 'Every round deals Raja (1000), Mantri (800), Sipahi (500) and Chor (0) — in secret. Tap your chit to see yours. Keep a straight face.' },
     { emoji: '📣', title: 'Two get exposed', body: 'Once all four reveal, the Raja and Mantri are announced. The other two stay hidden — one honest Sipahi, one lying Chor.' },

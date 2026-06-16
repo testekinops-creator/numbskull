@@ -231,6 +231,10 @@ export function registerRoomHandlers(io, socket) {
     if (snapshot.match?.kind === 'RMCS') {
       snapshot.match.myRole = room.match?.roles?.[playerId] || null
     }
+    // RUMMY: re-deliver the reconnecting player's own (still-secret) hand.
+    if (snapshot.match?.kind === 'RUMMY') {
+      snapshot.match.myHand = room.match?.hands?.[playerId] || []
+    }
     // Tell the reconnecting player who's actually live right now: if an opponent
     // is mid-grace (locked / dropped) the client must show the "waiting…" state
     // instead of a normal-looking board, and knows exactly when the room closes.

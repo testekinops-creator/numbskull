@@ -8,9 +8,9 @@ import { useHaptic } from '../hooks/useHaptic.js'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS'])
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY'])
 const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
@@ -22,8 +22,11 @@ export default function LobbyPage() {
 
   const displayName = isRegistered && user?.username ? user.username : playerName
 
-  // Mode is fixed — chosen on the Home games list. No in-page toggle.
-  const mode = KNOWN_MODES.has(location.state?.mode) ? location.state.mode : 'GTN'
+  // Mode is fixed — chosen on the Home games list (router state) or via a
+  // ?mode= deep-link (e.g. a push notification opening a specific game).
+  const queryMode = new URLSearchParams(location.search).get('mode')
+  const requestedMode = location.state?.mode || queryMode
+  const mode = KNOWN_MODES.has(requestedMode) ? requestedMode : 'GTN'
 
   // Clear any stale room so the auto-navigate can't bounce us into a dead room.
   useEffect(() => { clearRoom() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -69,8 +72,11 @@ export default function LobbyPage() {
   // Raja Mantri: multiplayer-only (no AI — bluffing bots is hollow), exactly 4
   // players. Quick Match groups 4 strangers into one table; Create/Join also work.
   const isRmcs = mode === 'RMCS'
-  // Sudoku now has a full solo mode; only Raja Mantri stays multiplayer-only.
-  const mpOnly = isRmcs
+  // Rummy: multiplayer-first (no AI in v1), a 2–6 player party game.
+  const isRummy = mode === 'RUMMY'
+  const isParty = mode === 'SPIN' || isRummy
+  // Sudoku now has a full solo mode; Raja Mantri and Rummy stay multiplayer-only.
+  const mpOnly = isRmcs || isRummy
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
@@ -105,7 +111,7 @@ export default function LobbyPage() {
 
   async function handleCreate() {
     setBusy(true); setError('')
-    const maxPlayers = mode === 'SPIN' ? partySize : mode === 'RMCS' ? 4 : 2
+    const maxPlayers = isParty ? partySize : mode === 'RMCS' ? 4 : 2
     const res = await createRoom({ mode, isPublic: true, difficulty, maxPlayers })
     setBusy(false)
     if (!res?.ok) { setError(res?.error || 'Failed'); return }
@@ -284,13 +290,15 @@ export default function LobbyPage() {
                   <p className={styles.hint}>
                     {mode === 'SPIN'
                       ? 'Create a party room and share the code. The host starts when everyone’s in.'
+                      : isRummy
+                      ? 'Create a Rummy table (2–6 players) and share the code. The host starts when everyone’s in.'
                       : mode === 'RMCS'
                       ? 'Create a room and share the code with 3 friends — Raja Mantri needs exactly 4 players.'
                       : 'Create a private room and share the code with a friend.'}
                   </p>
-                  {mode === 'SPIN' && (
+                  {isParty && (
                     <div className={styles.tabs} style={{ marginBottom: 'var(--space-3, 12px)' }}>
-                      {[2, 3, 4, 6, 8].map(n => (
+                      {(isRummy ? [2, 3, 4, 5, 6] : [2, 3, 4, 6, 8]).map(n => (
                         <button
                           key={n}
                           className={`${styles.tab} ${partySize === n ? styles.activeTab : ''}`}

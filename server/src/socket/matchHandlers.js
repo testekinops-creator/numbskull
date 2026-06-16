@@ -11,6 +11,7 @@ import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine, sudokuComboGain } from '../game/engines/SudokuEngine.js'
 import { SosEngine } from '../game/engines/SosEngine.js'
+import { RummyEngine, validateDeclaration, shuffleCards } from '../game/engines/RummyEngine.js'
 import {
   WHEEL, VOWEL_COST, EXTRA_TURN_BONUS, JACKPOT_BONUS, STEAL_AMOUNT, pickPuzzle, spinWheel,
   countOf, isAllRevealed, maskAnswer, normalizeSolve, isVowel, isConsonant, distinctLetters,
@@ -20,7 +21,13 @@ import { ROLE_POINTS, assignRoles, scoreRound, pickModifier } from '../game/rmcs
 import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY'])
+
+// Indian Rummy: a player's window to draw + discard (or declare) on their turn.
+// Generous (90s) because arranging a hand into melds to declare takes thought;
+// on expiry the server auto-draws + auto-discards so an AFK player can't freeze
+// the table (mirrors the SOS anti-stall timer). No auto-declare.
+const RUMMY_TURN_MS = 90_000
 
 // Raja Mantri Chor Sipahi: the Mantri's window to pick the Chor. On expiry the
 // server auto-picks a random suspect so a stalling Mantri can't freeze the room.
@@ -774,6 +781,123 @@ export function registerMatchHandlers(io, socket) {
     }
   })
 
+  // ── Rummy: draw a card (from the closed stock or the open discard) ─────────
+  socket.on('rummy:draw', async ({ roomId, source } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RUMMY' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+      if (m.hasDrawn) return ack?.({ ok: false, error: 'Already drawn — discard or declare now' })
+      if (source !== 'stock' && source !== 'discard') return ack?.({ ok: false, error: 'Pick a pile' })
+      if (source === 'discard' && !(m.discard?.length)) return ack?.({ ok: false, error: 'Discard pile is empty' })
+
+      let drawn = null
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        if (source === 'discard') {
+          drawn = mm.discard.pop()
+        } else {
+          if (!mm.stock.length) {            // stock dry → recycle the discard (keep its top)
+            const top = mm.discard.pop()
+            mm.stock = shuffleCards(mm.discard)
+            mm.discard = top ? [top] : []
+          }
+          drawn = mm.stock.pop()
+        }
+        if (drawn) mm.hands[playerId].push(drawn)
+        mm.hasDrawn = true
+      })
+
+      const updated = await roomManager.get(roomId)
+      // The drawer gets their full hand (incl. the new card); everyone else gets
+      // counts only — a drawn card must never leak to opponents.
+      socket.emit('rummy:update', { match: _matchView(updated, playerId).match, by: playerId, action: 'draw', source })
+      socket.to(roomId).emit('rummy:update', { match: _publicMatch(updated.match), by: playerId, action: 'draw', source })
+      ack?.({ ok: true, drawn })
+      // The single per-turn timer keeps running until they discard/declare.
+    } catch (err) {
+      logger.error({ err }, 'rummy:draw error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── Rummy: discard a card → turn passes to the next player ─────────────────
+  socket.on('rummy:discard', async ({ roomId, cardId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RUMMY' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+      if (!m.hasDrawn) return ack?.({ ok: false, error: 'Draw a card first' })
+      if (!(m.hands[playerId] || []).some(c => c.id === cardId)) return ack?.({ ok: false, error: 'Card not in hand' })
+
+      let nextTurn = null
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        const hand = mm.hands[playerId]
+        const i = hand.findIndex(c => c.id === cardId)
+        const [card] = hand.splice(i, 1)
+        mm.discard.push(card)
+        mm.hasDrawn = false
+        nextTurn = _rummyNextTurn(r, playerId)
+        mm.turnId = nextTurn
+      })
+      clearTimer(roomId)
+
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('rummy:update', { match: _publicMatch(updated.match), by: playerId, action: 'discard', cardId })
+      // The discarder's own hand changed → refresh just their view.
+      socket.emit('rummy:update', { match: _matchView(updated, playerId).match, by: playerId, action: 'discard', cardId })
+      ack?.({ ok: true })
+      if (nextTurn) _startRummyTimer(io, roomId, nextTurn)
+    } catch (err) {
+      logger.error({ err }, 'rummy:discard error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // ── Rummy: declare (discard the 14th + show the 13-card arrangement) ───────
+  socket.on('rummy:declare', async ({ roomId, groups, discardCardId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'RUMMY' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || m.turnId !== playerId) return ack?.({ ok: false, error: 'Not your turn' })
+      if (!m.hasDrawn) return ack?.({ ok: false, error: 'Draw a card first' })
+      const hand = m.hands[playerId] || []
+      if (!hand.some(c => c.id === discardCardId)) return ack?.({ ok: false, error: 'Pick a card to finish with' })
+
+      // The declared 13 = hand minus the finishing discard.
+      const declared = hand.filter(c => c.id !== discardCardId)
+      const result = validateDeclaration(declared, groups, m.wildRank)
+
+      // Invalid show is NOT fatal (too harsh for a casual game, and valid hands
+      // are rare). Just reject with the reason and keep them on their turn so
+      // they can re-arrange, declare again, or cancel and discard. We do NOT
+      // broadcast anything here — their hand must stay private.
+      if (!result.valid) {
+        return ack?.({ ok: true, valid: false, reason: result.reason })
+      }
+
+      // Valid declaration → reveal the winning hand and the declarer wins.
+      const resolvedGroups = Array.isArray(groups)
+        ? groups.map(g => (g || []).map(id => declared.find(c => c.id === id)).filter(Boolean))
+        : []
+      await roomManager.update(roomId, r => {
+        const h = r.match.hands[playerId]
+        const i = h.findIndex(c => c.id === discardCardId)
+        if (i !== -1) r.match.discard.push(h[i])
+      })
+      io.to(roomId).emit('rummy:declared', { by: playerId, valid: true, groups: resolvedGroups })
+      ack?.({ ok: true, valid: true })
+      return _endMatch(io, roomId, { winnerId: playerId, draw: false, reason: 'declared' })
+    } catch (err) {
+      logger.error({ err }, 'rummy:declare error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
   // ── Forfeit (explicit "I give up") ────────────────────────────────────────
   socket.on('match:forfeit', async ({ roomId } = {}, ack) => {
     try {
@@ -956,6 +1080,33 @@ async function _startMatch(io, roomId) {
     })
   }
 
+  if (room.mode === 'RUMMY') {
+    // 2–6 players. Hands live ONLY on the server; each player gets just their own
+    // via the per-viewer _matchView (like RMCS roles). Turn rotates through the
+    // player list; the starting player rotates each deal.
+    const ids = room.players.map(p => p.id)
+    const seq = room.gameSeq || 0
+    const firstId = ids[seq % ids.length]
+    const engine = new RummyEngine({ playerIds: ids })   // crypto-shuffled deal
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.gameSeq = seq + 1
+      r.match = {
+        kind:      'RUMMY',
+        hands:     engine.hands,       // { pid: [card] } — server-only
+        stock:     engine.stock,       // closed pile (top = last)
+        discard:   engine.discard,     // open pile (top = last)
+        wildJoker: engine.wildJoker,   // the cut card (public)
+        wildRank:  engine.wildRank,    // its rank acts wild (public)
+        turnId:    firstId,
+        hasDrawn:  false,
+        order:     ids,
+        eliminated: [],
+      }
+    })
+  }
+
   const updated = await roomManager.get(roomId)
   for (const p of updated.players) {
     const s = _findSocket(io, p.id)
@@ -966,6 +1117,7 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
   if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'SOS')  _startSosTimer(io, roomId, updated.match.turnId)
+  if (updated.mode === 'RUMMY') _startRummyTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'RMCS') { _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS); _driveBotReveals(io, roomId) }
 }
 
@@ -1436,6 +1588,31 @@ export async function onPartyPlayerLeft(io, roomId, leftId) {
     return _endMatch(io, roomId, { winnerId, draw, ranking, reason: 'player-left' })
   }
 
+  // Rummy: keep the deal going with the remaining players (the leaver is already
+  // removed from room.players). Drop below 2 → last player standing wins.
+  if (room.mode === 'RUMMY') {
+    const mm = room.match
+    if (!mm) return
+    const active = room.players.filter(p => !(mm.eliminated || []).includes(p.id))
+    if (active.length < 2) {
+      clearTimer(roomId)
+      return _endMatch(io, roomId, { winnerId: active[0]?.id || room.players[0]?.id || null, draw: false, reason: 'player-left' })
+    }
+    if (mm.turnId === leftId) {
+      let nextTurn = null
+      await roomManager.update(roomId, r => {
+        r.match.hasDrawn = false
+        nextTurn = _rummyNextTurn(r, leftId)
+        r.match.turnId = nextTurn
+      })
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('rummy:update', { match: _publicMatch(updated.match), by: leftId, action: 'left' })
+      clearTimer(roomId)
+      if (nextTurn) _startRummyTimer(io, roomId, nextTurn)
+    }
+    return
+  }
+
   if (room.mode !== 'SPIN') return
   const mm = room.match
   if (!mm) return
@@ -1531,6 +1708,66 @@ function _startSosTimer(io, roomId, currentTurnId) {
   io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: SOS_TURN_MS })
 }
 
+// ── Rummy helpers ──────────────────────────────────────────────────────────────
+// Next still-in player after fromId (skips anyone eliminated by a wrong declare).
+function _rummyNextTurn(room, fromId) {
+  const ids = room.players.map(p => p.id).filter(id => !(room.match.eliminated || []).includes(id))
+  if (ids.length < 2) return ids[0] || null
+  const order = room.players.map(p => p.id)
+  let i = order.indexOf(fromId)
+  for (let step = 0; step < order.length; step++) {
+    i = (i + 1) % order.length
+    if (ids.includes(order[i])) return order[i]
+  }
+  return ids[0] || null
+}
+
+// Anti-stall: the player's whole turn (draw + discard) runs on one timer. On
+// expiry we auto-draw (if needed) + auto-discard their last card and pass the
+// turn — we never auto-declare. Re-armed for each new turn.
+function _startRummyTimer(io, roomId, currentTurnId) {
+  const timer = getTimer(roomId, async (rid) => {
+    // Wrapped so a stray throw here can NEVER crash the process (which would
+    // disconnect every player and bounce them to the lobby).
+    try {
+      const room = await roomManager.get(rid)
+      if (!room || room.mode !== 'RUMMY' || room.phase !== 'PLAYING') return
+      if (room.match?.turnId !== currentTurnId) return
+
+      let nextTurn = null
+      await roomManager.update(rid, r => {
+        const mm = r.match
+        if (!mm.hands?.[currentTurnId]) return   // defensive — never operate on a missing hand
+        if (!mm.hasDrawn) {
+          if (!mm.stock.length) {
+            const top = mm.discard.pop()
+            mm.stock = shuffleCards(mm.discard)
+            mm.discard = top ? [top] : []
+          }
+          const card = mm.stock.pop()
+          if (card) mm.hands[currentTurnId].push(card)
+        }
+        const hand = mm.hands[currentTurnId]
+        const card = hand.pop()           // auto-discard the last card
+        if (card) mm.discard.push(card)
+        mm.hasDrawn = false
+        nextTurn = _rummyNextTurn(r, currentTurnId)
+        mm.turnId = nextTurn
+      })
+
+      const updated = await roomManager.get(rid)
+      io.to(rid).emit('rummy:update', { match: _publicMatch(updated.match), by: currentTurnId, action: 'timeout', timedOut: true })
+      const s = _findSocket(io, currentTurnId)
+      s?.emit('rummy:update', { match: _matchView(updated, currentTurnId).match, by: currentTurnId, action: 'timeout', timedOut: true })
+      if (nextTurn) _startRummyTimer(io, rid, nextTurn)
+    } catch (err) {
+      logger.error({ err, roomId: rid }, 'rummy turn-timer error')
+    }
+  })
+  timer.start(RUMMY_TURN_MS)
+  io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: RUMMY_TURN_MS })
+}
+
 // ── Views ──────────────────────────────────────────────────────────────────
 // XOX has no hidden info, but SPIN carries per-viewer private state (a player's
 // own wrong letters) + a live round countdown, so the view is built per viewer.
@@ -1545,6 +1782,10 @@ function _matchView(room, viewerId) {
     // The ONLY private bit: your own chit.
     match.myRole = room.match.roles?.[viewerId] || null
     match.myRolePoints = match.myRole ? ROLE_POINTS[match.myRole] : null
+  }
+  if (match?.kind === 'RUMMY') {
+    // The ONLY private bit: your own hand.
+    match.myHand = room.match.hands?.[viewerId] || []
   }
   return { room: _roomSummary(room), match, you: viewerId }
 }
@@ -1638,6 +1879,25 @@ function _publicMatch(match) {
       lines:     match.lines || [],
       pending:   match.pending || [],
       pendingBy: match.pendingBy || null,
+    }
+  }
+  if (match.kind === 'RUMMY') {
+    // Strip every hand — opponents only ever see counts. The drawn card is sent
+    // to its owner separately via _matchView; it must never appear here.
+    const handCounts = {}
+    for (const [pid, cards] of Object.entries(match.hands || {})) handCounts[pid] = cards.length
+    return {
+      kind:        'RUMMY',
+      handCounts,
+      discardTop:  match.discard?.length ? match.discard[match.discard.length - 1] : null,
+      discardCount: match.discard?.length || 0,
+      stockCount:  match.stock?.length || 0,
+      wildJoker:   match.wildJoker || null,
+      wildRank:    match.wildRank || null,
+      turnId:      match.turnId,
+      hasDrawn:    !!match.hasDrawn,
+      order:       match.order || [],
+      eliminated:  match.eliminated || [],
     }
   }
   if (match.kind === 'RMCS') {

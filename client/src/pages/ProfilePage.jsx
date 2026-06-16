@@ -95,6 +95,7 @@ export default function ProfilePage() {
           <StatCard label="XOX Wins" value={user?.xoxWins ?? 0} />
           <StatCard label="Math Wins" value={user?.mathWins ?? 0} />
           <StatCard label="Sudoku Wins" value={user?.sudokuWins ?? 0} />
+          <StatCard label="Rummy Wins" value={user?.rummyWins ?? 0} />
           <StatCard label="Tier" value={tier} text />
         </div>
 

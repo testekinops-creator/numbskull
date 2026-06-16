@@ -67,6 +67,13 @@ const GAMES = [
     desc: 'The classic Raja Mantri Chor Sipahi — read faces, bluff hard, catch the Chor. 4 players.',
     accent: 'var(--color-warning)',
   },
+  {
+    mode: 'RUMMY',
+    icon: '🃏',
+    name: 'Rummy',
+    desc: '13-card Indian Rummy — draw, discard, form sequences & sets, declare to win. 2–6 players.',
+    accent: 'var(--color-pink)',
+  },
 ]
 
 export default function HomeListPage() {

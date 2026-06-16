@@ -6,6 +6,7 @@ import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { setSoundVolume } from '../hooks/useSound.js'
 import AboutModal from '../components/AboutModal.jsx'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
+import { enablePushNotifications, disablePushNotifications } from '../services/pwa.js'
 import { VERSION_LINE, BUILD_DATE, COMMIT_MSG } from '../utils/buildInfo.js'
 import styles from './SettingsPage.module.css'
 
@@ -15,8 +16,17 @@ const VOLUME_KEY  = 'ns_sound_volume'
 const HAPTIC_KEY  = 'ns_haptic_enabled'
 const MOTION_KEY  = 'ns_reduced_motion'
 const PERF_KEY    = 'ns_performance_mode'
+const PUSH_KEY    = 'ns_push_enabled'
 
 const SUPPORT_EMAIL = 'supportnumbskull@gmail.com'
+
+const PUSH_REASON = {
+  unsupported:        'Notifications need the installed app or an HTTPS device.',
+  'not-configured':   'Notifications aren’t switched on for this build yet.',
+  denied:             'Blocked — allow notifications for this site in your browser.',
+  'subscribe-failed': 'Couldn’t subscribe — try again.',
+  server:             'Couldn’t save your subscription — try again.',
+}
 
 function getBool(key, def = true) {
   const v = localStorage.getItem(key)
@@ -38,6 +48,28 @@ export default function SettingsPage() {
   const [motion, setMotion] = useState(() => getBool(MOTION_KEY, false))
   const [perf,   setPerf]   = useState(() => getBool(PERF_KEY, false))
   const [copied, setCopied] = useState(false)
+
+  // Push notifications: reflect the real granted+subscribed state on mount.
+  const [pushOn, setPushOn]   = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushMsg, setPushMsg] = useState('')
+  useEffect(() => {
+    const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted'
+    setPushOn(granted && localStorage.getItem(PUSH_KEY) === 'true')
+  }, [])
+
+  async function togglePush(on) {
+    setPushBusy(true); setPushMsg('')
+    if (on) {
+      const r = await enablePushNotifications()
+      if (r.ok) { setPushOn(true); localStorage.setItem(PUSH_KEY, 'true') }
+      else { setPushOn(false); setPushMsg(PUSH_REASON[r.reason] || 'Could not enable notifications.') }
+    } else {
+      await disablePushNotifications()
+      setPushOn(false); localStorage.setItem(PUSH_KEY, 'false')
+    }
+    setPushBusy(false)
+  }
 
   useEffect(() => {
     setColorblindMode(cbMode === 'none' ? null : cbMode)
@@ -165,6 +197,18 @@ export default function SettingsPage() {
             onChange={setPerf}
           />
         </Section>
+
+        {/* ── Notifications (registered users — needs a persistent account) ── */}
+        {isRegistered && (
+          <Section icon="🔔" title="Notifications">
+            <ToggleRow
+              label={pushBusy ? 'Working…' : 'Daily game reminder'}
+              description={pushMsg || 'A once-a-day nudge to play your most-played game.'}
+              checked={pushOn}
+              onChange={togglePush}
+            />
+          </Section>
+        )}
 
         {/* ── Accessibility ── */}
         <Section icon="♿" title="Accessibility">
