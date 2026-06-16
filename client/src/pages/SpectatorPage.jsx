@@ -26,11 +26,18 @@ export default function SpectatorPage() {
   useEffect(() => {
     if (!socket) return
     if (roomId) {
-      spectate(roomId)
-      return () => unspectate(roomId)   // leave the spectator list on the server
+      let cancelled = false
+      // If the room is gone/expired, don't hang on "Connecting…" — go to the list.
+      spectate(roomId).then(r => { if (!cancelled && r && r.ok === false) navigate('/spectate', { replace: true }) })
+      return () => { cancelled = true; unspectate(roomId) }   // leave the spectator list server-side
     }
     socket.emit('room:list', {}, r => { if (r?.ok) setLiveRooms(r.rooms) })
   }, [socket, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The watched room closed (both players left) → back to the live-games list.
+  useEffect(() => {
+    if (roomId && state.roomClosedByOpponent) navigate('/spectate', { replace: true })
+  }, [roomId, state.roomClosedByOpponent, navigate])
 
   const room = state.room
   const match = state.match
