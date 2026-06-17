@@ -142,3 +142,42 @@ model UserBadge {
   @@id([userId, badgeId])
   @@map("user_badges")
 }
+
+// ── Social graph (durable; survives restarts/deploys) ───────────────────────
+// Stored as plain id columns (no FK relations) to keep the User model untouched.
+// A friendship is one row with the pair stored in sorted order (userAId < userBId)
+// so the unique constraint dedupes A↔B regardless of who added whom.
+model Friendship {
+  id        String   @id @default(uuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("friendships")
+}
+
+// A pending request is directional (fromId → toId); cleared on accept/decline.
+model FriendRequest {
+  id        String   @id @default(uuid())
+  fromId    String
+  toId      String
+  createdAt DateTime @default(now())
+
+  @@unique([fromId, toId])
+  @@index([toId])
+  @@map("friend_requests")
+}
+
+model UserBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@map("user_blocks")
+}

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch --env-file=.env src/index.js",
     "start": "node --env-file=.env src/index.js",
+    "start:prod": "prisma migrate deploy && node src/index.js",
     "lint": "eslint src --ext .js",
     "test": "vitest run",
     "test:watch": "vitest",

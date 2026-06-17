@@ -2,6 +2,7 @@ import { createServer } from 'http'
 import app from './app.js'
 import { setupSocket } from './socket/index.js'
 import { logger } from './utils/logger.js'
+import { SocialService } from './services/SocialService.js'
 
 const PORT = process.env.PORT || 4000
 
@@ -16,6 +17,12 @@ process.on('unhandledRejection', (reason) => {
 
 const httpServer = createServer(app)
 setupSocket(httpServer)
+
+// Load the persisted social graph (friends / requests / blocks) into memory
+// before we accept connections, so presence + friend checks are correct from the
+// first request. Self-guarded — a DB hiccup just means in-memory-only, never a
+// boot failure.
+await SocialService.init()
 
 httpServer.listen(PORT, () => {
   logger.info({ port: PORT }, 'Numbskull server listening')
