@@ -4,7 +4,13 @@ import { AuthService } from '../services/AuthService.js'
 import { SocialService } from '../services/SocialService.js'
 import { ReplayTheater } from '../services/ReplayTheater.js'
 import { requireAuth, optionalAuth } from '../middleware/auth.js'
-import { getWatchableRoomForUser } from '../socket/index.js'
+import { getWatchableRoomForUser, emitToUser, isUserOnline } from '../socket/index.js'
+
+// Resolve a user's display name for live notifications (best-effort, never throws).
+async function _nameOf(userId) {
+  try { return (await AuthService.getUser(userId))?.username || 'Someone' }
+  catch { return 'Someone' }
+}
 
 export const usersRouter = Router()
 
@@ -27,8 +33,13 @@ usersRouter.get('/me/friends', requireAuth, async (req, res, next) => {
   try {
     const friends = await SocialService.getFriends(req.userId)
     // Enrich with the room each friend is currently playing in (if any + they
-    // allow being watched) so the UI can offer a direct "Watch" button.
-    const enriched = friends.map(f => ({ ...f, liveRoomId: getWatchableRoomForUser(f.id) }))
+    // allow being watched) so the UI can offer a direct "Watch" button, plus
+    // their live online status for the presence dot.
+    const enriched = friends.map(f => ({
+      ...f,
+      liveRoomId: getWatchableRoomForUser(f.id),
+      online: isUserOnline(f.id),
+    }))
     res.json({ success: true, data: { friends: enriched } })
   } catch (err) { next(err) }
 })
@@ -61,16 +72,33 @@ usersRouter.get('/:id', optionalAuth, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
-usersRouter.post('/:id/friend', requireAuth, (req, res, next) => {
+usersRouter.post('/:id/friend', requireAuth, async (req, res, next) => {
   try {
-    const result = SocialService.sendFriendRequest(req.userId, req.params.id)
+    const targetId = req.params.id
+    const result = SocialService.sendFriendRequest(req.userId, targetId)
+    const myName = await _nameOf(req.userId)
+    if (result.status === 'pending') {
+      // Push the request live so the recipient gets an Accept/Reject card anywhere
+      // (lobby, home, mid-game). If they're offline it's a no-op — they'll still see
+      // it in their Requests tab on next visit.
+      emitToUser(targetId, 'friend:incoming', { fromUserId: req.userId, fromName: myName })
+    } else if (result.status === 'accepted') {
+      // Mutual request (they'd already sent one) auto-matched → tell both sides live.
+      const theirName = await _nameOf(targetId)
+      emitToUser(targetId, 'friend:accepted', { userId: req.userId, name: myName })
+      emitToUser(req.userId, 'friend:accepted', { userId: targetId, name: theirName })
+    }
     res.json({ success: true, data: result })
   } catch (err) { next(err) }
 })
 
-usersRouter.post('/:id/friend/accept', requireAuth, (req, res, next) => {
+usersRouter.post('/:id/friend/accept', requireAuth, async (req, res, next) => {
   try {
-    const result = SocialService.acceptFriendRequest(req.userId, req.params.id)
+    const senderId = req.params.id
+    const result = SocialService.acceptFriendRequest(req.userId, senderId)
+    // Notify the original sender live that I accepted → "you're now friends".
+    const myName = await _nameOf(req.userId)
+    emitToUser(senderId, 'friend:accepted', { userId: req.userId, name: myName })
     res.json({ success: true, data: result })
   } catch (err) { next(err) }
 })

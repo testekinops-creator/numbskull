@@ -69,6 +69,18 @@ export default function MatchRoom({ roomId, mode }) {
   // Ignore a brief opponent drop (e.g. a page refresh) — only alarm after ~2.5s.
   const showOppLost = useDelayedFlag(connected && state.opponentConnLost, 2500)
 
+  // First-time tutorial gate. A brand-new player gets the how-to overlay BEFORE
+  // the match (and its server turn-clock) begins — so they never burn their timer
+  // while reading. We hold our auto-ready until the tutorial is dismissed; the
+  // opponent simply waits a few extra seconds on "Starting…". Returning players
+  // (flag already set) ready instantly, exactly as before. Party rooms are
+  // unaffected — the host starts those manually.
+  const tutVariant = mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs'
+    : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : 'match'
+  const [tutorialPending, setTutorialPending] = useState(() => {
+    try { return !localStorage.getItem(`ns_mp_tut_${tutVariant}`) } catch { return false }
+  })
+
   async function doHostStart() {
     setStartErr(''); setStarting(true)
     const r = await hostStart(roomId)
@@ -149,6 +161,7 @@ export default function MatchRoom({ roomId, mode }) {
   // (phase returns to SETUP and me.ready resets to false).
   useEffect(() => {
     if (!room || !me || isParty) return  // party rooms wait for the host to start
+    if (tutorialPending) return          // hold the start (and the turn clock) until the tutorial is done
     if (!((phase === 'SETUP' || phase === 'LOBBY') && opponent && !me.ready)) return
     // Retry on a slow/dropped connection so "Starting…" can't hang forever.
     let cancelled = false
@@ -160,7 +173,7 @@ export default function MatchRoom({ roomId, mode }) {
       }
     })()
     return () => { cancelled = true }
-  }, [phase, me?.ready, opponent?.id, isParty]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [phase, me?.ready, opponent?.id, isParty, tutorialPending]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Away too long (phone locked / app backgrounded past the reconnect grace) →
   // the room is dead; go to the game list instead of a stale board. Only while a
@@ -352,7 +365,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   return (
     <div className="screen">
-      <MultiplayerTutorial variant={mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs' : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : 'match'} />
+      <MultiplayerTutorial variant={tutVariant} onDone={() => setTutorialPending(false)} />
       {mode === 'SOS' && <SosTimeoutFlash event={state.sosTimeout} playerId={playerId} opponentName={opponent?.name} />}
       <ConfirmDialog
         open={confirmLeave}
@@ -378,18 +391,18 @@ export default function MatchRoom({ roomId, mode }) {
       <div className={`panel ${roomStyles.roomPage}`} style={{ paddingBottom: dockPad }}>
         {/* Header */}
         <div className={roomStyles.header}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmLeave(true)}>
+          <button className={`${roomStyles.hChip} ${roomStyles.hLeave}`} onClick={() => setConfirmLeave(true)}>
             ✕ Leave
           </button>
-          <span className="badge badge-juice">{MODE_NAMES[mode] || mode}</span>
-          <span className={`badge ${room.isPublic ? 'badge-juice' : 'badge-pink'}`}>
+          <span className={`${roomStyles.hChip} ${roomStyles.hMode}`}>{MODE_NAMES[mode] || mode}</span>
+          <span className={`${roomStyles.hChip} ${room.isPublic ? roomStyles.hPublic : roomStyles.hCode}`}>
             {room.isPublic ? 'Public' : room.code}
           </span>
           <div className={roomStyles.watchCluster}>
             {room.spectatorCount > 0 && (
-              <span className={roomStyles.watchCount} title="People watching">👁 {room.spectatorCount}</span>
+              <span className={`${roomStyles.hChip} ${roomStyles.watchCount}`} title="People watching">👁 {room.spectatorCount}</span>
             )}
-            <button className={roomStyles.watchBtn} onClick={copyWatchLink} title="Copy a link for friends to watch">
+            <button className={`${roomStyles.hChip} ${roomStyles.watchBtn}`} onClick={copyWatchLink} title="Copy a link for friends to watch">
               {watchCopied ? '✓ Copied' : '📺 Watch'}
             </button>
           </div>

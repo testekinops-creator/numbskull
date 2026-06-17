@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { useSocket } from '../contexts/SocketContext.jsx'
 import { api } from '../services/api.js'
 import Avatar from '../components/avatar/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -9,6 +10,7 @@ import styles from './FriendsPage.module.css'
 export default function FriendsPage() {
   const navigate = useNavigate()
   const { isRegistered } = useAuth()
+  const { socket } = useSocket()
 
   const [tab,       setTab]       = useState('friends') // friends | requests | add
   const [friends,   setFriends]   = useState([])
@@ -18,11 +20,40 @@ export default function FriendsPage() {
   const [searching, setSearching] = useState(false)
   const [sent,      setSent]      = useState(new Set())
 
+  const loadFriends = useCallback(() => {
+    api.get('/users/me/friends').then(d => setFriends(d.friends || [])).catch(() => {})
+  }, [])
+  const loadRequests = useCallback(() => {
+    api.get('/users/me/friend-requests').then(d => setRequests(d.requests || [])).catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!isRegistered) return
-    api.get('/users/me/friends').then(d => setFriends(d.friends || [])).catch(() => {})
-    api.get('/users/me/friend-requests').then(d => setRequests(d.requests || [])).catch(() => {})
-  }, [isRegistered])
+    loadFriends()
+    loadRequests()
+  }, [isRegistered, loadFriends, loadRequests])
+
+  // Live presence + request updates while the page is open: flip the online dot
+  // as friends come and go, and refresh the lists on new/accepted requests.
+  useEffect(() => {
+    if (!socket || !isRegistered) return
+    const setOnline = (userId, online) =>
+      setFriends(fs => fs.map(f => (f.id === userId ? { ...f, online } : f)))
+    const onOnline  = ({ userId } = {}) => setOnline(userId, true)
+    const onOffline = ({ userId } = {}) => setOnline(userId, false)
+    const onIncoming = () => loadRequests()
+    const onAccepted = () => loadFriends()
+    socket.on('friend:online', onOnline)
+    socket.on('friend:offline', onOffline)
+    socket.on('friend:incoming', onIncoming)
+    socket.on('friend:accepted', onAccepted)
+    return () => {
+      socket.off('friend:online', onOnline)
+      socket.off('friend:offline', onOffline)
+      socket.off('friend:incoming', onIncoming)
+      socket.off('friend:accepted', onAccepted)
+    }
+  }, [socket, isRegistered, loadFriends, loadRequests])
 
   const doSearch = useCallback(async (q) => {
     if (q.trim().length < 2) { setResults([]); return }
@@ -113,10 +144,12 @@ export default function FriendsPage() {
             )}
             {friends.map(f => (
               <li key={f.id} className={`${styles.item} card`}>
-                <Avatar seed={f.id} name={f.username} size={42} online={f.liveRoomId ? true : undefined} />
+                <Avatar seed={f.id} name={f.username} size={42} online={(f.liveRoomId || f.online) ? true : undefined} />
                 <div className={styles.itemInfo}>
                   <span className={styles.itemName}>{f.username}</span>
-                  <span className={styles.itemStat}>{f.liveRoomId ? '🟢 in a game' : `${f.totalGames ?? 0} games`}</span>
+                  <span className={styles.itemStat}>
+                    {f.liveRoomId ? '🟢 in a game' : f.online ? '🟢 Online' : `${f.totalGames ?? 0} games`}
+                  </span>
                 </div>
                 {f.liveRoomId && (
                   <button className="btn btn-juice btn-sm" onClick={() => navigate(`/spectate/${f.liveRoomId}`)} title="Watch their live game">

@@ -360,11 +360,11 @@ function GuessRoom() {
       <div className={`panel ${styles.roomPage}`} style={{ paddingBottom: dockPad }}>
         {/* Header */}
         <div className={styles.header}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmLeave(true)}>
+          <button className={`${styles.hChip} ${styles.hLeave}`} onClick={() => setConfirmLeave(true)}>
             ✕ Leave
           </button>
-          <span className={`badge badge-juice`}>{mode === 'GTN' ? 'Guess The Number' : 'Bulls & Cows'}</span>
-          <span className={`badge ${room.isPublic ? 'badge-juice' : 'badge-pink'}`}>
+          <span className={`${styles.hChip} ${styles.hMode}`}>{mode === 'GTN' ? 'Guess The Number' : 'Bulls & Cows'}</span>
+          <span className={`${styles.hChip} ${room.isPublic ? styles.hPublic : styles.hCode}`}>
             {room.isPublic ? 'Public' : room.code}
           </span>
         </div>

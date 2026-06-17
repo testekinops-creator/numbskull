@@ -10,8 +10,14 @@ import { registerCallHandlers } from './callHandlers.js'
 import { registerFriendHandlers } from './friendHandlers.js'
 import { socketRateLimit } from '../middleware/socketRateLimit.js'
 import { roomManager } from '../game/RoomManager.js'
+import { SocialService } from '../services/SocialService.js'
 
 const socketPlayerMap = new Map()
+
+// userId → number of live sockets. Drives presence: a user is "online" while this
+// is ≥1. Counting (not a boolean) debounces multi-tab / quick-reconnect churn — we
+// only fan out friend:online on 0→1 and friend:offline on 1→0.
+const onlineCounts = new Map()
 
 // Live io instance, exposed so REST routes (e.g. friends) can answer "which room
 // is this user currently in?" without maintaining a separate presence map.
@@ -34,6 +40,23 @@ export function getWatchableRoomForUser(userId) {
     return null
   }
   return null
+}
+
+// Emit an event to every live socket belonging to a DB userId (a user may have
+// several tabs / devices). No-op if the user has no userId or isn't connected.
+export function emitToUser(userId, event, payload) {
+  if (!_io || !userId) return false
+  let delivered = false
+  for (const [, s] of _io.sockets.sockets) {
+    if (s.handshake.auth?.userId === userId) { s.emit(event, payload); delivered = true }
+  }
+  return delivered
+}
+
+// Is this registered user currently connected (≥1 live socket)?
+export function isUserOnline(userId) {
+  if (!userId) return false
+  return (onlineCounts.get(userId) || 0) > 0
 }
 
 export function setupSocket(httpServer) {
@@ -74,7 +97,7 @@ export function setupSocket(httpServer) {
   io.on('connection', (socket) => {
     logger.debug({ socketId: socket.id }, 'Client connected')
 
-    const { playerId, playerName } = socket.handshake.auth
+    const { playerId, playerName, userId } = socket.handshake.auth
 
     if (playerId) {
       const prev = socketPlayerMap.get(playerId)
@@ -84,6 +107,22 @@ export function setupSocket(httpServer) {
         prevSocket?.disconnect(true)
       }
       socketPlayerMap.set(playerId, socket.id)
+    }
+
+    // ── Presence: tell this registered user's friends they're online ──────────
+    // Only on the first socket (0→1) so extra tabs / reconnects don't re-toast.
+    // Guests (no userId) are never tracked. Wrapped so a presence hiccup can't
+    // break the connection lifecycle.
+    if (userId) {
+      const next = (onlineCounts.get(userId) || 0) + 1
+      onlineCounts.set(userId, next)
+      if (next === 1) {
+        try {
+          for (const friendId of SocialService.getFriendIds(userId)) {
+            emitToUser(friendId, 'friend:online', { userId, name: playerName })
+          }
+        } catch (e) { logger.warn({ err: e.message }, 'presence online fan-out failed') }
+      }
     }
 
     socket.use(([event, ...args], next) => socketRateLimit(socket, event, next))
@@ -98,6 +137,20 @@ export function setupSocket(httpServer) {
     socket.on('disconnect', (reason) => {
       if (playerId && socketPlayerMap.get(playerId) === socket.id) {
         socketPlayerMap.delete(playerId)
+      }
+      // Presence: last socket gone (1→0) ⇒ tell friends they went offline.
+      if (userId) {
+        const next = (onlineCounts.get(userId) || 1) - 1
+        if (next <= 0) {
+          onlineCounts.delete(userId)
+          try {
+            for (const friendId of SocialService.getFriendIds(userId)) {
+              emitToUser(friendId, 'friend:offline', { userId })
+            }
+          } catch (e) { logger.warn({ err: e.message }, 'presence offline fan-out failed') }
+        } else {
+          onlineCounts.set(userId, next)
+        }
       }
       logger.debug({ socketId: socket.id, reason }, 'Client disconnected')
     })

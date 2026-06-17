@@ -31,7 +31,9 @@ export function registerFriendHandlers(io, socket) {
       if (!oppUserId) return ack?.({ ok: false, error: `${opp.name} is playing as a guest` })
 
       SocialService.sendFriendRequest(userId, oppUserId)
-      oppSocket.emit('friend:incoming', { fromName: playerName, fromPlayerId: playerId })
+      // fromUserId lets the global Accept/Reject card respond via REST uniformly
+      // (same path whether the request came from a room or the FriendsPage search).
+      oppSocket.emit('friend:incoming', { fromName: playerName, fromPlayerId: playerId, fromUserId: userId })
       ack?.({ ok: true })
     } catch (err) {
       ack?.({ ok: false, error: err.message })

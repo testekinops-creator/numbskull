@@ -11,6 +11,7 @@ import PWAInstallBanner      from './components/PWAInstallBanner.jsx'
 import BadgeToast            from './components/BadgeToast.jsx'
 import LevelUpToast          from './components/LevelUpToast.jsx'
 import SystemToast           from './components/SystemToast.jsx'
+import FriendNotifications   from './components/FriendNotifications.jsx'
 import ConnectionBanner      from './components/ConnectionBanner.jsx'
 import GameMusic             from './components/GameMusic.jsx'
 import MusicToggle           from './components/MusicToggle.jsx'
@@ -136,6 +137,7 @@ function AppInner() {
       <BadgeToast />
       <LevelUpToast />
       <SystemToast />
+      <FriendNotifications />
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </>
   )

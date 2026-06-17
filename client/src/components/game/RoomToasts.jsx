@@ -6,13 +6,15 @@ import styles from './RoomToasts.module.css'
 
 // Portaled overlay for the room's social notifications:
 //  • opponent got ready          (#2)
+//  • someone joined / reconnected (#1)
 //  • incoming chat message bubble (#5)
-//  • friend request + accepted    (#3)
+// NOTE: friend requests + "now friends" live in the GLOBAL <FriendNotifications/>
+// (App.jsx) so they show everywhere (lobby/home/mid-game) and aren't duplicated here.
 const MAX_BUBBLES = 3      // never let the stack push the UI off-screen
 const BUBBLE_MS   = 5000   // each message lingers this long, then fades
 
-export default function RoomToasts({ roomId }) {
-  const { state, acceptFriendRequest, clearIncomingFriend } = useRoom()
+export default function RoomToasts() {
+  const { state } = useRoom()
   const { playerId } = usePlayer()
   const opponent = state.room?.players?.find(p => p.id !== playerId)
 
@@ -52,6 +54,23 @@ export default function RoomToasts({ roomId }) {
   }, [state.room?.players, playerId])
   useEffect(() => () => clearTimeout(joinTimer.current), [])
 
+  // ── Someone reconnected (#1b) ────────────────────────────────────────────
+  // Driven by the server's player:reconnected event (carries the name); fires
+  // after a teammate/opponent recovers from a drop (phone lock / network blip).
+  const [reconnectToast, setReconnectToast] = useState(null)
+  const reconnectTs = useRef(0)
+  const reconnectTimer = useRef(null)
+  useEffect(() => {
+    const rt = state.reconnectToast
+    if (rt && rt.ts !== reconnectTs.current) {
+      reconnectTs.current = rt.ts
+      setReconnectToast(`${rt.name || 'A player'} reconnected`)
+      clearTimeout(reconnectTimer.current)
+      reconnectTimer.current = setTimeout(() => setReconnectToast(null), 2800)
+    }
+  }, [state.reconnectToast])
+  useEffect(() => () => clearTimeout(reconnectTimer.current), [])
+
   // ── Incoming chat — stack downward (a mini inbox), newest at the bottom ───
   const [bubbles, setBubbles] = useState([])
   const seenRef   = useRef(null)   // ids already handled (null = not yet initialised)
@@ -79,36 +98,14 @@ export default function RoomToasts({ roomId }) {
   useEffect(() => () => { timersRef.current.forEach(clearTimeout) }, [])
   const dismissBubble = (id) => setBubbles(prev => prev.filter(b => b.id !== id))
 
-  // ── Friend accepted (#3) ─────────────────────────────────────────────────
-  const [friendMsg, setFriendMsg] = useState(null)
-  useEffect(() => {
-    if (state.friendStatus === 'friends') {
-      setFriendMsg("You're now friends! 🎉")
-      const t = setTimeout(() => setFriendMsg(null), 3000)
-      return () => clearTimeout(t)
-    }
-  }, [state.friendStatus])
-
   return (
     <>
-      {/* Top-center: status notices + friend request */}
+      {/* Top-center: status notices (joins / reconnects / opponent ready) */}
       {createPortal(
         <div className={styles.layer}>
           {joinToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>👋 {joinToast}</div>}
+          {reconnectToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>🔄 {reconnectToast}</div>}
           {readyToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>✅ {readyToast}</div>}
-          {friendMsg && <div className={`${styles.toast} ${styles.friend} anim-toast`}>🤝 {friendMsg}</div>}
-
-          {state.incomingFriend && (
-            <div className={`${styles.friendCard} anim-toast`} role="dialog" aria-label="Friend request">
-              <span className={styles.friendCardText}>
-                <strong>{state.incomingFriend.fromName}</strong> wants to be friends
-              </span>
-              <div className={styles.friendCardActions}>
-                <button className={styles.accept} onClick={() => acceptFriendRequest(roomId)}>Accept</button>
-                <button className={styles.dismiss} onClick={clearIncomingFriend}>Later</button>
-              </div>
-            </div>
-          )}
         </div>,
         document.body,
       )}

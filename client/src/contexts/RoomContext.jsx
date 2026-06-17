@@ -55,8 +55,10 @@ const INITIAL = {
   lastEmoji:            null,  // { id, emoji, mine } — drives the burst overlay
   lastIncomingChat:     null,  // newest opponent message → floating toast bubble
   // Friend requests (registered players)
-  incomingFriend:       null,  // { fromName, fromPlayerId } — opponent asked to be friends
+  incomingFriend:       null,  // { fromName, fromPlayerId, fromUserId } — someone asked to be friends
   friendStatus:         'idle',// idle | requested | friends
+  friendPresence:       null,  // { name, online, ts } — transient "friend came online" signal
+  friendAccepted:       null,  // { name, ts } — transient "X accepted your request" signal
   // Opponent left / room closed — drives redirect + message
   opponentLeftMessage:  null,
   // Opponent temporarily dropped (within grace) — drives "reconnecting…" banner
@@ -437,13 +439,23 @@ function reducer(state, action) {
 
     // ── Friend requests ───────────────────────────────────────────────────
     case 'FRIEND_INCOMING':
-      return { ...state, incomingFriend: { fromName: action.fromName, fromPlayerId: action.fromPlayerId } }
+      return { ...state, incomingFriend: { fromName: action.fromName, fromPlayerId: action.fromPlayerId, fromUserId: action.fromUserId } }
     case 'FRIEND_REQUESTED':
       return { ...state, friendStatus: 'requested' }
     case 'FRIEND_ACCEPTED':
-      return { ...state, friendStatus: 'friends', incomingFriend: null }
+      // Only raise the transient "X accepted" toast for a real accept event (carries
+      // a name). checkFriendStatus also dispatches this (name-less) on room join just
+      // to hide the add-friend button — that must NOT pop a toast.
+      return {
+        ...state,
+        friendStatus: 'friends',
+        incomingFriend: null,
+        friendAccepted: action.name ? { name: action.name, ts: Date.now() } : state.friendAccepted,
+      }
     case 'FRIEND_CLEAR_INCOMING':
       return { ...state, incomingFriend: null }
+    case 'FRIEND_PRESENCE':   // a friend came online (transient toast signal)
+      return { ...state, friendPresence: { name: action.name, online: action.online, ts: Date.now() } }
 
     // ── Emoji burst ───────────────────────────────────────────────────────
     case 'EMOJI_BURST':
@@ -467,7 +479,12 @@ function reducer(state, action) {
       return { ...state, opponentConnLost: true }
 
     case 'OPPONENT_CONN_RESTORED':
-      return { ...state, opponentConnLost: false, opponentCloseAt: null }
+      return {
+        ...state,
+        opponentConnLost: false,
+        opponentCloseAt: null,
+        reconnectToast: action.name ? { name: action.name, ts: Date.now() } : state.reconnectToast,
+      }
 
     // Full state rebuild after a reconnect (refresh / network drop)
     case 'RECONNECT_RESTORE': {
@@ -721,8 +738,8 @@ export function RoomProvider({ children }) {
     socket.on('player:disconnected', ({ playerId: pid } = {}) => {
       if (pid && pid !== playerId) dispatch({ type: 'OPPONENT_CONN_LOST' })
     })
-    socket.on('player:reconnected', ({ playerId: pid } = {}) => {
-      if (pid && pid !== playerId) dispatch({ type: 'OPPONENT_CONN_RESTORED' })
+    socket.on('player:reconnected', ({ playerId: pid, playerName } = {}) => {
+      if (pid && pid !== playerId) dispatch({ type: 'OPPONENT_CONN_RESTORED', name: playerName })
     })
 
     // ── Chat + emoji ──────────────────────────────────────────────────────
@@ -740,10 +757,12 @@ export function RoomProvider({ children }) {
       })
     })
 
-    socket.on('friend:incoming', ({ fromName, fromPlayerId } = {}) => {
-      dispatch({ type: 'FRIEND_INCOMING', fromName, fromPlayerId })
+    socket.on('friend:incoming', ({ fromName, fromPlayerId, fromUserId } = {}) => {
+      dispatch({ type: 'FRIEND_INCOMING', fromName, fromPlayerId, fromUserId })
     })
-    socket.on('friend:accepted', () => dispatch({ type: 'FRIEND_ACCEPTED' }))
+    socket.on('friend:accepted', ({ name } = {}) => dispatch({ type: 'FRIEND_ACCEPTED', name }))
+    // Presence: a friend came online / went offline (global, drives a brief toast).
+    socket.on('friend:online',  ({ name } = {}) => dispatch({ type: 'FRIEND_PRESENCE', name, online: true }))
 
     return () => {
       socket.off('room:updated')
@@ -787,6 +806,7 @@ export function RoomProvider({ children }) {
       socket.off('chat:emoji')
       socket.off('friend:incoming')
       socket.off('friend:accepted')
+      socket.off('friend:online')
       socket.off('game:opponent_left')
       socket.off('player:disconnected')
       socket.off('player:reconnected')

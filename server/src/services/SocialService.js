@@ -47,6 +47,16 @@ export const SocialService = {
 
   areFriends(a, b) { return friendships.has(_friendKey(a, b)) },
 
+  // Sync list of a user's friend ids (for presence fan-out).
+  getFriendIds(userId) {
+    const ids = []
+    for (const [, d] of friendships) {
+      if (d.a === userId) ids.push(d.b)
+      else if (d.b === userId) ids.push(d.a)
+    }
+    return ids
+  },
+
   async getFriends(userId) {
     const friends = []
     for (const [, data] of friendships) {
