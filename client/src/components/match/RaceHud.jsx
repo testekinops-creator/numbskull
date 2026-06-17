@@ -1,25 +1,25 @@
 import { useState, useEffect } from 'react'
-import styles from './QueensHud.module.css'
+import styles from './RaceHud.module.css'
 
-// Race HUD for Queens: a shared countdown + every player's live progress (queen
-// count only — never positions), with a ✅ + solve-time badge once they finish.
+// Shared HUD for puzzle-race games (Queens, Tango, …): a countdown + every player's
+// live progress (a count only — never positions), with a ✅ + solve-time badge once
+// they finish. `icon`/`total` label the progress (Queens: 👑 placed/n; Tango: filled/36).
 function fmt(ms) {
   const s = Math.max(0, Math.round(ms / 1000))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function QueensHud({ match, players = [], playerId }) {
+export default function RaceHud({ match, players = [], playerId, icon = '👑', total }) {
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 500)
     return () => clearInterval(id)
   }, [])
 
-  const n = match.n
   const left = match.deadline ? match.deadline - now : null
   const low = left != null && left < 30_000
 
-  // Sort: finishers first (by time), then by queens placed — mirrors the standings.
+  // Finishers first (by time), then by progress — mirrors the final standings.
   const rows = [...players].sort((a, b) => {
     const sa = !!match.solved?.[a.id], sb = !!match.solved?.[b.id]
     if (sa !== sb) return sa ? -1 : 1
@@ -40,7 +40,7 @@ export default function QueensHud({ match, players = [], playerId }) {
               {mine ? 'You' : p.name}{' '}
               {solved
                 ? `✅ ${fmt(match.finishMs?.[p.id] ?? 0)}`
-                : `👑 ${match.placed?.[p.id] ?? 0}/${n}`}
+                : `${icon} ${match.placed?.[p.id] ?? 0}/${total}`}
             </span>
           )
         })}

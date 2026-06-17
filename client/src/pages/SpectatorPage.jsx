@@ -10,12 +10,13 @@ import GuessList from '../components/game/GuessList.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
 import SosBoard from '../components/match/SosBoard.jsx'
 import QueensBoard from '../components/match/QueensBoard.jsx'
+import TangoBoard from '../components/match/TangoBoard.jsx'
 import SudokuBoard from '../components/match/SudokuBoard.jsx'
 import SpinBattleMatch from '../components/match/SpinBattleMatch.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
 import styles from './SpectatorPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens' }
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango' }
 const noop = () => {}
 const SPECTATOR_ID = '__spectator__'   // never matches a real player → no controls light up
 
@@ -127,6 +128,17 @@ export default function SpectatorPage() {
             <QueensBoard n={match.n} regions={match.regions} board={Array(match.n * match.n).fill('empty')} onPlace={noop} disabled />
             <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
               {players.map(p => `${p.name}: 👑 ${match.placed?.[p.id] ?? 0}/${match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
+            </p>
+          </>
+        ) : null
+      case 'TANGO':
+        return match.givens ? (
+          <>
+            <p className={styles.waiting}>Hidden boards — live progress only</p>
+            <TangoBoard n={match.n} givens={match.givens} constraints={match.constraints}
+              board={match.givens.map(g => g || 'empty')} onPlace={noop} disabled />
+            <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
+              {players.map(p => `${p.name}: ▦ ${match.placed?.[p.id] ?? 0}/${match.n * match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
             </p>
           </>
         ) : null

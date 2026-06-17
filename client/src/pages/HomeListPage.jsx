@@ -54,6 +54,13 @@ const GAMES = [
     accent: 'var(--color-warning)',
   },
   {
+    mode: 'TANGO',
+    icon: '☀️',
+    name: 'Tango',
+    desc: 'Fill ☀️/🌙 — 3 each per row & column, no 3 in a row, obey =/×. Solo for time, or race 2–8 players.',
+    accent: 'var(--color-juice)',
+  },
+  {
     mode: 'SPIN',
     icon: '🎡',
     name: 'Spin Battle',

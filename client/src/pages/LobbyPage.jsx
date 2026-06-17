@@ -8,10 +8,10 @@ import { useHaptic } from '../hooks/useHaptic.js'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏', QUEENS: '👑' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS'])
-const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU', 'QUEENS'])  // "Solo" rather than "vs AI"
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏', QUEENS: '👑', TANGO: '☀️' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO'])
+const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU', 'QUEENS', 'TANGO'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
   const navigate = useNavigate()
@@ -67,8 +67,10 @@ export default function LobbyPage() {
 
   // Sudoku is multiplayer-only and lets the host pick puzzle difficulty.
   const isSudoku = mode === 'SUDOKU'
-  // Queens: solo + a 1v1 "race to solve"; host picks the board size (difficulty).
+  // Queens / Tango: solo + an N-player "race to solve"; host picks the difficulty.
   const isQueens = mode === 'QUEENS'
+  const isTango  = mode === 'TANGO'
+  const isRace   = isQueens || isTango
   // SOS carries its grid size in the `difficulty` field ('8' | '10').
   const isSos = mode === 'SOS'
   // Raja Mantri: multiplayer-only (no AI — bluffing bots is hollow), exactly 4
@@ -76,14 +78,14 @@ export default function LobbyPage() {
   const isRmcs = mode === 'RMCS'
   // Rummy: multiplayer-first (no AI in v1), a 2–6 player party game.
   const isRummy = mode === 'RUMMY'
-  const isParty = mode === 'SPIN' || isRummy || isQueens
+  const isParty = mode === 'SPIN' || isRummy || isRace
   // Sudoku now has a full solo mode; Raja Mantri and Rummy stay multiplayer-only.
   const mpOnly = isRmcs || isRummy
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
   const [difficulty, setDifficulty] = useState(mode === 'SOS' ? '8' : 'medium')
-  const [partySize, setPartySize] = useState(mode === 'QUEENS' ? 2 : 4)   // party room size (Queens defaults to a 2-player race)
+  const [partySize, setPartySize] = useState(mode === 'QUEENS' || mode === 'TANGO' ? 2 : 4)   // party room size (races default to a 2-player duel)
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
   const [error, setError] = useState('')
@@ -181,8 +183,8 @@ export default function LobbyPage() {
           </div>
         )}
 
-        {/* ── Difficulty selector (Sudoku/Queens MP — host picks puzzle complexity) ── */}
-        {(isSudoku || isQueens) && topTab === 'multi' && (
+        {/* ── Difficulty selector (Sudoku/Queens/Tango MP — host picks puzzle complexity) ── */}
+        {(isSudoku || isRace) && topTab === 'multi' && (
           <div className={styles.tabs}>
             {[['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([id, label]) => (
               <button
@@ -210,6 +212,8 @@ export default function LobbyPage() {
                 ? 'Solo Sudoku: pick Easy, Medium or Hard and race the clock. Notes, hints and 3 lives — three mistakes and you’re out.'
                 : mode === 'QUEENS'
                 ? 'Solo Queens: one 👑 per row, column & color region — none touching. Pick a size and beat your best time.'
+                : mode === 'TANGO'
+                ? 'Solo Tango: fill ☀️/🌙 — 3 each per row & column, no 3 in a row, obey =/×. Beat your best time.'
                 : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
             </p>
             <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={playVsAI}>
@@ -296,6 +300,8 @@ export default function LobbyPage() {
                       ? 'Create a party room and share the code. The host starts when everyone’s in.'
                       : isQueens
                       ? 'Create a Queens race (2–8 players) and share the code. Everyone solves the same board — fastest wins. The host starts when everyone’s in.'
+                      : isTango
+                      ? 'Create a Tango race (2–8 players) and share the code. Everyone solves the same board — fastest wins. The host starts when everyone’s in.'
                       : isRummy
                       ? 'Create a Rummy table (2–6 players) and share the code. The host starts when everyone’s in.'
                       : mode === 'RMCS'

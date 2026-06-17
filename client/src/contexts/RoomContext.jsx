@@ -241,10 +241,10 @@ function reducer(state, action) {
     case 'RUMMY_DECLARED':
       return { ...state, rummyReveal: action.payload || null }
 
-    // QUEENS: a player placed/marked a cell. My own patch carries `myBoard`; an
-    // opponent's patch is the public view (progress only, no board) — merging
-    // preserves my last `myBoard`, exactly like RUMMY_UPDATE.
-    case 'QUEENS_UPDATE':
+    // Puzzle race (Queens/Tango): a player placed/marked a cell. My own patch carries
+    // `myBoard`; an opponent's patch is the public view (progress only, no board) —
+    // merging preserves my last `myBoard`, exactly like RUMMY_UPDATE.
+    case 'RACE_UPDATE':
       return {
         ...state,
         match: action.match ? { ...state.match, ...action.match } : state.match,
@@ -679,8 +679,8 @@ export function RoomProvider({ children }) {
     socket.on('rummy:update',   ({ match } = {}) => dispatch({ type: 'RUMMY_UPDATE', match, playerId }))
     socket.on('rummy:declared', (payload = {})   => dispatch({ type: 'RUMMY_DECLARED', payload }))
 
-    // QUEENS: a board update (mine carries myBoard; opponent's is progress-only).
-    socket.on('queens:update', ({ match } = {}) => dispatch({ type: 'QUEENS_UPDATE', match, playerId }))
+    // Puzzle race (Queens/Tango): a board update (mine carries myBoard; opponent's is progress-only).
+    socket.on('race:update', ({ match } = {}) => dispatch({ type: 'RACE_UPDATE', match, playerId }))
 
     socket.on('math:question', (payload = {}) => {
       dispatch({ type: 'MATH_QUESTION', payload, playerId })
@@ -797,7 +797,7 @@ export function RoomProvider({ children }) {
       socket.off('rmcs:round')
       socket.off('rummy:update')
       socket.off('rummy:declared')
-      socket.off('queens:update')
+      socket.off('race:update')
       socket.off('math:question')
       socket.off('math:resolved')
       socket.off('sudoku:update')
@@ -913,6 +913,7 @@ export function RoomProvider({ children }) {
 
   // Queens — place/mark/clear a cell on your own board (ack returns { solved }).
   const queensPlace = useCallback((roomId, index, state) => emitAck(socket, 'queens:place', { roomId, index, state }), [socket])
+  const tangoPlace  = useCallback((roomId, index, state) => emitAck(socket, 'tango:place',  { roomId, index, state }), [socket])
 
   const spinSpin  = useCallback((roomId)          => socket?.emit('spin:spin',  { roomId }),          [socket])
   const spinGuess = useCallback((roomId, letter)  => socket?.emit('spin:guess', { roomId, letter }),  [socket])
@@ -1016,7 +1017,7 @@ export function RoomProvider({ children }) {
       spinSpin, spinGuess, spinVowel, spinSolve,
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
       rummyDraw, rummyDiscard, rummyDeclare,
-      queensPlace,
+      queensPlace, tangoPlace,
     }}>
       {children}
     </RoomContext.Provider>

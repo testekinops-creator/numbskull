@@ -11,6 +11,7 @@ import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine, sudokuComboGain } from '../game/engines/SudokuEngine.js'
 import { QueensEngine, isValidSolution as queensIsValidSolution, countCorrectQueens } from '../game/engines/QueensEngine.js'
+import { TangoEngine, tangoIsValidSolution, tangoCountCorrect } from '../game/engines/TangoEngine.js'
 import { SosEngine } from '../game/engines/SosEngine.js'
 import { RummyEngine, validateDeclaration, shuffleCards } from '../game/engines/RummyEngine.js'
 import {
@@ -22,13 +23,12 @@ import { ROLE_POINTS, assignRoles, scoreRound, pickModifier } from '../game/rmcs
 import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO'])
 
-// Queens: a "race to solve" duel — both players get the SAME unique-solution board
-// and fill their OWN private grid; first to a correct solution wins. This is the
-// overall match deadline (no turns); on expiry the most-correct board wins (tie =
-// draw) so a stalled race always resolves.
-const QUEENS_RACE_MS = 300_000   // 5 minutes
+// Puzzle-race modes (Queens, Tango, …): everyone gets the SAME unique-solution board
+// and fills their OWN private grid; players keep racing until all solve or this
+// overall deadline, then standings are ranked by solve time. (No turns.)
+const RACE_MS = 300_000   // 5 minutes
 
 // Indian Rummy: a player's window to draw + discard (or declare) on their turn.
 // Generous (90s) because arranging a hand into melds to declare takes thought;
@@ -513,46 +513,11 @@ export function registerMatchHandlers(io, socket) {
     } catch (err) { ack?.({ ok: false, error: err.message }) }
   })
 
-  // ── Queens: place / mark / clear a cell on YOUR own board (race to solve) ───
-  // state ∈ 'empty' | 'x' | 'queen'. We only ever touch the caller's private
-  // board; the opponent learns nothing but a queen-count (progress).
-  socket.on('queens:place', async ({ roomId, index, state } = {}, ack) => {
-    try {
-      const room = await roomManager.get(roomId)
-      if (!room || room.mode !== 'QUEENS' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
-      const m = room.match
-      if (!m || !m.boards[playerId]) return ack?.({ ok: false, error: 'Not a player' })
-      if (!Number.isInteger(index) || index < 0 || index >= m.n * m.n) return ack?.({ ok: false, error: 'Bad cell' })
-      if (!['empty', 'x', 'queen'].includes(state)) return ack?.({ ok: false, error: 'Bad state' })
-
-      if (m.solved[playerId]) return ack?.({ ok: true, solved: true })   // already finished — board locked
-
-      let solvedNow = false
-      await roomManager.update(roomId, r => {
-        const mm = r.match
-        const board = mm.boards[playerId]
-        board[index] = state
-        mm.placed[playerId] = board.filter(c => c === 'queen').length
-        if (queensIsValidSolution(board, mm.regions, mm.n)) {
-          mm.solved[playerId] = true
-          mm.finishMs[playerId] = Date.now() - mm.startedAt   // solve time → ranking
-          solvedNow = true
-        }
-      })
-
-      const updated = await roomManager.get(roomId)
-      // Caller sees their own board; everyone else sees only progress (public view).
-      socket.emit('queens:update', { match: _matchView(updated, playerId).match, by: playerId })
-      socket.to(roomId).emit('queens:update', { match: _publicMatch(updated.match), by: playerId })
-      ack?.({ ok: true, solved: solvedNow })
-
-      // The race continues after a solve — end only when EVERYONE has finished.
-      if (solvedNow) await _maybeEndQueens(io, roomId)
-    } catch (err) {
-      logger.error({ err }, 'queens:place error')
-      ack?.({ ok: false, error: err.message })
-    }
-  })
+  // ── Puzzle-race place/mark (Queens, Tango, …) ──────────────────────────────
+  // We only ever touch the caller's own private board; everyone else sees progress
+  // only. The shared handler (_handleRacePlace) validates per the mode's RACE_CONFIG.
+  socket.on('queens:place', (d, ack) => { _handleRacePlace(io, socket, d, playerId); ack?.({ ok: true }) })
+  socket.on('tango:place',  (d, ack) => { _handleRacePlace(io, socket, d, playerId); ack?.({ ok: true }) })
 
   // ── Spin Battle: spin the wheel ───────────────────────────────────────────
   socket.on('spin:spin', async ({ roomId } = {}, ack) => {
@@ -1064,10 +1029,38 @@ async function _startMatch(io, roomId) {
         finishMs:  Object.fromEntries(ids.map(id => [id, null])),      // ms-to-solve per player
         order:     ids,
         startedAt: Date.now(),
-        deadline:  Date.now() + QUEENS_RACE_MS,
+        deadline:  Date.now() + RACE_MS,
       }
     })
-    _startQueensTimer(io, roomId)
+    _startRaceTimer(io, roomId)
+  }
+
+  if (room.mode === 'TANGO') {
+    // Same race shape as Queens (see RACE_CONFIG). Each player's board starts with
+    // the givens pre-filled (and locked); they fill the rest.
+    const ids = room.players.map(p => p.id)
+    const engine = new TangoEngine({ difficulty: room.difficulty || 'medium' })
+    const startBoard = () => engine.givens.map(g => g || 'empty')
+    const zero = () => Object.fromEntries(ids.map(id => [id, 0]))
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:        'TANGO',
+        n:           engine.n,
+        givens:      engine.givens,            // public (pre-filled cells)
+        constraints: engine.constraints,       // public (=/× edges)
+        solution:    engine.solution,          // SERVER ONLY
+        boards:      Object.fromEntries(ids.map(id => [id, startBoard()])),
+        placed:      Object.fromEntries(ids.map(id => [id, engine.givens.filter(Boolean).length])),
+        solved:      Object.fromEntries(ids.map(id => [id, false])),
+        finishMs:    Object.fromEntries(ids.map(id => [id, null])),
+        order:       ids,
+        startedAt:   Date.now(),
+        deadline:    Date.now() + RACE_MS,
+      }
+    })
+    _startRaceTimer(io, roomId)
   }
 
   if (room.mode === 'SPIN') {
@@ -1699,15 +1692,15 @@ export async function onPartyPlayerLeft(io, roomId, leftId) {
     return
   }
 
-  // Queens (party): the leaver is already removed; the rest keep racing. Refresh
-  // everyone's progress, end if all who remain have solved, or crown the sole survivor.
-  if (room.mode === 'QUEENS') {
+  // Puzzle race (Queens/Tango, party): the leaver is already removed; the rest keep
+  // racing. Refresh progress, end if all who remain have solved, or crown the survivor.
+  if (RACE_MODES.has(room.mode)) {
     if (!room.match) return
     if (room.players.length < 2) {
-      return _endMatch(io, roomId, { winnerId: room.players[0]?.id || null, draw: false, ranking: _queensRanking(room), reason: 'player-left' })
+      return _endMatch(io, roomId, { winnerId: room.players[0]?.id || null, draw: false, ranking: _rankRace(room), reason: 'player-left' })
     }
-    io.to(roomId).emit('queens:update', { match: _publicMatch(room.match), by: leftId })
-    return _maybeEndQueens(io, roomId)
+    io.to(roomId).emit('race:update', { match: _publicMatch(room.match), by: leftId })
+    return _maybeEndRace(io, roomId)
   }
 
   if (room.mode !== 'SPIN') return
@@ -1865,32 +1858,53 @@ function _startRummyTimer(io, roomId, currentTurnId) {
   io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: RUMMY_TURN_MS })
 }
 
-// Queens has no turns — just one overall race deadline. On expiry the race ends and
-// is ranked (solvers by time, the rest by progress).
-function _startQueensTimer(io, roomId) {
-  const timer = getTimer(roomId, (rid) => _endQueens(io, rid).catch(err =>
-    logger.error({ err, roomId: rid }, 'queens race-timer error')))
-  timer.start(QUEENS_RACE_MS)
+// ── Puzzle-race framework (shared by Queens, Tango, …) ──────────────────────
+// A "race" mode deals the SAME unique-solution puzzle to everyone; each fills a
+// private board (`boards[id]`), solving records a finish time and locks the board,
+// and the match ends when ALL solve (or the deadline) — ranked by solve time, then
+// by correctly-placed cells. Per-mode behaviour lives in RACE_CONFIG; everything
+// below is mode-agnostic.
+const RACE_CONFIG = {
+  QUEENS: {
+    states: ['empty', 'queen', 'x'],
+    isSolved: (b, m) => queensIsValidSolution(b, m.regions, m.n),
+    correct:  (b, m) => countCorrectQueens(b, m.solution),
+    progress: (b) => b.filter(c => c === 'queen').length,   // queens placed
+  },
+  TANGO: {
+    states: ['empty', 'sun', 'moon'],
+    givensLocked: true,
+    isSolved: (b, m) => tangoIsValidSolution(b, m.n, m.constraints),
+    correct:  (b, m) => tangoCountCorrect(b, m.solution),
+    progress: (b) => b.filter(c => c !== 'empty').length,   // cells filled
+  },
+}
+export const RACE_MODES = new Set(Object.keys(RACE_CONFIG))
+
+// Race deadline (no turns — one overall cap). On expiry the race ends + is ranked.
+function _startRaceTimer(io, roomId) {
+  const timer = getTimer(roomId, (rid) => _endRace(io, rid).catch(err =>
+    logger.error({ err, roomId: rid }, 'puzzle-race timer error')))
+  timer.start(RACE_MS)
 }
 
-// Final standings for a Queens race: everyone who SOLVED ranks first, ordered by
-// solve time (fastest = rank 1); the rest rank below, ordered by how many queens
-// they placed correctly. Standard competition ranking (ties share a rank).
-function _queensRanking(room) {
+// Final standings: solvers first (fastest = rank 1), then the rest by correct cells.
+// Standard competition ranking (ties share a rank).
+function _rankRace(room) {
   const m = room.match
+  const cfg = RACE_CONFIG[m.kind]
   const rows = room.players.map(p => ({
     id: p.id,
     name: p.name,
     solved: !!m.solved[p.id],
     timeMs: m.finishMs[p.id] ?? null,
-    correct: countCorrectQueens(m.boards[p.id] || [], m.solution),
+    correct: cfg.correct(m.boards[p.id] || [], m),
   }))
   rows.sort((a, b) => {
-    if (a.solved !== b.solved) return a.solved ? -1 : 1          // solvers first
-    if (a.solved) return a.timeMs - b.timeMs                     // fastest first
-    return b.correct - a.correct                                 // then most-correct
+    if (a.solved !== b.solved) return a.solved ? -1 : 1
+    if (a.solved) return a.timeMs - b.timeMs
+    return b.correct - a.correct
   })
-  // Competition ranking: equal "score" shares a rank.
   let prevKey = null, prevRank = 0
   return rows.map((r, i) => {
     const key = r.solved ? `s:${r.timeMs}` : `u:${r.correct}`
@@ -1900,24 +1914,59 @@ function _queensRanking(room) {
   })
 }
 
-// End a Queens race now, with time-based standings.
-async function _endQueens(io, roomId) {
+async function _endRace(io, roomId) {
   const room = await roomManager.get(roomId)
-  if (!room || room.mode !== 'QUEENS' || room.phase !== 'PLAYING') return
-  const ranking = _queensRanking(room)
+  if (!room || !RACE_MODES.has(room.mode) || room.phase !== 'PLAYING') return
+  const ranking = _rankRace(room)
   const leaders = ranking.filter(r => r.rank === 1)
   const someoneSolved = ranking.some(r => r.solved)
   const draw = leaders.length > 1 || !someoneSolved
-  const winnerId = draw ? null : leaders[0].id
-  await _endMatch(io, roomId, { winnerId, draw, ranking, reason: 'complete' })
+  await _endMatch(io, roomId, { winnerId: draw ? null : leaders[0].id, draw, ranking, reason: 'complete' })
 }
 
-// End the race once every present player has solved (called after a solve / a leave).
-async function _maybeEndQueens(io, roomId) {
+// End the race once every present player has solved (called after a solve / leave).
+async function _maybeEndRace(io, roomId) {
   const room = await roomManager.get(roomId)
-  if (!room || room.mode !== 'QUEENS' || room.phase !== 'PLAYING') return
+  if (!room || !RACE_MODES.has(room.mode) || room.phase !== 'PLAYING') return
   const everyoneDone = room.players.length > 0 && room.players.every(p => room.match.solved[p.id])
-  if (everyoneDone) await _endQueens(io, roomId)
+  if (everyoneDone) await _endRace(io, roomId)
+}
+
+// Shared place/mark handler for every race mode. `state` ∈ the mode's allowed
+// states; we only ever touch the caller's private board, lock solved players, and
+// reject edits to a locked given (Tango). Opponents see progress only.
+async function _handleRacePlace(io, socket, { roomId, index, state } = {}, playerId) {
+  try {
+    const room = await roomManager.get(roomId)
+    if (!room || !RACE_MODES.has(room.mode) || room.phase !== 'PLAYING') return
+    const m = room.match
+    const cfg = RACE_CONFIG[m.kind]
+    if (!m || !m.boards[playerId]) return
+    if (!Number.isInteger(index) || index < 0 || index >= m.boards[playerId].length) return
+    if (!cfg.states.includes(state)) return
+    if (m.solved[playerId]) return                              // board locked after solving
+    if (cfg.givensLocked && m.givens?.[index]) return           // can't edit a pre-filled cell
+
+    let solvedNow = false
+    await roomManager.update(roomId, r => {
+      const mm = r.match
+      const board = mm.boards[playerId]
+      board[index] = state
+      mm.placed[playerId] = cfg.progress(board)
+      if (cfg.isSolved(board, mm)) {
+        mm.solved[playerId] = true
+        mm.finishMs[playerId] = Date.now() - mm.startedAt
+        solvedNow = true
+      }
+    })
+
+    const updated = await roomManager.get(roomId)
+    socket.emit('race:update', { match: _matchView(updated, playerId).match, by: playerId })
+    socket.to(roomId).emit('race:update', { match: _publicMatch(updated.match), by: playerId })
+    if (solvedNow) await _maybeEndRace(io, roomId)
+  } catch (err) {
+    logger.error({ err }, 'race place error')
+  }
 }
 
 // ── Views ──────────────────────────────────────────────────────────────────
@@ -1939,8 +1988,8 @@ function _matchView(room, viewerId) {
     // The ONLY private bit: your own hand.
     match.myHand = room.match.hands?.[viewerId] || []
   }
-  if (match?.kind === 'QUEENS') {
-    // The ONLY private bit: your own board (opponents see only a queen-count).
+  if (match && RACE_MODES.has(match.kind)) {
+    // The ONLY private bit: your own board (others see progress only).
     match.myBoard = room.match.boards?.[viewerId] || []
   }
   return { room: _roomSummary(room), match, you: viewerId }
@@ -2056,19 +2105,21 @@ function _publicMatch(match) {
       eliminated:  match.eliminated || [],
     }
   }
-  if (match.kind === 'QUEENS') {
-    // Strip every private board + the solution — only the colored board and each
-    // player's progress (queen-count, solved flag, solve time) are public. `myBoard`
-    // is added per-viewer in _matchView.
+  if (RACE_MODES.has(match.kind)) {
+    // Strip every private board + the solution — only the shared puzzle (regions for
+    // Queens / givens+constraints for Tango) and each player's progress (count,
+    // solved flag, solve time) are public. `myBoard` is added per-viewer in _matchView.
     return {
-      kind:      'QUEENS',
-      n:         match.n,
-      regions:   match.regions,
-      placed:    match.placed,
-      solved:    match.solved,
-      finishMs:  match.finishMs,
-      startedAt: match.startedAt,
-      deadline:  match.deadline,
+      kind:        match.kind,
+      n:           match.n,
+      regions:     match.regions,      // QUEENS
+      givens:      match.givens,       // TANGO
+      constraints: match.constraints,  // TANGO
+      placed:      match.placed,
+      solved:      match.solved,
+      finishMs:    match.finishMs,
+      startedAt:   match.startedAt,
+      deadline:    match.deadline,
     }
   }
   if (match.kind === 'RMCS') {

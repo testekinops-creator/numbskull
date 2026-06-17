@@ -48,6 +48,12 @@ const STEPS = {
     { emoji: '⏱️', title: 'Beat the clock & your rival', body: "You'll see the other player's queen count climb live (but never where they put them). If nobody finishes in time, the most-correct board wins." },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you race.' },
   ],
+  tango: [
+    { emoji: '☀️', title: 'Tango — race to solve', body: 'Everyone gets the SAME 6×6 board. Tap a cell to cycle blank → ☀️ Sun → 🌙 Moon. Whoever fills a fully-correct grid FIRST wins.' },
+    { emoji: '⚖️', title: 'Balance & no triples', body: 'Each row and each column must end with exactly 3 ☀️ and 3 🌙 — and you can never have 3 of the same in a row (across or down). A cell that breaks a rule glows red.' },
+    { emoji: '🔗', title: '= and × clues', body: 'A “=” between two cells means they must be the SAME symbol; a “×” means they must be OPPOSITE. Pre-filled cells are locked. Use the clues to deduce the rest.' },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you race.' },
+  ],
   rmcs: [
     { emoji: '👑', title: 'Four secret roles', body: 'Every round deals Raja (1000), Mantri (800), Sipahi (500) and Chor (0) — in secret. Tap your chit to see yours. Keep a straight face.' },
     { emoji: '📣', title: 'Two get exposed', body: 'Once all four reveal, the Raja and Mantri are announced. The other two stay hidden — one honest Sipahi, one lying Chor.' },
