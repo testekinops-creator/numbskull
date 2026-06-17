@@ -27,6 +27,7 @@ export function SocketProvider({ children }) {
         playerName: displayName,
         avatar: avatar || null,   // chosen emoji-avatar id (null → playerId fallback)
         userId: isRegistered && user?.id ? user.id : null,  // DB id for friend requests
+        allowWatch: localStorage.getItem('ns_allow_watch') !== 'false',  // can friends watch me? (default yes)
       },
       reconnection: true,
       reconnectionDelay: 1000,

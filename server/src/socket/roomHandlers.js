@@ -4,7 +4,31 @@ import { clearTimer } from '../game/TurnTimer.js'
 import { publicMatchFor, onPartyPlayerLeft, forfeitMatch } from './matchHandlers.js'
 import { forfeitGuessGame } from './gameHandlers.js'
 import { makeBot } from '../game/rmcsBot.js'
+import { SocialService } from '../services/SocialService.js'
 import { logger } from '../utils/logger.js'
+
+// Map every connected player's playerId → { userId, allowWatch } from the live
+// handshakes (the source of truth for who is who + their watch preference).
+function _socketAuthByPlayerId(io) {
+  const m = new Map()
+  for (const [, s] of io.sockets.sockets) {
+    const a = s.handshake.auth
+    if (a?.playerId) m.set(a.playerId, { userId: a.userId || null, allowWatch: a.allowWatch !== false })
+  }
+  return m
+}
+
+// Watching is FRIENDS-ONLY: a viewer may watch a room only if a player in it is
+// their friend AND that player allows being watched. (Enforced for both the list
+// and direct /spectate links; guests have no userId → never allowed.)
+function _viewerCanWatch(io, viewerUserId, room, authMap = null) {
+  if (!viewerUserId || !room) return false
+  const map = authMap || _socketAuthByPlayerId(io)
+  return room.players.some(p => {
+    const info = map.get(p.id)
+    return info && info.userId && info.allowWatch && SocialService.areFriends(viewerUserId, info.userId)
+  })
+}
 
 export function registerRoomHandlers(io, socket) {
   const auth = socket.handshake.auth
@@ -170,6 +194,10 @@ export function registerRoomHandlers(io, socket) {
   socket.on('room:spectate', async ({ roomId } = {}, ack) => {
     const room = await roomManager.get(roomId)
     if (!room) return ack?.({ ok: false, error: 'Room not found' })
+    // Friends-only: even with a direct link, you must be a friend of a player.
+    if (!_viewerCanWatch(io, socket.handshake.auth?.userId, room)) {
+      return ack?.({ ok: false, error: 'Only a friend of a player can watch this game.' })
+    }
     if (!room.spectators.includes(playerId)) {
       await roomManager.update(roomId, r => { if (!r.spectators.includes(playerId)) r.spectators.push(playerId) })
     }
@@ -201,6 +229,11 @@ export function registerRoomHandlers(io, socket) {
     ack?.({ ok: true })
   })
 
+  // Live-toggle "let friends watch my games" (Settings) without reconnecting.
+  socket.on('presence:watchable', ({ allowWatch } = {}) => {
+    socket.handshake.auth.allowWatch = allowWatch !== false
+  })
+
   // ── Leave room ────────────────────────────────────────────────────────────
   socket.on('room:leave', async ({ roomId } = {}, ack) => {
     await _handleLeave(io, socket, playerId, playerName, roomId, 'left')
@@ -210,6 +243,19 @@ export function registerRoomHandlers(io, socket) {
   // ── List public rooms ─────────────────────────────────────────────────────
   socket.on('room:list', (_, ack) => {
     const rooms = roomManager.listPublic().map(r => sanitize(r, playerId))
+    ack?.({ ok: true, rooms })
+  })
+
+  // ── Friends' LIVE games (the Watch list) ──────────────────────────────────
+  // In-progress matches where one of the players is the viewer's friend (and
+  // allows watching). Disappears the moment a game ends or a player leaves.
+  socket.on('room:watch_list', (_, ack) => {
+    const viewerUserId = socket.handshake.auth?.userId
+    if (!viewerUserId) return ack?.({ ok: true, rooms: [] })   // guests can't watch friends
+    const authMap = _socketAuthByPlayerId(io)
+    const rooms = roomManager.playingRooms()
+      .filter(room => _viewerCanWatch(io, viewerUserId, room, authMap))
+      .map(room => sanitize(room, viewerUserId))
     ack?.({ ok: true, rooms })
   })
 

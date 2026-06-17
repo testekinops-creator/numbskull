@@ -4,6 +4,7 @@ import { AuthService } from '../services/AuthService.js'
 import { SocialService } from '../services/SocialService.js'
 import { ReplayTheater } from '../services/ReplayTheater.js'
 import { requireAuth, optionalAuth } from '../middleware/auth.js'
+import { getWatchableRoomForUser } from '../socket/index.js'
 
 export const usersRouter = Router()
 
@@ -25,7 +26,10 @@ usersRouter.get('/search', requireAuth, async (req, res, next) => {
 usersRouter.get('/me/friends', requireAuth, async (req, res, next) => {
   try {
     const friends = await SocialService.getFriends(req.userId)
-    res.json({ success: true, data: { friends } })
+    // Enrich with the room each friend is currently playing in (if any + they
+    // allow being watched) so the UI can offer a direct "Watch" button.
+    const enriched = friends.map(f => ({ ...f, liveRoomId: getWatchableRoomForUser(f.id) }))
+    res.json({ success: true, data: { friends: enriched } })
   } catch (err) { next(err) }
 })
 

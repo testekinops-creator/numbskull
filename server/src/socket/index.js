@@ -9,8 +9,32 @@ import { registerChatHandlers } from './chatHandlers.js'
 import { registerCallHandlers } from './callHandlers.js'
 import { registerFriendHandlers } from './friendHandlers.js'
 import { socketRateLimit } from '../middleware/socketRateLimit.js'
+import { roomManager } from '../game/RoomManager.js'
 
 const socketPlayerMap = new Map()
+
+// Live io instance, exposed so REST routes (e.g. friends) can answer "which room
+// is this user currently in?" without maintaining a separate presence map.
+let _io = null
+
+// The room a given DB userId is actively a PLAYER in (not merely spectating),
+// or null. Respects the user's "let friends watch me" preference (handshake auth
+// `allowWatch`, default true). Used to show a Watch button next to live friends.
+export function getWatchableRoomForUser(userId) {
+  if (!_io || !userId) return null
+  for (const [, s] of _io.sockets.sockets) {
+    if (s.handshake.auth?.userId !== userId) continue
+    if (s.handshake.auth?.allowWatch === false) return null   // opted out of being watched
+    for (const r of s.rooms) {
+      if (r === s.id) continue
+      if (r === s.data?.spectatingRoom) continue              // their own watching, not a game
+      const room = roomManager.peek(r)
+      return room && room.phase === 'PLAYING' ? r : null      // only while a match is live
+    }
+    return null
+  }
+  return null
+}
 
 export function setupSocket(httpServer) {
   const allowedOrigins = [
@@ -34,6 +58,7 @@ export function setupSocket(httpServer) {
     pingInterval: 20_000,
     pingTimeout: 10_000,
   })
+  _io = io
 
   // Multi-instance event fan-out (only when REDIS_URL is configured)
   if (redisEnabled) {

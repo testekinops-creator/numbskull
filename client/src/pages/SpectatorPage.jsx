@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRoom } from '../contexts/RoomContext.jsx'
 import { useSocket } from '../contexts/SocketContext.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
 import Avatar from '../components/avatar/Avatar.jsx'
+import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import ErrorBoundary from '../components/ErrorBoundary.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
@@ -21,17 +23,22 @@ export default function SpectatorPage() {
   const navigate = useNavigate()
   const { state, spectate, unspectate } = useRoom()
   const { socket } = useSocket()
+  const { isRegistered } = useAuth()
   const [liveRooms, setLiveRooms] = useState([])
 
   useEffect(() => {
     if (!socket) return
     if (roomId) {
       let cancelled = false
-      // If the room is gone/expired, don't hang on "Connecting…" — go to the list.
+      // If the room is gone/not-allowed, don't hang on "Connecting…" — go to the list.
       spectate(roomId).then(r => { if (!cancelled && r && r.ok === false) navigate('/spectate', { replace: true }) })
       return () => { cancelled = true; unspectate(roomId) }   // leave the spectator list server-side
     }
-    socket.emit('room:list', {}, r => { if (r?.ok) setLiveRooms(r.rooms) })
+    // Friends' live games (refresh every 5s so games appear/disappear live).
+    const poll = () => socket.emit('room:watch_list', {}, r => { if (r?.ok) setLiveRooms(r.rooms) })
+    poll()
+    const id = setInterval(poll, 5000)
+    return () => clearInterval(id)
   }, [socket, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The watched room closed (both players left) → back to the live-games list.
@@ -47,13 +54,18 @@ export default function SpectatorPage() {
   if (!roomId) {
     return (
       <div className="screen">
+        <AmbientOrbs />
         <div className={`panel ${styles.spectator}`}>
           <div className={styles.header}>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-            <h1 className={styles.title}>👀 Watch Live</h1>
+            <h1 className={styles.title}>👀 Friends Live</h1>
           </div>
           {liveRooms.length === 0 ? (
-            <p className={styles.empty}>No public games right now. Ask a friend to share their watch link!</p>
+            <p className={styles.empty}>
+              {isRegistered
+                ? 'None of your friends are in a game right now. Their live matches will appear here.'
+                : 'Sign in and add friends to watch their live games here.'}
+            </p>
           ) : (
             <ul className={styles.roomList}>
               {liveRooms.map(r => (
@@ -61,7 +73,7 @@ export default function SpectatorPage() {
                   <button className={`${styles.roomItem} card`} onClick={() => navigate(`/spectate/${r.id}`)}>
                     <span className={`badge badge-juice`}>{MODE_NAMES[r.mode] || r.mode}</span>
                     <span className={styles.roomPlayers}>{r.players.map(p => p.name).join(' vs ')}</span>
-                    <span className={`badge ${r.phase === 'PLAYING' ? 'badge-pink' : 'badge-juice'}`}>{r.phase}</span>
+                    <span className={`badge badge-pink`}>🔴 LIVE{r.spectatorCount ? ` · 👁 ${r.spectatorCount}` : ''}</span>
                   </button>
                 </li>
               ))}
@@ -117,6 +129,7 @@ export default function SpectatorPage() {
 
   return (
     <div className="screen">
+      <AmbientOrbs />
       <div className={`panel ${styles.spectator}`}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/spectate')}>← All games</button>

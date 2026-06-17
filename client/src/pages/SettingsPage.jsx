@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { setColorblindMode } from '../components/AppShell.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
+import { useSocket } from '../contexts/SocketContext.jsx'
 import { setSoundVolume } from '../hooks/useSound.js'
 import AboutModal from '../components/AboutModal.jsx'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
@@ -17,6 +18,7 @@ const HAPTIC_KEY  = 'ns_haptic_enabled'
 const MOTION_KEY  = 'ns_reduced_motion'
 const PERF_KEY    = 'ns_performance_mode'
 const PUSH_KEY    = 'ns_push_enabled'
+const ALLOW_WATCH_KEY = 'ns_allow_watch'
 
 const SUPPORT_EMAIL = 'supportnumbskull@gmail.com'
 
@@ -37,6 +39,7 @@ export default function SettingsPage() {
   const navigate  = useNavigate()
   const { isRegistered, user, logout } = useAuth()
   const { playerId } = usePlayer()
+  const { socket } = useSocket()
 
   const [cbMode, setCbMode] = useState(() => localStorage.getItem(CB_KEY) || 'none')
   const [volume, setVolume] = useState(() => {
@@ -47,7 +50,14 @@ export default function SettingsPage() {
   const [haptic, setHaptic] = useState(() => getBool(HAPTIC_KEY, true))
   const [motion, setMotion] = useState(() => getBool(MOTION_KEY, false))
   const [perf,   setPerf]   = useState(() => getBool(PERF_KEY, false))
+  const [allowWatch, setAllowWatch] = useState(() => getBool(ALLOW_WATCH_KEY, true))
   const [copied, setCopied] = useState(false)
+
+  // "Let friends watch my games" — persist + tell the server live (no reconnect).
+  useEffect(() => {
+    localStorage.setItem(ALLOW_WATCH_KEY, String(allowWatch))
+    socket?.emit('presence:watchable', { allowWatch })
+  }, [allowWatch, socket])
 
   // Push notifications: reflect the real granted+subscribed state on mount.
   const [pushOn, setPushOn]   = useState(false)
@@ -195,6 +205,12 @@ export default function SettingsPage() {
             description="Turn off heavy background effects for smoother play on older devices."
             checked={perf}
             onChange={setPerf}
+          />
+          <ToggleRow
+            label="Let friends watch my games"
+            description="Friends can spectate your live matches in real time."
+            checked={allowWatch}
+            onChange={setAllowWatch}
           />
         </Section>
 

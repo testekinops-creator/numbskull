@@ -113,11 +113,16 @@ export default function FriendsPage() {
             )}
             {friends.map(f => (
               <li key={f.id} className={`${styles.item} card`}>
-                <Avatar seed={f.id} name={f.username} size={42} />
+                <Avatar seed={f.id} name={f.username} size={42} online={f.liveRoomId ? true : undefined} />
                 <div className={styles.itemInfo}>
                   <span className={styles.itemName}>{f.username}</span>
-                  <span className={styles.itemStat}>{f.totalGames ?? 0} games</span>
+                  <span className={styles.itemStat}>{f.liveRoomId ? '🟢 in a game' : `${f.totalGames ?? 0} games`}</span>
                 </div>
+                {f.liveRoomId && (
+                  <button className="btn btn-juice btn-sm" onClick={() => navigate(`/spectate/${f.liveRoomId}`)} title="Watch their live game">
+                    👁 Watch
+                  </button>
+                )}
                 <button className="btn btn-ghost btn-sm" onClick={() => remove(f.id)}>Remove</button>
               </li>
             ))}

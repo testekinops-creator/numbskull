@@ -30,6 +30,28 @@ export default function RoomToasts({ roomId }) {
     prevReady.current = ready
   }, [opponent?.ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Someone joined the room (#1) ─────────────────────────────────────────
+  // Diff the players list — covers every join path (code-join, quick-match,
+  // party, bot). Baselines current players on mount/reconnect so only NEW
+  // arrivals toast, and never toasts the viewer's own join. `name` is the
+  // registered username OR the guest display name (both already in player.name).
+  const [joinToast, setJoinToast] = useState(null)
+  const seenPlayers = useRef(null)
+  const joinTimer = useRef(null)
+  useEffect(() => {
+    const players = state.room?.players || []
+    if (seenPlayers.current === null) { seenPlayers.current = new Set(players.map(p => p.id)); return }
+    const fresh = players.filter(p => p.id !== playerId && !seenPlayers.current.has(p.id))
+    players.forEach(p => seenPlayers.current.add(p.id))
+    if (fresh.length) {
+      const p = fresh[fresh.length - 1]
+      setJoinToast(`${p.name || 'Someone'}${p.isBot ? ' 🤖' : ''} joined`)
+      clearTimeout(joinTimer.current)
+      joinTimer.current = setTimeout(() => setJoinToast(null), 2800)
+    }
+  }, [state.room?.players, playerId])
+  useEffect(() => () => clearTimeout(joinTimer.current), [])
+
   // ── Incoming chat — stack downward (a mini inbox), newest at the bottom ───
   const [bubbles, setBubbles] = useState([])
   const seenRef   = useRef(null)   // ids already handled (null = not yet initialised)
@@ -72,6 +94,7 @@ export default function RoomToasts({ roomId }) {
       {/* Top-center: status notices + friend request */}
       {createPortal(
         <div className={styles.layer}>
+          {joinToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>👋 {joinToast}</div>}
           {readyToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>✅ {readyToast}</div>}
           {friendMsg && <div className={`${styles.toast} ${styles.friend} anim-toast`}>🤝 {friendMsg}</div>}
 

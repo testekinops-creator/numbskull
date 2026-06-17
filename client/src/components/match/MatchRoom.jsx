@@ -385,12 +385,14 @@ export default function MatchRoom({ roomId, mode }) {
           <span className={`badge ${room.isPublic ? 'badge-juice' : 'badge-pink'}`}>
             {room.isPublic ? 'Public' : room.code}
           </span>
-          {room.spectatorCount > 0 && (
-            <span className="badge badge-pink" title="People watching">👁 {room.spectatorCount}</span>
-          )}
-          <button className="btn btn-ghost btn-sm" onClick={copyWatchLink} title="Copy a link for friends to watch" style={{ marginLeft: 'auto' }}>
-            {watchCopied ? '✓ Link' : '📺 Watch'}
-          </button>
+          <div className={roomStyles.watchCluster}>
+            {room.spectatorCount > 0 && (
+              <span className={roomStyles.watchCount} title="People watching">👁 {room.spectatorCount}</span>
+            )}
+            <button className={roomStyles.watchBtn} onClick={copyWatchLink} title="Copy a link for friends to watch">
+              {watchCopied ? '✓ Copied' : '📺 Watch'}
+            </button>
+          </div>
         </div>
 
         {/* Room code while waiting for an opponent */}

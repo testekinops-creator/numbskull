@@ -15,6 +15,28 @@
   flex-wrap: wrap;
 }
 
+/* Watch controls — a cohesive, right-aligned premium cluster (viewer count + share). */
+.watchCluster { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.watchCount {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 0.72rem; font-weight: 800; line-height: 1;
+  color: #ff9ec4;
+  background: rgba(255, 62, 138, 0.14);
+  border: 1px solid rgba(255, 62, 138, 0.34);
+  padding: 4px 9px; border-radius: 999px;
+}
+.watchBtn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 700; line-height: 1;
+  color: var(--color-text-primary, #fff);
+  background: linear-gradient(160deg, rgba(124, 77, 255, 0.28), rgba(0, 245, 255, 0.14));
+  border: 1px solid rgba(124, 77, 255, 0.42);
+  padding: 5px 11px; border-radius: 999px; cursor: pointer;
+  transition: background 0.15s, transform 0.12s var(--ease-spring, ease), box-shadow 0.15s;
+}
+.watchBtn:hover { background: linear-gradient(160deg, rgba(124, 77, 255, 0.4), rgba(0, 245, 255, 0.22)); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(124, 77, 255, 0.3); }
+.watchBtn:active { transform: scale(0.96); }
+
 .codeBox {
   display: flex;
   flex-direction: column;

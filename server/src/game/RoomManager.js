@@ -148,6 +148,17 @@ export class RoomManager {
       .slice(0, 20)
   }
 
+  // Synchronous in-memory peek (no Redis round-trip) — for fast presence/watch checks.
+  peek(id) { return this._rooms.get(id) || null }
+
+  // In-progress games (for the friends watch list). Newest first.
+  playingRooms() {
+    return [...this._rooms.values()]
+      .filter(r => r.phase === 'PLAYING')
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 40)
+  }
+
   _evict() {
     const now = Date.now()
     for (const [id, room] of this._rooms) {
