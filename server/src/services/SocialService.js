@@ -113,10 +113,16 @@ export const SocialService = {
   async getFriends(userId) {
     const friends = []
     for (const [, data] of friendships) {
-      if (data.a === userId || data.b === userId) {
-        const otherId = data.a === userId ? data.b : data.a
+      if (data.a !== userId && data.b !== userId) continue
+      const otherId = data.a === userId ? data.b : data.a
+      // Per-friend try/catch: a single missing/erroring lookup must never drop the
+      // whole list (a friend whose account was deleted just gets skipped).
+      try {
         const profile = AuthService.publicProfile(await AuthService.getUser(otherId))
         if (profile) friends.push({ ...profile, friendSince: data.since })
+        else logger.warn({ userId, otherId }, 'getFriends: friend has no profile (skipped)')
+      } catch (e) {
+        logger.warn({ err: e?.message, userId, otherId }, 'getFriends: lookup failed (skipped)')
       }
     }
     return friends
@@ -125,9 +131,12 @@ export const SocialService = {
   async getPendingRequests(userId) {
     const pending = []
     for (const [, req] of requests) {
-      if (req.to === userId) {
+      if (req.to !== userId) continue
+      try {
         const profile = AuthService.publicProfile(await AuthService.getUser(req.from))
         if (profile) pending.push({ ...profile, sentAt: req.sentAt })
+      } catch (e) {
+        logger.warn({ err: e?.message, userId, from: req.from }, 'getPendingRequests: lookup failed (skipped)')
       }
     }
     return pending

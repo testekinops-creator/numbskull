@@ -61,6 +61,13 @@ const GAMES = [
     accent: 'var(--color-juice)',
   },
   {
+    mode: 'ZIP',
+    icon: '🔢',
+    name: 'Zip',
+    desc: 'Draw one path 1→last through every cell, dodging walls. Solo for time, or race 2–8 players.',
+    accent: 'var(--color-pink)',
+  },
+  {
     mode: 'SPIN',
     icon: '🎡',
     name: 'Spin Battle',

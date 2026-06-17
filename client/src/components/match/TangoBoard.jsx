@@ -43,7 +43,7 @@ export default function TangoBoard({ n, givens = [], constraints = [], board, on
             type="button"
             disabled={disabled || given}
             className={`${styles.cell} ${given ? styles.given : ''} ${conflict ? styles.conflict : ''}`}
-            onClick={() => !disabled && !given && onPlace(i, NEXT[cell] || 'empty')}
+            onPointerUp={(e) => { e.preventDefault(); if (!disabled && !given) onPlace(i, NEXT[cell] || 'empty') }}
             aria-label={`Cell ${i + 1}: ${cell}${given ? ' (fixed)' : ''}`}
           >
             {cell !== 'empty' && <span className={styles.sym}>{GLYPH[cell]}</span>}

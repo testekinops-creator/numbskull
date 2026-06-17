@@ -11,12 +11,13 @@ import XoxBoard from '../components/match/XoxBoard.jsx'
 import SosBoard from '../components/match/SosBoard.jsx'
 import QueensBoard from '../components/match/QueensBoard.jsx'
 import TangoBoard from '../components/match/TangoBoard.jsx'
+import ZipBoard from '../components/match/ZipBoard.jsx'
 import SudokuBoard from '../components/match/SudokuBoard.jsx'
 import SpinBattleMatch from '../components/match/SpinBattleMatch.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
 import styles from './SpectatorPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango' }
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip' }
 const noop = () => {}
 const SPECTATOR_ID = '__spectator__'   // never matches a real player → no controls light up
 
@@ -139,6 +140,16 @@ export default function SpectatorPage() {
               board={match.givens.map(g => g || 'empty')} onPlace={noop} disabled />
             <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
               {players.map(p => `${p.name}: ▦ ${match.placed?.[p.id] ?? 0}/${match.n * match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
+            </p>
+          </>
+        ) : null
+      case 'ZIP':
+        return match.numbers ? (
+          <>
+            <p className={styles.waiting}>Hidden paths — live progress only</p>
+            <ZipBoard n={match.n} numbers={match.numbers} walls={match.walls} path={[]} onPath={noop} disabled />
+            <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
+              {players.map(p => `${p.name}: 🔢 ${match.placed?.[p.id] ?? 0}/${match.n * match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
             </p>
           </>
         ) : null

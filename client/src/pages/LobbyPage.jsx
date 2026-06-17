@@ -8,10 +8,10 @@ import { useHaptic } from '../hooks/useHaptic.js'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏', QUEENS: '👑', TANGO: '☀️' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO'])
-const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU', 'QUEENS', 'TANGO'])  // "Solo" rather than "vs AI"
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏', QUEENS: '👑', TANGO: '☀️', ZIP: '🔢' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP'])
+const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU', 'QUEENS', 'TANGO', 'ZIP'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
   const navigate = useNavigate()
@@ -67,10 +67,11 @@ export default function LobbyPage() {
 
   // Sudoku is multiplayer-only and lets the host pick puzzle difficulty.
   const isSudoku = mode === 'SUDOKU'
-  // Queens / Tango: solo + an N-player "race to solve"; host picks the difficulty.
+  // Queens / Tango / Zip: solo + an N-player "race to solve"; host picks the difficulty.
   const isQueens = mode === 'QUEENS'
   const isTango  = mode === 'TANGO'
-  const isRace   = isQueens || isTango
+  const isZip    = mode === 'ZIP'
+  const isRace   = isQueens || isTango || isZip
   // SOS carries its grid size in the `difficulty` field ('8' | '10').
   const isSos = mode === 'SOS'
   // Raja Mantri: multiplayer-only (no AI — bluffing bots is hollow), exactly 4
@@ -85,7 +86,7 @@ export default function LobbyPage() {
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
   const [difficulty, setDifficulty] = useState(mode === 'SOS' ? '8' : 'medium')
-  const [partySize, setPartySize] = useState(mode === 'QUEENS' || mode === 'TANGO' ? 2 : 4)   // party room size (races default to a 2-player duel)
+  const [partySize, setPartySize] = useState(['QUEENS', 'TANGO', 'ZIP'].includes(mode) ? 2 : 4)   // party room size (races default to a 2-player duel)
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
   const [error, setError] = useState('')
@@ -214,6 +215,8 @@ export default function LobbyPage() {
                 ? 'Solo Queens: one 👑 per row, column & color region — none touching. Pick a size and beat your best time.'
                 : mode === 'TANGO'
                 ? 'Solo Tango: fill ☀️/🌙 — 3 each per row & column, no 3 in a row, obey =/×. Beat your best time.'
+                : mode === 'ZIP'
+                ? 'Solo Zip: draw one path 1→last through every cell, dodging walls. Beat your best time.'
                 : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
             </p>
             <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={playVsAI}>
@@ -302,6 +305,8 @@ export default function LobbyPage() {
                       ? 'Create a Queens race (2–8 players) and share the code. Everyone solves the same board — fastest wins. The host starts when everyone’s in.'
                       : isTango
                       ? 'Create a Tango race (2–8 players) and share the code. Everyone solves the same board — fastest wins. The host starts when everyone’s in.'
+                      : isZip
+                      ? 'Create a Zip race (2–8 players) and share the code. Everyone draws the same path puzzle — fastest wins. The host starts when everyone’s in.'
                       : isRummy
                       ? 'Create a Rummy table (2–6 players) and share the code. The host starts when everyone’s in.'
                       : mode === 'RMCS'

@@ -12,6 +12,7 @@ import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine, sudokuComboGain } from '../game/engines/SudokuEngine.js'
 import { QueensEngine, isValidSolution as queensIsValidSolution, countCorrectQueens } from '../game/engines/QueensEngine.js'
 import { TangoEngine, tangoIsValidSolution, tangoCountCorrect } from '../game/engines/TangoEngine.js'
+import { ZipEngine, zipIsValidSolution, zipIsValidPartial, zipProgress } from '../game/engines/ZipEngine.js'
 import { SosEngine } from '../game/engines/SosEngine.js'
 import { RummyEngine, validateDeclaration, shuffleCards } from '../game/engines/RummyEngine.js'
 import {
@@ -23,7 +24,7 @@ import { ROLE_POINTS, assignRoles, scoreRound, pickModifier } from '../game/rmcs
 import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP'])
 
 // Puzzle-race modes (Queens, Tango, …): everyone gets the SAME unique-solution board
 // and fills their OWN private grid; players keep racing until all solve or this
@@ -518,6 +519,8 @@ export function registerMatchHandlers(io, socket) {
   // only. The shared handler (_handleRacePlace) validates per the mode's RACE_CONFIG.
   socket.on('queens:place', (d, ack) => { _handleRacePlace(io, socket, d, playerId); ack?.({ ok: true }) })
   socket.on('tango:place',  (d, ack) => { _handleRacePlace(io, socket, d, playerId); ack?.({ ok: true }) })
+  // Zip: a whole drawn path (not per-cell) — its own path-aware handler, same race lifecycle.
+  socket.on('zip:path',     (d, ack) => { _handleZipPath(io, socket, d, playerId); ack?.({ ok: true }) })
 
   // ── Spin Battle: spin the wheel ───────────────────────────────────────────
   socket.on('spin:spin', async ({ roomId } = {}, ack) => {
@@ -1058,6 +1061,31 @@ async function _startMatch(io, roomId) {
         order:       ids,
         startedAt:   Date.now(),
         deadline:    Date.now() + RACE_MS,
+      }
+    })
+    _startRaceTimer(io, roomId)
+  }
+
+  if (room.mode === 'ZIP') {
+    // Race shape, but each player's board is the ordered PATH they've drawn (starts empty).
+    const ids = room.players.map(p => p.id)
+    const engine = new ZipEngine({ difficulty: room.difficulty || 'medium' })
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:      'ZIP',
+        n:         engine.n,
+        numbers:   engine.numbers,             // public (cell → 1..K or 0)
+        walls:     engine.walls,               // public (blocked adjacencies)
+        solution:  engine.solution,            // SERVER ONLY (ordered path)
+        boards:    Object.fromEntries(ids.map(id => [id, []])),   // each player's path
+        placed:    Object.fromEntries(ids.map(id => [id, 0])),
+        solved:    Object.fromEntries(ids.map(id => [id, false])),
+        finishMs:  Object.fromEntries(ids.map(id => [id, null])),
+        order:     ids,
+        startedAt: Date.now(),
+        deadline:  Date.now() + RACE_MS,
       }
     })
     _startRaceTimer(io, roomId)
@@ -1878,6 +1906,14 @@ const RACE_CONFIG = {
     correct:  (b, m) => tangoCountCorrect(b, m.solution),
     progress: (b) => b.filter(c => c !== 'empty').length,   // cells filled
   },
+  ZIP: {
+    // Move is a whole drawn path (handled by `zip:path`, not the per-cell place
+    // handler) — `board` is the ordered path array, progress = cells covered.
+    pathBased: true,
+    isSolved: (b, m) => zipIsValidSolution(b, m.n, m.numbers, m.walls),
+    correct:  (b) => zipProgress(b),
+    progress: (b) => zipProgress(b),
+  },
 }
 export const RACE_MODES = new Set(Object.keys(RACE_CONFIG))
 
@@ -1966,6 +2002,39 @@ async function _handleRacePlace(io, socket, { roomId, index, state } = {}, playe
     if (solvedNow) await _maybeEndRace(io, roomId)
   } catch (err) {
     logger.error({ err }, 'race place error')
+  }
+}
+
+// Zip's move is a whole drawn path. Same race lifecycle as _handleRacePlace, but
+// the board IS the path and we re-validate it server-side (anti-cheat) before
+// accepting — a bogus/over-long path is rejected so it can't inflate progress.
+async function _handleZipPath(io, socket, { roomId, path } = {}, playerId) {
+  try {
+    const room = await roomManager.get(roomId)
+    if (!room || room.mode !== 'ZIP' || room.phase !== 'PLAYING') return
+    const m = room.match
+    if (!m || !m.boards[playerId] || m.solved[playerId]) return
+    if (!Array.isArray(path)) return
+    if (!zipIsValidPartial(path, m.n, m.numbers, m.walls)) return   // reject illegal paths
+
+    let solvedNow = false
+    await roomManager.update(roomId, r => {
+      const mm = r.match
+      mm.boards[playerId] = path
+      mm.placed[playerId] = path.length
+      if (zipIsValidSolution(path, mm.n, mm.numbers, mm.walls)) {
+        mm.solved[playerId] = true
+        mm.finishMs[playerId] = Date.now() - mm.startedAt
+        solvedNow = true
+      }
+    })
+
+    const updated = await roomManager.get(roomId)
+    socket.emit('race:update', { match: _matchView(updated, playerId).match, by: playerId })
+    socket.to(roomId).emit('race:update', { match: _publicMatch(updated.match), by: playerId })
+    if (solvedNow) await _maybeEndRace(io, roomId)
+  } catch (err) {
+    logger.error({ err }, 'zip path error')
   }
 }
 
@@ -2115,6 +2184,8 @@ function _publicMatch(match) {
       regions:     match.regions,      // QUEENS
       givens:      match.givens,       // TANGO
       constraints: match.constraints,  // TANGO
+      numbers:     match.numbers,      // ZIP
+      walls:       match.walls,        // ZIP
       placed:      match.placed,
       solved:      match.solved,
       finishMs:    match.finishMs,

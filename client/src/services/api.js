@@ -3,13 +3,29 @@ const SERVER = (import.meta.env.VITE_SOCKET_URL || '').replace(/\/$/, '')
 const BASE = SERVER ? `${SERVER}/api` : '/api'
 let _token = null
 
+// Auto-refresh: AuthContext registers a handler that swaps an expired access token
+// for a fresh one (via the stored refresh token). On a 401 we run it ONCE and retry
+// the request — otherwise REST calls silently fail after the short-lived access
+// token expires mid-session (the socket keeps working, so only REST features broke,
+// e.g. the friends list / search came back empty). Concurrent 401s share one refresh.
+let _refreshHandler = null
+let _refreshing = null
+function doRefresh() {
+  if (!_refreshHandler) return Promise.resolve(null)
+  if (!_refreshing) {
+    _refreshing = (async () => { try { return await _refreshHandler() } catch { return null } })()
+    _refreshing.finally(() => { _refreshing = null })
+  }
+  return _refreshing
+}
+
 // Default per-request timeout. Without one, fetch() can hang indefinitely on a
 // slow/flaky connection (or a cold server) — which left "Play vs AI" stuck on a
 // disabled Start button forever. Now a hung request aborts and surfaces a clear,
 // retryable error instead.
 const DEFAULT_TIMEOUT_MS = 20_000
 
-async function request(method, path, body, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function request(method, path, body, { timeoutMs = DEFAULT_TIMEOUT_MS, _retry = false } = {}) {
   const headers = { 'Content-Type': 'application/json' }
   if (_token) headers['Authorization'] = `Bearer ${_token}`
 
@@ -50,9 +66,15 @@ async function request(method, path, body, { timeoutMs = DEFAULT_TIMEOUT_MS } = 
   }
 
   if (!json.success) {
+    const status = json.error?.status || res.status
+    // Expired access token → refresh once + retry the original request transparently.
+    if (status === 401 && !_retry && _refreshHandler && path !== '/auth/refresh') {
+      const newToken = await doRefresh()
+      if (newToken) { _token = newToken; return request(method, path, body, { timeoutMs, _retry: true }) }
+    }
     const err = new Error(json.error?.message || 'Request failed')
     err.code   = json.error?.code
-    err.status = json.error?.status || res.status
+    err.status = status
     throw err
   }
   return json.data
@@ -84,4 +106,6 @@ export const api = {
   del:     (path, opts)       => request('DELETE', path, undefined, opts),
   getBlob,
   setToken: (t)               => { _token = t },
+  // fn: async () => newAccessToken | null  (null = refresh failed → 401 propagates)
+  setRefreshHandler: (fn)     => { _refreshHandler = fn },
 }

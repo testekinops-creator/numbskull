@@ -30,6 +30,7 @@ import RmcsMatch from './RmcsMatch.jsx'
 import RummyBoard from './RummyBoard.jsx'
 import QueensBoard from './QueensBoard.jsx'
 import TangoBoard from './TangoBoard.jsx'
+import ZipBoard from './ZipBoard.jsx'
 import RaceHud from './RaceHud.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
@@ -40,7 +41,7 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy', QUEENS: '👑 Queens', TANGO: '☀️ Tango' }
+const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy', QUEENS: '👑 Queens', TANGO: '☀️ Tango', ZIP: '🔢 Zip' }
 
 // Queens race time (ms → m:ss) for the standings card.
 function fmtRaceTime(ms) {
@@ -57,7 +58,7 @@ export default function MatchRoom({ roomId, mode }) {
     spinSpin, spinGuess, spinVowel, spinSolve,
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     rummyDraw, rummyDiscard, rummyDeclare,
-    queensPlace, tangoPlace,
+    queensPlace, tangoPlace, zipPath,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -87,7 +88,7 @@ export default function MatchRoom({ roomId, mode }) {
   // (flag already set) ready instantly, exactly as before. Party rooms are
   // unaffected — the host starts those manually.
   const tutVariant = mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs'
-    : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : mode === 'QUEENS' ? 'queens' : mode === 'TANGO' ? 'tango' : 'match'
+    : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : mode === 'QUEENS' ? 'queens' : mode === 'TANGO' ? 'tango' : mode === 'ZIP' ? 'zip' : 'match'
   const [tutorialPending, setTutorialPending] = useState(() => {
     try { return !localStorage.getItem(`ns_mp_tut_${tutVariant}`) } catch { return false }
   })
@@ -119,7 +120,7 @@ export default function MatchRoom({ roomId, mode }) {
   const opponent = room?.players?.find(p => p.id !== playerId)
   const match = state.match
   const isParty = (room?.maxPlayers || 2) > 2          // 3–8 player party room
-  const isRaceMode = mode === 'QUEENS' || mode === 'TANGO'   // shared puzzle-race games
+  const isRaceMode = mode === 'QUEENS' || mode === 'TANGO' || mode === 'ZIP'   // shared puzzle-race games
   const isHost = room?.hostId === playerId
   const showCall = !isParty && !!opponent              // voice is 1v1 only
   // Drop the call flag if call support goes away (opponent left / party room).
@@ -723,6 +724,26 @@ export default function MatchRoom({ roomId, mode }) {
                   solved={!!match.solved?.[playerId]}
                   disabled={!!match.solved?.[playerId]}
                   onPlace={(index, state) => { unlock(); tangoPlace(roomId, index, state) }}
+                />
+              </>
+            )}
+
+            {mode === 'ZIP' && match.numbers && match.myBoard && (
+              <>
+                <RaceHud match={match} players={room.players} playerId={playerId} icon="🔢" total={match.n * match.n} />
+                {match.solved?.[playerId] ? (
+                  <p className={`${styles.turnLabel} anim-msg`}>✅ Solved! Waiting for the others to finish…</p>
+                ) : (
+                  <p className={styles.turnLabel}>Draw one path 1→last through every cell — no wall crossings</p>
+                )}
+                <ZipBoard
+                  n={match.n}
+                  numbers={match.numbers}
+                  walls={match.walls}
+                  path={match.myBoard}
+                  solved={!!match.solved?.[playerId]}
+                  disabled={!!match.solved?.[playerId]}
+                  onPath={(p) => { unlock(); zipPath(roomId, p) }}
                 />
               </>
             )}

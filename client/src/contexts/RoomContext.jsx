@@ -914,6 +914,8 @@ export function RoomProvider({ children }) {
   // Queens — place/mark/clear a cell on your own board (ack returns { solved }).
   const queensPlace = useCallback((roomId, index, state) => emitAck(socket, 'queens:place', { roomId, index, state }), [socket])
   const tangoPlace  = useCallback((roomId, index, state) => emitAck(socket, 'tango:place',  { roomId, index, state }), [socket])
+  // Zip sends the whole drawn path; high-frequency during a drag, so plain emit (no ack).
+  const zipPath     = useCallback((roomId, path) => socket?.emit('zip:path', { roomId, path }), [socket])
 
   const spinSpin  = useCallback((roomId)          => socket?.emit('spin:spin',  { roomId }),          [socket])
   const spinGuess = useCallback((roomId, letter)  => socket?.emit('spin:guess', { roomId, letter }),  [socket])
@@ -1017,7 +1019,7 @@ export function RoomProvider({ children }) {
       spinSpin, spinGuess, spinVowel, spinSolve,
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
       rummyDraw, rummyDiscard, rummyDeclare,
-      queensPlace, tangoPlace,
+      queensPlace, tangoPlace, zipPath,
     }}>
       {children}
     </RoomContext.Provider>

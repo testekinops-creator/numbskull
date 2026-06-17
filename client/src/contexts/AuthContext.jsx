@@ -51,6 +51,22 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    // Auto-refresh expired access tokens on any 401 (keeps REST in sync with the
+    // long-lived socket session — otherwise the friends list / search / shop start
+    // returning empty once the access token expires mid-session).
+    api.setRefreshHandler(async () => {
+      try {
+        const data = await tryRefreshWithStoredToken()
+        saveAuth(data.accessToken, data.refreshToken, data.user)
+        dispatch({ type: 'LOGIN', user: data.user, accessToken: data.accessToken })
+        return data.accessToken
+      } catch {
+        clearAuth()
+        dispatch({ type: 'LOGOUT' })
+        return null
+      }
+    })
+
     const token    = localStorage.getItem(TOKEN_KEY)
     const userRaw  = localStorage.getItem(USER_KEY)
 

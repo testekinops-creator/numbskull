@@ -54,6 +54,12 @@ const STEPS = {
     { emoji: '🔗', title: '= and × clues', body: 'A “=” between two cells means they must be the SAME symbol; a “×” means they must be OPPOSITE. Pre-filled cells are locked. Use the clues to deduce the rest.' },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you race.' },
   ],
+  zip: [
+    { emoji: '🔢', title: 'Zip — race to solve', body: 'Everyone gets the SAME numbered grid. Draw ONE path that starts at 1 and connects 2, 3, … in order. Whoever does it FIRST wins.' },
+    { emoji: '🧩', title: 'Fill every cell', body: 'Your path must pass through EVERY cell exactly once — no gaps, no crossing your own line. Drag across cells to draw; drag back to undo.' },
+    { emoji: '🧱', title: 'Mind the walls', body: 'Orange bars are walls — your path can never cross one. Use them (and the numbers) to figure out the only route.' },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you race.' },
+  ],
   rmcs: [
     { emoji: '👑', title: 'Four secret roles', body: 'Every round deals Raja (1000), Mantri (800), Sipahi (500) and Chor (0) — in secret. Tap your chit to see yours. Keep a straight face.' },
     { emoji: '📣', title: 'Two get exposed', body: 'Once all four reveal, the Raja and Mantri are announced. The other two stay hidden — one honest Sipahi, one lying Chor.' },

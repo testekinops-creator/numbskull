@@ -46,7 +46,7 @@ export default function QueensBoard({ n, regions, board, onPlace, disabled = fal
               borderLeftWidth: bLeft ? 3 : 1,
               borderRightWidth: bRight ? 3 : 1,
             }}
-            onClick={() => !disabled && onPlace(i, NEXT[cell] || 'empty')}
+            onPointerUp={(e) => { e.preventDefault(); if (!disabled) onPlace(i, NEXT[cell] || 'empty') }}
             aria-label={`Row ${r + 1}, column ${c + 1}: ${cell}`}
           >
             {cell === 'queen' && <span className={styles.queen}>👑</span>}

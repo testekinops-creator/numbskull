@@ -19,7 +19,7 @@ gameRouter.get('/roast', (_req, res) => {
 
 // ── Record a finished game for the logged-in user ──────────────────────────
 const recordSchema = z.object({
-  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'RUMMY', 'QUEENS', 'TANGO']),
+  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP']),
   won:  z.boolean(),
   multiplayer: z.boolean().optional().default(false),
 })
@@ -54,6 +54,7 @@ gameRouter.post('/record', optionalAuth, async (req, res, next) => {
     if (won && mode === 'RUMMY')  patch.rummyWins  = (user.rummyWins  || 0) + 1
     if (won && mode === 'QUEENS') patch.queensWins = (user.queensWins || 0) + 1
     if (won && mode === 'TANGO')  patch.tangoWins  = (user.tangoWins  || 0) + 1
+    if (won && mode === 'ZIP')    patch.zipWins    = (user.zipWins    || 0) + 1
 
     // Progression: award XP + coins, with a bonus when this game crosses a level.
     const { xp: xpGain, coins: coinGain } = awardForGame({ won, multiplayer })

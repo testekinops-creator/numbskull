@@ -32,7 +32,7 @@ const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '�
 
 // New game modes (XOX / Math Battle / Sudoku / Spin Battle) use a separate
 // real-time match flow rendered by MatchRoom; the GTN/BC guess flow is untouched.
-const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO'])
+const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP'])
 
 // Thin router: decides which room UI to render based on the room's mode.
 // If we landed cold (refresh / direct link) we reconnect first to learn the

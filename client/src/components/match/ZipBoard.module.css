@@ -1,0 +1,59 @@
+.board {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: min(92vw, 400px);
+  margin: 0 auto;
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+  background: rgba(10, 8, 30, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  touch-action: none;            /* the drag draws the path — never scroll the page */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
+  border: 1px solid rgba(8, 6, 24, 0.85);
+  background: rgba(124, 77, 255, 0.06);
+  font-size: clamp(0.85rem, 4.2vw, 1.4rem);
+  font-weight: 900;
+  line-height: 1;
+}
+.num {
+  z-index: 2;
+  width: 1.7em; height: 1.7em;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: #14102f;
+  border: 2px solid var(--color-juice, #00f5ff);
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+.onPath { background: rgba(0, 245, 255, 0.14); }
+.head   { box-shadow: inset 0 0 0 3px rgba(0, 245, 255, 0.55); }
+.start  { box-shadow: inset 0 0 0 3px var(--color-juice, #00f5ff); animation: pulse 1.2s ease-in-out infinite; }
+
+/* Path + walls overlay (does not intercept pointer input). */
+.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.path {
+  fill: none;
+  stroke: var(--color-juice, #00f5ff);
+  stroke-width: 0.36;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+.wall { stroke: #ff7043; stroke-width: 0.13; stroke-linecap: round; }
+
+.solved { box-shadow: 0 0 0 3px var(--color-juice, #00f5ff), 0 0 30px rgba(0, 245, 255, 0.4); }
+
+@keyframes pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .start { animation: none; } }
