@@ -10,6 +10,7 @@ import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
 import { SudokuEngine, sudokuComboGain } from '../game/engines/SudokuEngine.js'
+import { QueensEngine, isValidSolution as queensIsValidSolution, countCorrectQueens } from '../game/engines/QueensEngine.js'
 import { SosEngine } from '../game/engines/SosEngine.js'
 import { RummyEngine, validateDeclaration, shuffleCards } from '../game/engines/RummyEngine.js'
 import {
@@ -21,7 +22,13 @@ import { ROLE_POINTS, assignRoles, scoreRound, pickModifier } from '../game/rmcs
 import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS'])
+
+// Queens: a "race to solve" duel — both players get the SAME unique-solution board
+// and fill their OWN private grid; first to a correct solution wins. This is the
+// overall match deadline (no turns); on expiry the most-correct board wins (tie =
+// draw) so a stalled race always resolves.
+const QUEENS_RACE_MS = 300_000   // 5 minutes
 
 // Indian Rummy: a player's window to draw + discard (or declare) on their turn.
 // Generous (90s) because arranging a hand into melds to declare takes thought;
@@ -504,6 +511,47 @@ export function registerMatchHandlers(io, socket) {
       io.to(roomId).emit('sudoku:update', _sudokuCellUpdate(updated, index, playerId))
       ack?.({ ok: true })
     } catch (err) { ack?.({ ok: false, error: err.message }) }
+  })
+
+  // ── Queens: place / mark / clear a cell on YOUR own board (race to solve) ───
+  // state ∈ 'empty' | 'x' | 'queen'. We only ever touch the caller's private
+  // board; the opponent learns nothing but a queen-count (progress).
+  socket.on('queens:place', async ({ roomId, index, state } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'QUEENS' || room.phase !== 'PLAYING') return ack?.({ ok: false, error: 'Match not active' })
+      const m = room.match
+      if (!m || !m.boards[playerId]) return ack?.({ ok: false, error: 'Not a player' })
+      if (!Number.isInteger(index) || index < 0 || index >= m.n * m.n) return ack?.({ ok: false, error: 'Bad cell' })
+      if (!['empty', 'x', 'queen'].includes(state)) return ack?.({ ok: false, error: 'Bad state' })
+
+      if (m.solved[playerId]) return ack?.({ ok: true, solved: true })   // already finished — board locked
+
+      let solvedNow = false
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        const board = mm.boards[playerId]
+        board[index] = state
+        mm.placed[playerId] = board.filter(c => c === 'queen').length
+        if (queensIsValidSolution(board, mm.regions, mm.n)) {
+          mm.solved[playerId] = true
+          mm.finishMs[playerId] = Date.now() - mm.startedAt   // solve time → ranking
+          solvedNow = true
+        }
+      })
+
+      const updated = await roomManager.get(roomId)
+      // Caller sees their own board; everyone else sees only progress (public view).
+      socket.emit('queens:update', { match: _matchView(updated, playerId).match, by: playerId })
+      socket.to(roomId).emit('queens:update', { match: _publicMatch(updated.match), by: playerId })
+      ack?.({ ok: true, solved: solvedNow })
+
+      // The race continues after a solve — end only when EVERYONE has finished.
+      if (solvedNow) await _maybeEndQueens(io, roomId)
+    } catch (err) {
+      logger.error({ err }, 'queens:place error')
+      ack?.({ ok: false, error: err.message })
+    }
   })
 
   // ── Spin Battle: spin the wheel ───────────────────────────────────────────
@@ -994,6 +1042,34 @@ async function _startMatch(io, roomId) {
     })
   }
 
+  if (room.mode === 'QUEENS') {
+    // N-player "race to solve" (2–8). Everyone gets the SAME unique-solution board
+    // and fills their OWN private grid; players keep racing until all solve or the
+    // deadline — final standings are ranked by solve time.
+    const ids = room.players.map(p => p.id)
+    const engine = new QueensEngine({ difficulty: room.difficulty || 'medium' })
+    const empty = () => Array(engine.n * engine.n).fill('empty')
+    const zero = () => Object.fromEntries(ids.map(id => [id, 0]))
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:      'QUEENS',
+        n:         engine.n,
+        regions:   engine.regions,             // public — the colored board
+        solution:  engine.solution,            // SERVER ONLY (boolean[n*n])
+        boards:    Object.fromEntries(ids.map(id => [id, empty()])),   // private per-player
+        placed:    zero(),                     // queen count → live progress
+        solved:    Object.fromEntries(ids.map(id => [id, false])),
+        finishMs:  Object.fromEntries(ids.map(id => [id, null])),      // ms-to-solve per player
+        order:     ids,
+        startedAt: Date.now(),
+        deadline:  Date.now() + QUEENS_RACE_MS,
+      }
+    })
+    _startQueensTimer(io, roomId)
+  }
+
   if (room.mode === 'SPIN') {
     // Generalised to N players (2–8). Turn rotates through the player list; the
     // starting player rotates each match/rematch.
@@ -1112,6 +1188,13 @@ async function _startMatch(io, roomId) {
     const s = _findSocket(io, p.id)
     s?.emit('match:start', _matchView(updated, p.id))
   }
+  // Reliable room-level signal that the game began: the per-player `match:start`
+  // above is a DIRECT socket emit, so a player whose socket was momentarily
+  // unmatched (quick-match race / late join) can miss it and get stranded on the
+  // lobby. This room broadcast flips everyone's phase to PLAYING (it never clears an
+  // already-delivered match — ROOM_UPDATED only resets on SETUP), so the client
+  // watchdog can then pull the missed board via reconnect.
+  io.to(roomId).emit('room:updated', _roomSummary(updated))
   // Spectators don't receive the per-player match:start — give them a public sync
   // so a fresh deal / next game renders for watchers. Players ignore this event.
   io.to(roomId).emit('spectate:sync', { room: _roomSummary(updated), match: _publicMatch(updated.match) })
@@ -1616,6 +1699,17 @@ export async function onPartyPlayerLeft(io, roomId, leftId) {
     return
   }
 
+  // Queens (party): the leaver is already removed; the rest keep racing. Refresh
+  // everyone's progress, end if all who remain have solved, or crown the sole survivor.
+  if (room.mode === 'QUEENS') {
+    if (!room.match) return
+    if (room.players.length < 2) {
+      return _endMatch(io, roomId, { winnerId: room.players[0]?.id || null, draw: false, ranking: _queensRanking(room), reason: 'player-left' })
+    }
+    io.to(roomId).emit('queens:update', { match: _publicMatch(room.match), by: leftId })
+    return _maybeEndQueens(io, roomId)
+  }
+
   if (room.mode !== 'SPIN') return
   const mm = room.match
   if (!mm) return
@@ -1771,6 +1865,61 @@ function _startRummyTimer(io, roomId, currentTurnId) {
   io.to(roomId).emit('match:turn', { turnId: currentTurnId, timerMs: RUMMY_TURN_MS })
 }
 
+// Queens has no turns — just one overall race deadline. On expiry the race ends and
+// is ranked (solvers by time, the rest by progress).
+function _startQueensTimer(io, roomId) {
+  const timer = getTimer(roomId, (rid) => _endQueens(io, rid).catch(err =>
+    logger.error({ err, roomId: rid }, 'queens race-timer error')))
+  timer.start(QUEENS_RACE_MS)
+}
+
+// Final standings for a Queens race: everyone who SOLVED ranks first, ordered by
+// solve time (fastest = rank 1); the rest rank below, ordered by how many queens
+// they placed correctly. Standard competition ranking (ties share a rank).
+function _queensRanking(room) {
+  const m = room.match
+  const rows = room.players.map(p => ({
+    id: p.id,
+    name: p.name,
+    solved: !!m.solved[p.id],
+    timeMs: m.finishMs[p.id] ?? null,
+    correct: countCorrectQueens(m.boards[p.id] || [], m.solution),
+  }))
+  rows.sort((a, b) => {
+    if (a.solved !== b.solved) return a.solved ? -1 : 1          // solvers first
+    if (a.solved) return a.timeMs - b.timeMs                     // fastest first
+    return b.correct - a.correct                                 // then most-correct
+  })
+  // Competition ranking: equal "score" shares a rank.
+  let prevKey = null, prevRank = 0
+  return rows.map((r, i) => {
+    const key = r.solved ? `s:${r.timeMs}` : `u:${r.correct}`
+    const rank = key === prevKey ? prevRank : i + 1
+    prevKey = key; prevRank = rank
+    return { ...r, rank }
+  })
+}
+
+// End a Queens race now, with time-based standings.
+async function _endQueens(io, roomId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'QUEENS' || room.phase !== 'PLAYING') return
+  const ranking = _queensRanking(room)
+  const leaders = ranking.filter(r => r.rank === 1)
+  const someoneSolved = ranking.some(r => r.solved)
+  const draw = leaders.length > 1 || !someoneSolved
+  const winnerId = draw ? null : leaders[0].id
+  await _endMatch(io, roomId, { winnerId, draw, ranking, reason: 'complete' })
+}
+
+// End the race once every present player has solved (called after a solve / a leave).
+async function _maybeEndQueens(io, roomId) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'QUEENS' || room.phase !== 'PLAYING') return
+  const everyoneDone = room.players.length > 0 && room.players.every(p => room.match.solved[p.id])
+  if (everyoneDone) await _endQueens(io, roomId)
+}
+
 // ── Views ──────────────────────────────────────────────────────────────────
 // XOX has no hidden info, but SPIN carries per-viewer private state (a player's
 // own wrong letters) + a live round countdown, so the view is built per viewer.
@@ -1789,6 +1938,10 @@ function _matchView(room, viewerId) {
   if (match?.kind === 'RUMMY') {
     // The ONLY private bit: your own hand.
     match.myHand = room.match.hands?.[viewerId] || []
+  }
+  if (match?.kind === 'QUEENS') {
+    // The ONLY private bit: your own board (opponents see only a queen-count).
+    match.myBoard = room.match.boards?.[viewerId] || []
   }
   return { room: _roomSummary(room), match, you: viewerId }
 }
@@ -1901,6 +2054,21 @@ function _publicMatch(match) {
       hasDrawn:    !!match.hasDrawn,
       order:       match.order || [],
       eliminated:  match.eliminated || [],
+    }
+  }
+  if (match.kind === 'QUEENS') {
+    // Strip every private board + the solution — only the colored board and each
+    // player's progress (queen-count, solved flag, solve time) are public. `myBoard`
+    // is added per-viewer in _matchView.
+    return {
+      kind:      'QUEENS',
+      n:         match.n,
+      regions:   match.regions,
+      placed:    match.placed,
+      solved:    match.solved,
+      finishMs:  match.finishMs,
+      startedAt: match.startedAt,
+      deadline:  match.deadline,
     }
   }
   if (match.kind === 'RMCS') {

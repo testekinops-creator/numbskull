@@ -223,6 +223,7 @@ export const AuthService = {
       mathWins:   user.mathWins   ?? 0,
       sudokuWins: user.sudokuWins ?? 0,
       rummyWins:  user.rummyWins  ?? 0,
+      queensWins: user.queensWins ?? 0,
       xp:         user.xp ?? 0,
       level:      levelForXp(user.xp ?? 0),
       coins:      user.coins ?? 0,

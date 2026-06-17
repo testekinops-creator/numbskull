@@ -304,6 +304,12 @@ export function registerRoomHandlers(io, socket) {
     if (snapshot.match?.kind === 'RUMMY') {
       snapshot.match.myHand = room.match?.hands?.[playerId] || []
     }
+    // QUEENS: re-deliver the reconnecting player's own private board — without it the
+    // board can't render, which is exactly why a player who missed `match:start` (or
+    // joined a match already in progress) saw the lobby with no table.
+    if (snapshot.match?.kind === 'QUEENS') {
+      snapshot.match.myBoard = room.match?.boards?.[playerId] || []
+    }
     // Tell the reconnecting player who's actually live right now: if an opponent
     // is mid-grace (locked / dropped) the client must show the "waiting…" state
     // instead of a normal-looking board, and knows exactly when the room closes.
@@ -409,6 +415,11 @@ function _scheduleDisconnectClose(io, playerId, playerName, roomId) {
     if (!leaver) return  // already removed
     // Ghost-socket guard: if they reconnected on a new socket, don't evict them.
     if (_playerHasLiveSocket(io, playerId, roomId)) return
+    // Queens is a race to a shared deadline: a player who briefly drops (backgrounded
+    // tab / network blip) must be able to reconnect and FINISH, so we never evict them
+    // mid-race — otherwise the remaining finishers would be treated as "everyone" and
+    // the match would end early. The 5-min race timer is the backstop for a true quit.
+    if (room.mode === 'QUEENS' && room.phase === 'PLAYING') return
     // Party rooms (>2): drop just this player and keep the room going.
     if ((room.maxPlayers || 2) > 2) return _removeFromParty(io, roomId, playerId, leaver.name || playerName, 'disconnected')
     // Live 1v1 match → the player who stayed wins by forfeit (grace already expired).

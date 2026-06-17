@@ -1,0 +1,47 @@
+.board {
+  display: grid;
+  width: 100%;
+  max-width: min(92vw, 400px);
+  margin: 0 auto;
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+  background: rgba(10, 8, 30, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  touch-action: manipulation;
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  min-width: 0;          /* let 1fr columns shrink so the grid never overflows */
+  aspect-ratio: 1 / 1;   /* each cell square → the board height follows the columns */
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: rgba(8, 6, 24, 0.85);   /* dark gridlines/region borders */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter 0.1s ease, transform 0.06s ease;
+  font-size: clamp(0.8rem, 4vw, 1.35rem);
+  line-height: 1;
+}
+.cell:disabled { cursor: default; }
+.cell:not(:disabled):hover { filter: brightness(1.15); }
+.cell:not(:disabled):active { transform: scale(0.92); }
+
+.queen { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); animation: pop 0.16s var(--ease-spring, ease); }
+.mark  { color: rgba(255, 255, 255, 0.5); font-weight: 800; font-size: 0.7em; }
+
+/* A queen breaking a rule (shared row/col/region or touching) glows red. */
+.conflict { box-shadow: inset 0 0 0 3px var(--color-pink, #ff3e8a); }
+.conflict .queen { filter: drop-shadow(0 0 4px rgba(255, 62, 138, 0.9)); }
+
+.solved { box-shadow: 0 0 0 3px var(--color-juice, #00f5ff), 0 0 30px rgba(0, 245, 255, 0.4); }
+
+@keyframes pop { from { transform: scale(0.4); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .queen { animation: none; }
+  .cell:not(:disabled):active { transform: none; }
+}

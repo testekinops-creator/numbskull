@@ -42,6 +42,12 @@ const STEPS = {
     { emoji: '🏆', title: 'Declare to win', body: 'You MUST have at least one PURE sequence (a run with no joker) and two sequences in total. When your hand is valid, discard your last card and Declare. A wrong declare loses the round!' },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you play.' },
   ],
+  queens: [
+    { emoji: '👑', title: 'Queens — race to solve', body: 'Both players get the SAME colored board at once. Place exactly one 👑 in every row, every column AND every color region. Whoever solves it correctly FIRST wins.' },
+    { emoji: '🚫', title: 'No touching', body: 'Two queens may never touch — not even diagonally. Tap a cell to cycle: blank → 👑 → ✕ (a "no" mark to plan) → blank. A queen breaking a rule glows red so you can fix it fast.' },
+    { emoji: '⏱️', title: 'Beat the clock & your rival', body: "You'll see the other player's queen count climb live (but never where they put them). If nobody finishes in time, the most-correct board wins." },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you race.' },
+  ],
   rmcs: [
     { emoji: '👑', title: 'Four secret roles', body: 'Every round deals Raja (1000), Mantri (800), Sipahi (500) and Chor (0) — in secret. Tap your chit to see yours. Keep a straight face.' },
     { emoji: '📣', title: 'Two get exposed', body: 'Once all four reveal, the Raja and Mantri are announced. The other two stay hidden — one honest Sipahi, one lying Chor.' },

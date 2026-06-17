@@ -55,6 +55,7 @@ const MathBattleAiPage    = lazyWithRetry(() => import('./pages/MathBattleAiPage
 const SpinBattleAiPage    = lazyWithRetry(() => import('./pages/SpinBattleAiPage.jsx'))
 const SosAiPage           = lazyWithRetry(() => import('./pages/SosAiPage.jsx'))
 const SudokuSoloPage      = lazyWithRetry(() => import('./pages/SudokuSoloPage.jsx'))
+const QueensSoloPage      = lazyWithRetry(() => import('./pages/QueensSoloPage.jsx'))
 const NotFoundPage        = lazyWithRetry(() => import('./pages/NotFoundPage.jsx'))
 
 function PageFallback() {
@@ -105,6 +106,7 @@ function AppInner() {
           <Route path="/play/SPIN"          element={<ProtectedRoute><SpinBattleAiPage /></ProtectedRoute>} />
           <Route path="/play/SOS"           element={<ProtectedRoute><SosAiPage /></ProtectedRoute>} />
           <Route path="/play/SUDOKU"        element={<ProtectedRoute><SudokuSoloPage /></ProtectedRoute>} />
+          <Route path="/play/QUEENS"        element={<ProtectedRoute><QueensSoloPage /></ProtectedRoute>} />
           <Route path="/play/:mode"         element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
           <Route path="/lobby"              element={<ProtectedRoute><LobbyPage /></ProtectedRoute>} />
           <Route path="/room/:roomId"       element={<ProtectedRoute><RoomPage /></ProtectedRoute>} />

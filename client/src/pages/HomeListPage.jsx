@@ -47,6 +47,13 @@ const GAMES = [
     accent: 'var(--color-juice)',
   },
   {
+    mode: 'QUEENS',
+    icon: '👑',
+    name: 'Queens',
+    desc: 'One queen per row, column & color — none touching. Solo for time, or race a friend to solve first.',
+    accent: 'var(--color-warning)',
+  },
+  {
     mode: 'SPIN',
     icon: '🎡',
     name: 'Spin Battle',

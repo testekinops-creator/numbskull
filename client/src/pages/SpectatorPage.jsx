@@ -9,12 +9,13 @@ import ErrorBoundary from '../components/ErrorBoundary.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
 import SosBoard from '../components/match/SosBoard.jsx'
+import QueensBoard from '../components/match/QueensBoard.jsx'
 import SudokuBoard from '../components/match/SudokuBoard.jsx'
 import SpinBattleMatch from '../components/match/SpinBattleMatch.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
 import styles from './SpectatorPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy' }
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens' }
 const noop = () => {}
 const SPECTATOR_ID = '__spectator__'   // never matches a real player → no controls light up
 
@@ -119,6 +120,16 @@ export default function SpectatorPage() {
             myScore={match.scores?.[p0?.id] ?? 0} oppScore={match.scores?.[p1?.id] ?? 0}
             oppName={p1?.name || 'P2'} onAnswer={noop} locked durationMs={15000} />
         ) : <p className={styles.waiting}>Next question…</p>
+      case 'QUEENS':
+        return match.regions ? (
+          <>
+            <p className={styles.waiting}>Hidden boards — live progress only</p>
+            <QueensBoard n={match.n} regions={match.regions} board={Array(match.n * match.n).fill('empty')} onPlace={noop} disabled />
+            <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
+              {players.map(p => `${p.name}: 👑 ${match.placed?.[p.id] ?? 0}/${match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
+            </p>
+          </>
+        ) : null
       case 'GTN':
       case 'BC':
         return <GuessList guesses={state.guesses} mode={room.mode} />

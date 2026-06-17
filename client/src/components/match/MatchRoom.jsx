@@ -28,6 +28,8 @@ import SpinBattleMatch from './SpinBattleMatch.jsx'
 import SosBoard from './SosBoard.jsx'
 import RmcsMatch from './RmcsMatch.jsx'
 import RummyBoard from './RummyBoard.jsx'
+import QueensBoard from './QueensBoard.jsx'
+import QueensHud from './QueensHud.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
@@ -37,7 +39,14 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy' }
+const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy', QUEENS: '👑 Queens' }
+
+// Queens race time (ms → m:ss) for the standings card.
+function fmtRaceTime(ms) {
+  if (ms == null) return ''
+  const s = Math.round(ms / 1000)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
@@ -47,6 +56,7 @@ export default function MatchRoom({ roomId, mode }) {
     spinSpin, spinGuess, spinVowel, spinSolve,
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     rummyDraw, rummyDiscard, rummyDeclare,
+    queensPlace,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -76,7 +86,7 @@ export default function MatchRoom({ roomId, mode }) {
   // (flag already set) ready instantly, exactly as before. Party rooms are
   // unaffected — the host starts those manually.
   const tutVariant = mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs'
-    : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : 'match'
+    : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : mode === 'QUEENS' ? 'queens' : 'match'
   const [tutorialPending, setTutorialPending] = useState(() => {
     try { return !localStorage.getItem(`ns_mp_tut_${tutVariant}`) } catch { return false }
   })
@@ -174,6 +184,30 @@ export default function MatchRoom({ roomId, mode }) {
     })()
     return () => { cancelled = true }
   }, [phase, me?.ready, opponent?.id, isParty, tutorialPending]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Self-heal a start desync. The match can start server-side (the other player
+  // gets their board) while THIS client misses its per-player `match:start` (socket
+  // race on quick-match / late join / a room revived after a restart). The missed
+  // client never learns the game began — it sits on the lobby with the opponent
+  // present but no board. So while the room is full (`opponent` present) and we have
+  // no live `match`, re-pull the authoritative state via the reconnect path
+  // (RECONNECT_RESTORE carries `_matchView`, incl. our private board). Polls a few
+  // times then gives up; resets the moment a match arrives.
+  const healAttemptsRef = useRef(0)
+  useEffect(() => {
+    if (match) { healAttemptsRef.current = 0; return }   // healthy → nothing to do
+    if (!opponent) return                                // genuinely waiting for someone to join
+    // A party room legitimately sits in LOBBY until the host starts — don't poll then;
+    // only heal once it's PLAYING. 1v1 rooms auto-start, so heal from SETUP too.
+    const stuck = phase === 'PLAYING' || (!isParty && (phase === 'SETUP' || phase === 'LOBBY'))
+    if (!stuck) return
+    const id = setInterval(() => {
+      if (healAttemptsRef.current >= 5) { clearInterval(id); return }
+      healAttemptsRef.current++
+      reconnectRoom(roomId)
+    }, 3000)
+    return () => clearInterval(id)
+  }, [phase, match, opponent?.id, isParty, roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Away too long (phone locked / app backgrounded past the reconnect grace) →
   // the room is dead; go to the game list instead of a stale board. Only while a
@@ -651,6 +685,25 @@ export default function MatchRoom({ roomId, mode }) {
                 </TurnGlow>
               </>
             )}
+
+            {mode === 'QUEENS' && match.regions && match.myBoard && (
+              <>
+                <QueensHud match={match} players={room.players} playerId={playerId} />
+                {match.solved?.[playerId] ? (
+                  <p className={`${styles.turnLabel} anim-msg`}>✅ Solved! Waiting for the others to finish…</p>
+                ) : (
+                  <p className={styles.turnLabel}>Place one 👑 per row, column &amp; color — none touching</p>
+                )}
+                <QueensBoard
+                  n={match.n}
+                  regions={match.regions}
+                  board={match.myBoard}
+                  solved={!!match.solved?.[playerId]}
+                  disabled={!!match.solved?.[playerId]}
+                  onPlace={(index, state) => { unlock(); queensPlace(roomId, index, state) }}
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -663,7 +716,7 @@ export default function MatchRoom({ roomId, mode }) {
         )}
 
         {phase === 'GAME_OVER' && (mode !== 'XOX' || resultRevealed) && (
-          isParty && state.ranking ? (
+          (isParty || mode === 'QUEENS') && state.ranking ? (
             <div className={styles.rankCard}>
               <h2 className={styles.rankTitle}>Final standings</h2>
               {state.draw && <p className={`${styles.resultBanner} anim-bounce-land`}>🤝 It's a tie!</p>}
@@ -674,8 +727,10 @@ export default function MatchRoom({ roomId, mode }) {
                     <Avatar id={room.players.find(p => p.id === r.id)?.avatar} seed={r.id} name={r.name}
                       size={36} ring={r.rank === 1 ? 'gold' : false} />
                     <span className={styles.rankName}>{r.name}{r.id === playerId ? ' (you)' : ''}</span>
-                    {/* SPIN rankings carry roundWins/trophies; RMCS carries point totals. */}
-                    {r.total != null ? (
+                    {/* QUEENS: solve time (or DNF + progress). SPIN: roundWins/trophies. RMCS: point totals. */}
+                    {mode === 'QUEENS' ? (
+                      <span className={styles.rankWins}>{r.solved ? `⏱ ${fmtRaceTime(r.timeMs)}` : `DNF · ${r.correct ?? 0}👑`}</span>
+                    ) : r.total != null ? (
                       <span className={styles.rankWins}>{r.total} pts</span>
                     ) : (
                       <>
