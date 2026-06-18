@@ -94,6 +94,10 @@ function reducer(state, action) {
         room:                 action.room,
         phase:                newPhase,
         error:                null,
+        // We've been placed in a room → stop "searching". This makes the reliable
+        // room-level room:updated a fallback if the direct room:quickmatch_found was
+        // missed (socket race) — otherwise the matched player searched until timeout.
+        matchmaking:          false,
         roomClosedByOpponent: false,          // always clear stale flag on new room
         rematchStatus:        rematchReset.rematchStatus ?? 'idle',  // always reset
         rematchRequesterName: rematchReset.rematchRequesterName ?? null,
@@ -916,6 +920,8 @@ export function RoomProvider({ children }) {
   const tangoPlace  = useCallback((roomId, index, state) => emitAck(socket, 'tango:place',  { roomId, index, state }), [socket])
   // Zip sends the whole drawn path; high-frequency during a drag, so plain emit (no ack).
   const zipPath     = useCallback((roomId, path) => socket?.emit('zip:path', { roomId, path }), [socket])
+  // Give up a race (forfeit this puzzle) → you're done and switch to watching the others.
+  const raceGiveUp  = useCallback((roomId) => emitAck(socket, 'race:giveup', { roomId }), [socket])
 
   const spinSpin  = useCallback((roomId)          => socket?.emit('spin:spin',  { roomId }),          [socket])
   const spinGuess = useCallback((roomId, letter)  => socket?.emit('spin:guess', { roomId, letter }),  [socket])
@@ -1019,7 +1025,7 @@ export function RoomProvider({ children }) {
       spinSpin, spinGuess, spinVowel, spinSolve,
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
       rummyDraw, rummyDiscard, rummyDeclare,
-      queensPlace, tangoPlace, zipPath,
+      queensPlace, tangoPlace, zipPath, raceGiveUp,
     }}>
       {children}
     </RoomContext.Provider>

@@ -32,6 +32,7 @@ import QueensBoard from './QueensBoard.jsx'
 import TangoBoard from './TangoBoard.jsx'
 import ZipBoard from './ZipBoard.jsx'
 import RaceHud from './RaceHud.jsx'
+import RaceWatch from './RaceWatch.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
@@ -58,7 +59,7 @@ export default function MatchRoom({ roomId, mode }) {
     spinSpin, spinGuess, spinVowel, spinSolve,
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     rummyDraw, rummyDiscard, rummyDeclare,
-    queensPlace, tangoPlace, zipPath,
+    queensPlace, tangoPlace, zipPath, raceGiveUp,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -78,6 +79,7 @@ export default function MatchRoom({ roomId, mode }) {
   const [rematchErr, setRematchErr] = useState('')
   const [callActive, setCallActive] = useState(false)   // a voice call is live (lifts/widens the bottom chrome)
   const [confirmLeave, setConfirmLeave] = useState(false)   // premium "leave the game?" guard
+  const [confirmGiveUp, setConfirmGiveUp] = useState(false) // "give up the race?" guard
   // Ignore a brief opponent drop (e.g. a page refresh) — only alarm after ~2.5s.
   const showOppLost = useDelayedFlag(connected && state.opponentConnLost, 2500)
 
@@ -121,6 +123,7 @@ export default function MatchRoom({ roomId, mode }) {
   const match = state.match
   const isParty = (room?.maxPlayers || 2) > 2          // 3–8 player party room
   const isRaceMode = mode === 'QUEENS' || mode === 'TANGO' || mode === 'ZIP'   // shared puzzle-race games
+  const iAmDone = isRaceMode && !!(state.match?.solved?.[playerId] || state.match?.gaveUp?.[playerId])   // finished or gave up → watch mode
   const isHost = room?.hostId === playerId
   const showCall = !isParty && !!opponent              // voice is 1v1 only
   // Drop the call flag if call support goes away (opponent left / party room).
@@ -414,6 +417,16 @@ export default function MatchRoom({ roomId, mode }) {
         onConfirm={() => { setConfirmLeave(false); leaveRoom(roomId); navigate('/home') }}
         onCancel={() => setConfirmLeave(false)}
       />
+      <ConfirmDialog
+        open={confirmGiveUp}
+        icon="🏳"
+        title="Give up this race?"
+        message="You’ll stop solving and watch the others finish. You can’t resume — but you stay for the result."
+        confirmLabel="Give up"
+        cancelLabel="Keep solving"
+        onConfirm={() => { setConfirmGiveUp(false); raceGiveUp(roomId) }}
+        onCancel={() => setConfirmGiveUp(false)}
+      />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
           📡 You’re offline — reconnecting…
@@ -692,67 +705,77 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'QUEENS' && match.regions && match.myBoard && (
               <>
                 <RaceHud match={match} players={room.players} playerId={playerId} icon="👑" total={match.n} />
-                {match.solved?.[playerId] ? (
-                  <p className={`${styles.turnLabel} anim-msg`}>✅ Solved! Waiting for the others to finish…</p>
+                {iAmDone ? (
+                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="QUEENS" />
                 ) : (
-                  <p className={styles.turnLabel}>Place one 👑 per row, column &amp; color — none touching</p>
+                  <>
+                    <p className={styles.turnLabel}>Place one 👑 per row, column &amp; color — none touching</p>
+                    <QueensBoard
+                      n={match.n}
+                      regions={match.regions}
+                      board={match.myBoard}
+                      onPlace={(index, state) => { unlock(); queensPlace(roomId, index, state) }}
+                    />
+                  </>
                 )}
-                <QueensBoard
-                  n={match.n}
-                  regions={match.regions}
-                  board={match.myBoard}
-                  solved={!!match.solved?.[playerId]}
-                  disabled={!!match.solved?.[playerId]}
-                  onPlace={(index, state) => { unlock(); queensPlace(roomId, index, state) }}
-                />
               </>
             )}
 
             {mode === 'TANGO' && match.givens && match.myBoard && (
               <>
                 <RaceHud match={match} players={room.players} playerId={playerId} icon="▦" total={match.n * match.n} />
-                {match.solved?.[playerId] ? (
-                  <p className={`${styles.turnLabel} anim-msg`}>✅ Solved! Waiting for the others to finish…</p>
+                {iAmDone ? (
+                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="TANGO" />
                 ) : (
-                  <p className={styles.turnLabel}>Fill ☀️/🌙 — 3 each per row &amp; column, no 3 in a row, obey =/×</p>
+                  <>
+                    <p className={styles.turnLabel}>Fill ☀️/🌙 — 3 each per row &amp; column, no 3 in a row, obey =/×</p>
+                    <TangoBoard
+                      n={match.n}
+                      givens={match.givens}
+                      constraints={match.constraints}
+                      board={match.myBoard}
+                      onPlace={(index, state) => { unlock(); tangoPlace(roomId, index, state) }}
+                    />
+                  </>
                 )}
-                <TangoBoard
-                  n={match.n}
-                  givens={match.givens}
-                  constraints={match.constraints}
-                  board={match.myBoard}
-                  solved={!!match.solved?.[playerId]}
-                  disabled={!!match.solved?.[playerId]}
-                  onPlace={(index, state) => { unlock(); tangoPlace(roomId, index, state) }}
-                />
               </>
             )}
 
             {mode === 'ZIP' && match.numbers && match.myBoard && (
               <>
                 <RaceHud match={match} players={room.players} playerId={playerId} icon="🔢" total={match.n * match.n} />
-                {(() => {
-                  const myPath = match.myBoard || []
-                  const total = match.n * match.n
-                  const lastNum = Math.max(0, ...match.numbers)
-                  const headNum = myPath.length ? match.numbers[myPath[myPath.length - 1]] : 0
-                  if (match.solved?.[playerId]) return <p className={`${styles.turnLabel} anim-msg`}>✅ Solved! Waiting for the others to finish…</p>
-                  if (lastNum > 0 && headNum === lastNum && myPath.length < total) {
-                    return <p className={`${styles.turnLabel} anim-msg`} style={{ color: '#ffd0b8' }}>⚠️ Dead end — {total - myPath.length} cells still empty. Undo and cover every cell, ending on the last number.</p>
-                  }
-                  return <p className={styles.turnLabel}>Draw one path 1→last through every cell — no wall crossings</p>
-                })()}
-                <ZipBoard
-                  n={match.n}
-                  numbers={match.numbers}
-                  walls={match.walls}
-                  path={match.myBoard}
-                  optimistic
-                  solved={!!match.solved?.[playerId]}
-                  disabled={!!match.solved?.[playerId]}
-                  onPath={(p) => { unlock(); zipPath(roomId, p) }}
-                />
+                {iAmDone ? (
+                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="ZIP" />
+                ) : (
+                  <>
+                    {(() => {
+                      const myPath = match.myBoard || []
+                      const total = match.n * match.n
+                      const lastNum = Math.max(0, ...match.numbers)
+                      const headNum = myPath.length ? match.numbers[myPath[myPath.length - 1]] : 0
+                      if (lastNum > 0 && headNum === lastNum && myPath.length < total) {
+                        return <p className={`${styles.turnLabel} anim-msg`} style={{ color: '#ffd0b8' }}>⚠️ Dead end — {total - myPath.length} cells still empty. Undo and cover every cell, ending on the last number.</p>
+                      }
+                      return <p className={styles.turnLabel}>Draw one path 1→last through every cell — no wall crossings</p>
+                    })()}
+                    <ZipBoard
+                      n={match.n}
+                      numbers={match.numbers}
+                      walls={match.walls}
+                      path={match.myBoard}
+                      optimistic
+                      onPath={(p) => { unlock(); zipPath(roomId, p) }}
+                    />
+                  </>
+                )}
               </>
+            )}
+
+            {/* Give up — race only, while still playing. Done players are already watching. */}
+            {isRaceMode && !iAmDone && (
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} onClick={() => setConfirmGiveUp(true)}>
+                🏳 Give up
+              </button>
             )}
           </div>
         )}

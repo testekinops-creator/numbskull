@@ -304,11 +304,15 @@ export function registerRoomHandlers(io, socket) {
     if (snapshot.match?.kind === 'RUMMY') {
       snapshot.match.myHand = room.match?.hands?.[playerId] || []
     }
-    // Puzzle race (Queens/Tango): re-deliver the reconnecting player's own private
+    // Puzzle race (Queens/Tango/Zip): re-deliver the reconnecting player's own private
     // board — without it the board can't render, which is exactly why a player who
-    // missed `match:start` (or joined a match already in progress) saw no table.
+    // missed `match:start` (or joined a match already in progress) saw no table. A
+    // DONE player (solved/gaveUp) also gets everyone's boards so watch mode resumes.
     if (snapshot.match && RACE_MODES.has(snapshot.match.kind)) {
       snapshot.match.myBoard = room.match?.boards?.[playerId] || []
+      if (room.match?.solved?.[playerId] || room.match?.gaveUp?.[playerId]) {
+        snapshot.match.boards = room.match.boards
+      }
     }
     // Tell the reconnecting player who's actually live right now: if an opponent
     // is mid-grace (locked / dropped) the client must show the "waiting…" state

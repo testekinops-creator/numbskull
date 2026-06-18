@@ -29,7 +29,7 @@ export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMC
 // Puzzle-race modes (Queens, Tango, …): everyone gets the SAME unique-solution board
 // and fills their OWN private grid; players keep racing until all solve or this
 // overall deadline, then standings are ranked by solve time. (No turns.)
-const RACE_MS = 300_000   // 5 minutes
+const RACE_MS = 360_000   // 6 minutes
 
 // Indian Rummy: a player's window to draw + discard (or declare) on their turn.
 // Generous (90s) because arranging a hand into melds to declare takes thought;
@@ -521,6 +521,24 @@ export function registerMatchHandlers(io, socket) {
   socket.on('tango:place',  (d, ack) => { _handleRacePlace(io, socket, d, playerId); ack?.({ ok: true }) })
   // Zip: a whole drawn path (not per-cell) — its own path-aware handler, same race lifecycle.
   socket.on('zip:path',     (d, ack) => { _handleZipPath(io, socket, d, playerId); ack?.({ ok: true }) })
+  // Give up a race: you're done (frozen progress, ranks as DNF) and switch to watching
+  // the others. Ends the match if everyone is now done.
+  socket.on('race:giveup', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || !RACE_MODES.has(room.mode) || room.phase !== 'PLAYING') return ack?.({ ok: false })
+      const m = room.match
+      if (!m || !m.boards[playerId] || m.solved[playerId] || m.gaveUp?.[playerId]) return ack?.({ ok: true })
+      await roomManager.update(roomId, r => { r.match.gaveUp[playerId] = true })
+      const updated = await roomManager.get(roomId)
+      _broadcastRaceUpdate(io, updated, playerId, socket)
+      ack?.({ ok: true })
+      await _maybeEndRace(io, roomId)
+    } catch (err) {
+      logger.error({ err }, 'race giveup error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
 
   // ── Spin Battle: spin the wheel ───────────────────────────────────────────
   socket.on('spin:spin', async ({ roomId } = {}, ack) => {
@@ -1029,6 +1047,7 @@ async function _startMatch(io, roomId) {
         boards:    Object.fromEntries(ids.map(id => [id, empty()])),   // private per-player
         placed:    zero(),                     // queen count → live progress
         solved:    Object.fromEntries(ids.map(id => [id, false])),
+        gaveUp:    Object.fromEntries(ids.map(id => [id, false])),
         finishMs:  Object.fromEntries(ids.map(id => [id, null])),      // ms-to-solve per player
         order:     ids,
         startedAt: Date.now(),
@@ -1057,6 +1076,7 @@ async function _startMatch(io, roomId) {
         boards:      Object.fromEntries(ids.map(id => [id, startBoard()])),
         placed:      Object.fromEntries(ids.map(id => [id, engine.givens.filter(Boolean).length])),
         solved:      Object.fromEntries(ids.map(id => [id, false])),
+        gaveUp:      Object.fromEntries(ids.map(id => [id, false])),
         finishMs:    Object.fromEntries(ids.map(id => [id, null])),
         order:       ids,
         startedAt:   Date.now(),
@@ -1082,6 +1102,7 @@ async function _startMatch(io, roomId) {
         boards:    Object.fromEntries(ids.map(id => [id, []])),   // each player's path
         placed:    Object.fromEntries(ids.map(id => [id, 0])),
         solved:    Object.fromEntries(ids.map(id => [id, false])),
+        gaveUp:    Object.fromEntries(ids.map(id => [id, false])),
         finishMs:  Object.fromEntries(ids.map(id => [id, null])),
         order:     ids,
         startedAt: Date.now(),
@@ -1727,7 +1748,7 @@ export async function onPartyPlayerLeft(io, roomId, leftId) {
     if (room.players.length < 2) {
       return _endMatch(io, roomId, { winnerId: room.players[0]?.id || null, draw: false, ranking: _rankRace(room), reason: 'player-left' })
     }
-    io.to(roomId).emit('race:update', { match: _publicMatch(room.match), by: leftId })
+    _broadcastRaceUpdate(io, room, leftId)
     return _maybeEndRace(io, roomId)
   }
 
@@ -1960,12 +1981,31 @@ async function _endRace(io, roomId) {
   await _endMatch(io, roomId, { winnerId: draw ? null : leaders[0].id, draw, ranking, reason: 'complete' })
 }
 
-// End the race once every present player has solved (called after a solve / leave).
+// End the race once every present player is done — solved OR gave up.
 async function _maybeEndRace(io, roomId) {
   const room = await roomManager.get(roomId)
   if (!room || !RACE_MODES.has(room.mode) || room.phase !== 'PLAYING') return
-  const everyoneDone = room.players.length > 0 && room.players.every(p => room.match.solved[p.id])
+  const m = room.match
+  const everyoneDone = room.players.length > 0 && room.players.every(p => m.solved[p.id] || m.gaveUp?.[p.id])
   if (everyoneDone) await _endRace(io, roomId)
+}
+
+// Broadcast a race move. Mover gets their own view; opponents still playing +
+// spectators get progress only; players who are DONE (solved/gaveUp) get the FULL
+// boards so they can watch everyone live. `socket` is the caller (omitted on a leave).
+function _broadcastRaceUpdate(io, room, byId, socket = null) {
+  const roomId = room.id, m = room.match
+  if (socket) {
+    socket.emit('race:update', { match: _matchView(room, byId).match, by: byId })
+    socket.to(roomId).emit('race:update', { match: _publicMatch(m), by: byId })
+  } else {
+    io.to(roomId).emit('race:update', { match: _publicMatch(m), by: byId })
+  }
+  for (const p of room.players) {
+    if (socket && p.id === byId) continue
+    if (!(m.solved[p.id] || m.gaveUp?.[p.id])) continue
+    _findSocket(io, p.id)?.emit('race:update', { match: _matchView(room, p.id).match, by: byId })
+  }
 }
 
 // Shared place/mark handler for every race mode. `state` ∈ the mode's allowed
@@ -1997,8 +2037,7 @@ async function _handleRacePlace(io, socket, { roomId, index, state } = {}, playe
     })
 
     const updated = await roomManager.get(roomId)
-    socket.emit('race:update', { match: _matchView(updated, playerId).match, by: playerId })
-    socket.to(roomId).emit('race:update', { match: _publicMatch(updated.match), by: playerId })
+    _broadcastRaceUpdate(io, updated, playerId, socket)
     if (solvedNow) await _maybeEndRace(io, roomId)
   } catch (err) {
     logger.error({ err }, 'race place error')
@@ -2030,8 +2069,7 @@ async function _handleZipPath(io, socket, { roomId, path } = {}, playerId) {
     })
 
     const updated = await roomManager.get(roomId)
-    socket.emit('race:update', { match: _matchView(updated, playerId).match, by: playerId })
-    socket.to(roomId).emit('race:update', { match: _publicMatch(updated.match), by: playerId })
+    _broadcastRaceUpdate(io, updated, playerId, socket)
     if (solvedNow) await _maybeEndRace(io, roomId)
   } catch (err) {
     logger.error({ err }, 'zip path error')
@@ -2058,8 +2096,12 @@ function _matchView(room, viewerId) {
     match.myHand = room.match.hands?.[viewerId] || []
   }
   if (match && RACE_MODES.has(match.kind)) {
-    // The ONLY private bit: your own board (others see progress only).
+    // Your own board (others see progress only). Once you're DONE (solved/gaveUp) you
+    // also get everyone's boards so you can watch them finish live.
     match.myBoard = room.match.boards?.[viewerId] || []
+    if (room.match.solved?.[viewerId] || room.match.gaveUp?.[viewerId]) {
+      match.boards = room.match.boards
+    }
   }
   return { room: _roomSummary(room), match, you: viewerId }
 }
@@ -2188,6 +2230,7 @@ function _publicMatch(match) {
       walls:       match.walls,        // ZIP
       placed:      match.placed,
       solved:      match.solved,
+      gaveUp:      match.gaveUp || {},
       finishMs:    match.finishMs,
       startedAt:   match.startedAt,
       deadline:    match.deadline,

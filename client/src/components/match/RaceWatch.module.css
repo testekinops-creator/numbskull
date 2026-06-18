@@ -1,0 +1,22 @@
+.wrap { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.note { text-align: center; font-weight: 700; color: var(--color-text-secondary, #c9c6e6); margin: 0; }
+.note b { color: var(--color-juice, #00f5ff); }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--color-text-secondary, #c9c6e6);
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.active { background: rgba(0, 245, 255, 0.16); border-color: rgba(0, 245, 255, 0.4); color: #aef6ff; }
