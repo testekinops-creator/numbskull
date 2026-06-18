@@ -128,3 +128,24 @@
 }
 .board { display: flex; justify-content: center; }
 .waiting { text-align: center; color: var(--color-text-muted); padding: var(--space-6) 0; }
+
+/* Live race leaderboard (private-board modes — Queens/Tango/Zip) — scales 2–8 players. */
+.raceWrap { display: flex; flex-direction: column; gap: 10px; }
+.raceList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.raceRow {
+  display: grid;
+  grid-template-columns: 22px 30px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg, 14px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.racePos { font-size: 0.95rem; font-weight: 800; text-align: center; }
+.raceName { font-weight: 800; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.raceBar { grid-column: 1 / -1; height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.raceFill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #33f7ff, var(--color-juice, #00f5ff)); transition: width 0.25s ease; }
+.raceDone { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+.raceMeta { font-weight: 800; font-size: 0.8rem; font-variant-numeric: tabular-nums; color: #aef6ff; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .raceFill { transition: none; } }

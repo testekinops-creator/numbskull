@@ -119,6 +119,43 @@ const RULES = {
       { h: 'Winning', p: 'The first valid declaration wins the round (and counts toward the monthly leaderboard).' },
     ],
   },
+  QUEENS: {
+    title: '👑 Queens',
+    sections: [
+      { h: 'Goal', p: 'Everyone races the SAME colored board. Place exactly one 👑 in every row, every column AND every color region. The rest keep racing until they finish or time runs out.' },
+      { h: 'Placing', list: [
+        'Tap a cell to cycle: blank → 👑 → ✕ (a “no” mark to plan) → blank.',
+        'No two queens may TOUCH — not even diagonally.',
+        'A queen that breaks a rule glows red, so you can fix it fast.',
+      ] },
+      { h: 'Winning', p: 'Solve all four constraints to finish. Final standings are ranked by solve time — 🥇 fastest.' },
+    ],
+  },
+  TANGO: {
+    title: '☀️ Tango',
+    sections: [
+      { h: 'Goal', p: 'Fill the 6×6 grid with ☀️ Suns and 🌙 Moons so every row and column has exactly 3 of each. Everyone races the same board — fastest correct fill wins.' },
+      { h: 'Rules', list: [
+        'Tap a cell to cycle blank → ☀️ → 🌙 → blank.',
+        'Never 3 of the same symbol in a row (across or down).',
+        '“=” between two cells means they must MATCH; “×” means they must be OPPOSITE.',
+        'Pre-filled cells are locked. A cell that breaks a rule glows red.',
+      ] },
+      { h: 'Winning', p: 'Final standings are ranked by solve time — 🥇 fastest.' },
+    ],
+  },
+  ZIP: {
+    title: '🔢 Zip',
+    sections: [
+      { h: 'Goal', p: 'Draw ONE path that starts at 1 and connects 2, 3, … in order — and passes through EVERY cell exactly once. Everyone races the same board; fastest wins.' },
+      { h: 'Drawing', list: [
+        'Drag across cells to draw the path; drag back (or Undo) to retract.',
+        'Numbers must be reached in order — and the path ENDS on the highest number.',
+        'Orange bars are walls — the path can never cross one.',
+      ] },
+      { h: 'Watch out', p: 'You must cover EVERY cell. Reaching the last number with cells still empty is a dead end — back up and route the path through them.' },
+    ],
+  },
   GTN: {
     title: '🎯 Guess The Number',
     sections: [

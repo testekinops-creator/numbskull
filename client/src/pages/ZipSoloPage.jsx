@@ -67,6 +67,12 @@ export default function ZipSoloPage() {
   }, [phase, puzzle, difficulty, playWin])
 
   const done = phase === 'DONE'
+  // Dead end: the path ended on the highest number but cells remain — the player
+  // finished too early and must backtrack (the rule people miss).
+  const total = puzzle ? puzzle.n * puzzle.n : 0
+  const lastNum = puzzle ? Math.max(0, ...puzzle.numbers) : 0
+  const headNum = puzzle && path.length ? puzzle.numbers[path[path.length - 1]] : 0
+  const deadEnd = !done && lastNum > 0 && headNum === lastNum && path.length < total
 
   // ── SETUP ──────────────────────────────────────────────────────────────────
   if (phase === 'SETUP') {
@@ -109,6 +115,13 @@ export default function ZipSoloPage() {
         {done && (
           <div className={`${styles.resultBanner} anim-bounce-land`}>
             🏆 Solved in {fmtTime(elapsed)}{best === elapsed ? ' · New best!' : ''}
+          </div>
+        )}
+
+        {deadEnd && (
+          <div className={`${styles.resultBanner} anim-bounce-land`}
+            style={{ background: 'rgba(255,112,67,0.16)', borderColor: 'rgba(255,112,67,0.5)', color: '#ffd0b8' }}>
+            ⚠️ Dead end — you finished on the last number but {total - path.length} cell{total - path.length === 1 ? '' : 's'} are still empty. Undo and route the path through every cell.
           </div>
         )}
 

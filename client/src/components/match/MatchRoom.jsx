@@ -731,16 +731,23 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'ZIP' && match.numbers && match.myBoard && (
               <>
                 <RaceHud match={match} players={room.players} playerId={playerId} icon="🔢" total={match.n * match.n} />
-                {match.solved?.[playerId] ? (
-                  <p className={`${styles.turnLabel} anim-msg`}>✅ Solved! Waiting for the others to finish…</p>
-                ) : (
-                  <p className={styles.turnLabel}>Draw one path 1→last through every cell — no wall crossings</p>
-                )}
+                {(() => {
+                  const myPath = match.myBoard || []
+                  const total = match.n * match.n
+                  const lastNum = Math.max(0, ...match.numbers)
+                  const headNum = myPath.length ? match.numbers[myPath[myPath.length - 1]] : 0
+                  if (match.solved?.[playerId]) return <p className={`${styles.turnLabel} anim-msg`}>✅ Solved! Waiting for the others to finish…</p>
+                  if (lastNum > 0 && headNum === lastNum && myPath.length < total) {
+                    return <p className={`${styles.turnLabel} anim-msg`} style={{ color: '#ffd0b8' }}>⚠️ Dead end — {total - myPath.length} cells still empty. Undo and cover every cell, ending on the last number.</p>
+                  }
+                  return <p className={styles.turnLabel}>Draw one path 1→last through every cell — no wall crossings</p>
+                })()}
                 <ZipBoard
                   n={match.n}
                   numbers={match.numbers}
                   walls={match.walls}
                   path={match.myBoard}
+                  optimistic
                   solved={!!match.solved?.[playerId]}
                   disabled={!!match.solved?.[playerId]}
                   onPath={(p) => { unlock(); zipPath(roomId, p) }}

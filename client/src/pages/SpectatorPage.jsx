@@ -9,9 +9,6 @@ import ErrorBoundary from '../components/ErrorBoundary.jsx'
 import GuessList from '../components/game/GuessList.jsx'
 import XoxBoard from '../components/match/XoxBoard.jsx'
 import SosBoard from '../components/match/SosBoard.jsx'
-import QueensBoard from '../components/match/QueensBoard.jsx'
-import TangoBoard from '../components/match/TangoBoard.jsx'
-import ZipBoard from '../components/match/ZipBoard.jsx'
 import SudokuBoard from '../components/match/SudokuBoard.jsx'
 import SpinBattleMatch from '../components/match/SpinBattleMatch.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
@@ -95,6 +92,41 @@ export default function SpectatorPage() {
   const over = state.phase === 'GAME_OVER'
   const winnerName = state.winnerId ? players.find(p => p.id === state.winnerId)?.name : null
 
+  // Live progress leaderboard for the private-board race modes (Queens/Tango/Zip).
+  function renderRaceProgress() {
+    if (!match) return <p className={styles.waiting}>Waiting for the game to start…</p>
+    const total = room.mode === 'QUEENS' ? match.n : match.n * match.n
+    const icon  = room.mode === 'QUEENS' ? '👑' : room.mode === 'TANGO' ? '▦' : '🔢'
+    const fmt = (ms) => { const s = Math.round((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+    const rows = [...players].sort((a, b) => {
+      const sa = !!match.solved?.[a.id], sb = !!match.solved?.[b.id]
+      if (sa !== sb) return sa ? -1 : 1
+      if (sa) return (match.finishMs?.[a.id] ?? 0) - (match.finishMs?.[b.id] ?? 0)
+      return (match.placed?.[b.id] ?? 0) - (match.placed?.[a.id] ?? 0)
+    })
+    return (
+      <div className={styles.raceWrap}>
+        <p className={styles.waiting}>🔴 Live race — boards are private; here's everyone's progress</p>
+        <ul className={styles.raceList}>
+          {rows.map((p, idx) => {
+            const placed = match.placed?.[p.id] ?? 0
+            const solved = !!match.solved?.[p.id]
+            const pct = Math.max(0, Math.min(100, Math.round((100 * placed) / total)))
+            return (
+              <li key={p.id} className={styles.raceRow}>
+                <span className={styles.racePos}>{solved ? (idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`) : '•'}</span>
+                <Avatar seed={p.id} name={p.name} size={30} ring={solved && idx === 0 ? 'gold' : false} />
+                <span className={styles.raceName}>{p.name}{p.isBot ? ' 🤖' : ''}</span>
+                <span className={styles.raceMeta}>{solved ? `✅ ${fmt(match.finishMs?.[p.id])}` : `${icon} ${placed}/${total}`}</span>
+                <div className={styles.raceBar}><div className={`${styles.raceFill} ${solved ? styles.raceDone : ''}`} style={{ width: `${solved ? 100 : pct}%` }} /></div>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    )
+  }
+
   function renderBoard() {
     if (!match) return <p className={styles.waiting}>Waiting for the game to start…</p>
     const p0 = players[0], p1 = players[1]
@@ -123,36 +155,11 @@ export default function SpectatorPage() {
             oppName={p1?.name || 'P2'} onAnswer={noop} locked durationMs={15000} />
         ) : <p className={styles.waiting}>Next question…</p>
       case 'QUEENS':
-        return match.regions ? (
-          <>
-            <p className={styles.waiting}>Hidden boards — live progress only</p>
-            <QueensBoard n={match.n} regions={match.regions} board={Array(match.n * match.n).fill('empty')} onPlace={noop} disabled />
-            <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
-              {players.map(p => `${p.name}: 👑 ${match.placed?.[p.id] ?? 0}/${match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
-            </p>
-          </>
-        ) : null
       case 'TANGO':
-        return match.givens ? (
-          <>
-            <p className={styles.waiting}>Hidden boards — live progress only</p>
-            <TangoBoard n={match.n} givens={match.givens} constraints={match.constraints}
-              board={match.givens.map(g => g || 'empty')} onPlace={noop} disabled />
-            <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
-              {players.map(p => `${p.name}: ▦ ${match.placed?.[p.id] ?? 0}/${match.n * match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
-            </p>
-          </>
-        ) : null
       case 'ZIP':
-        return match.numbers ? (
-          <>
-            <p className={styles.waiting}>Hidden paths — live progress only</p>
-            <ZipBoard n={match.n} numbers={match.numbers} walls={match.walls} path={[]} onPath={noop} disabled />
-            <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>
-              {players.map(p => `${p.name}: 🔢 ${match.placed?.[p.id] ?? 0}/${match.n * match.n}${match.solved?.[p.id] ? ' ✅' : ''}`).join('   ·   ')}
-            </p>
-          </>
-        ) : null
+        // Race boards are private (per-player) — a watcher can't see the cells, so we
+        // show a live progress leaderboard that scales from 2 to 8 players.
+        return renderRaceProgress()
       case 'GTN':
       case 'BC':
         return <GuessList guesses={state.guesses} mode={room.mode} />
