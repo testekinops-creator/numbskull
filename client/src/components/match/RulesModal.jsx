@@ -156,6 +156,30 @@ const RULES = {
       { h: 'Watch out', p: 'You must cover EVERY cell. Reaching the last number with cells still empty is a dead end — back up and route the path through them.' },
     ],
   },
+  CROSSCLIMB: {
+    title: '🪜 Crossclimb',
+    sections: [
+      { h: 'Goal', p: 'Everyone gets the SAME scrambled words. Reorder them into a ladder where each word differs from the one above it by exactly ONE letter. Fastest correct ladder wins.' },
+      { h: 'Ordering', list: [
+        'Use ▲ / ▼ on a rung to move it up or down.',
+        'A green ✓ appears between two rungs when that pair differs by one letter.',
+        'There’s only one valid ladder (and its reverse) — get every link green.',
+      ] },
+      { h: 'Winning', p: 'Final standings are ranked by solve time — 🥇 fastest. Don’t finish in time and you’re ranked by how many links you got right.' },
+    ],
+  },
+  PINPOINT: {
+    title: '📌 Pinpoint',
+    sections: [
+      { h: 'Goal', p: 'A hidden category is revealed one clue at a time. Both players see the same clues — pick the connecting category from four options before your rival does.' },
+      { h: 'Scoring', list: [
+        'Answer on the 1st clue = +5, 2nd = +4, … 5th = +1. The fewer clues you need, the more you score.',
+        'A wrong guess locks YOU out of that round — your rival can still grab it.',
+        'A new clue appears every few seconds until someone’s right (or time’s up).',
+      ] },
+      { h: 'Winning', p: 'Five rounds. Highest total points wins — a tie is a draw.' },
+    ],
+  },
   GTN: {
     title: '🎯 Guess The Number',
     sections: [

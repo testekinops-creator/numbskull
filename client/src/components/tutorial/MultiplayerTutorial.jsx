@@ -60,6 +60,18 @@ const STEPS = {
     { emoji: '🧱', title: 'Mind the walls', body: 'Orange bars are walls — your path can never cross one. Use them (and the numbers) to figure out the only route.' },
     { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you race.' },
   ],
+  crossclimb: [
+    { emoji: '🪜', title: 'Crossclimb — climb the ladder', body: 'Everyone gets the SAME scrambled words. Reorder them into a ladder where each word differs from the one above it by exactly ONE letter. Whoever builds the correct ladder FIRST wins.' },
+    { emoji: '🔀', title: 'Reorder the rungs', body: 'Use ▲ / ▼ on a rung to slide it up or down. A green ✓ lights up between two rungs when that pair differs by one letter — chain all the links to solve it.' },
+    { emoji: '⏱️', title: 'Race the clock & your rivals', body: 'You’ll see how many links each player has correct (but never their words). There’s exactly one valid ladder (and its reverse) — find it fast.' },
+    { emoji: '💀', title: 'Talk trash', body: 'Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you race.' },
+  ],
+  pinpoint: [
+    { emoji: '📌', title: 'Pinpoint — guess the link', body: 'A hidden category is revealed one clue at a time. Both players see the same clues — pick the connecting category from four options before your rival does.' },
+    { emoji: '💎', title: 'Fewer clues = more points', body: 'Answer on the 1st clue for +5, the 2nd for +4, down to +1 on the 5th. A new clue appears every few seconds, so trust your gut early.' },
+    { emoji: '🚫', title: 'One shot each round', body: 'A wrong guess locks YOU out of that round — your rival can still steal it. Both wrong (or time up) and nobody scores.' },
+    { emoji: '🏆', title: 'Best of five', body: 'Five rounds, highest total wins. Tap 😀 to react, 💬 to chat, and 🙋 to add a friend while you play.' },
+  ],
   rmcs: [
     { emoji: '👑', title: 'Four secret roles', body: 'Every round deals Raja (1000), Mantri (800), Sipahi (500) and Chor (0) — in secret. Tap your chit to see yours. Keep a straight face.' },
     { emoji: '📣', title: 'Two get exposed', body: 'Once all four reveal, the Raja and Mantri are announced. The other two stay hidden — one honest Sipahi, one lying Chor.' },

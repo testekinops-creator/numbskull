@@ -68,6 +68,20 @@ const GAMES = [
     accent: 'var(--color-pink)',
   },
   {
+    mode: 'PINPOINT',
+    icon: '📌',
+    name: 'Pinpoint',
+    desc: 'Guess the hidden category from its clues — the fewer you need, the more you score. Best of 5, head-to-head.',
+    accent: 'var(--color-warning)',
+  },
+  {
+    mode: 'CROSSCLIMB',
+    icon: '🪜',
+    name: 'Crossclimb',
+    desc: 'Reorder the word ladder so each step changes one letter. Race 2–8 players — fastest correct ladder wins.',
+    accent: 'var(--color-juice)',
+  },
+  {
     mode: 'SPIN',
     icon: '🎡',
     name: 'Spin Battle',

@@ -9,10 +9,12 @@ import { cancelRoomGrace } from './roomHandlers.js'
 import { getTimer, clearTimer } from '../game/TurnTimer.js'
 import { TicTacToeEngine } from '../game/engines/TicTacToeEngine.js'
 import { MathBattleEngine } from '../game/engines/MathBattleEngine.js'
+import { PinpointEngine } from '../game/engines/PinpointEngine.js'
 import { SudokuEngine, sudokuComboGain } from '../game/engines/SudokuEngine.js'
 import { QueensEngine, isValidSolution as queensIsValidSolution, countCorrectQueens } from '../game/engines/QueensEngine.js'
 import { TangoEngine, tangoIsValidSolution, tangoCountCorrect } from '../game/engines/TangoEngine.js'
 import { ZipEngine, zipIsValidSolution, zipIsValidPartial, zipProgress } from '../game/engines/ZipEngine.js'
+import { CrossclimbEngine, isLadder as ccIsLadder, ladderLinks as ccLinks } from '../game/engines/CrossclimbEngine.js'
 import { SosEngine } from '../game/engines/SosEngine.js'
 import { RummyEngine, validateDeclaration, shuffleCards } from '../game/engines/RummyEngine.js'
 import {
@@ -24,7 +26,7 @@ import { ROLE_POINTS, assignRoles, scoreRound, pickModifier } from '../game/rmcs
 import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB'])
 
 // Puzzle-race modes (Queens, Tango, …): everyone gets the SAME unique-solution board
 // and fills their OWN private grid; players keep racing until all solve or this
@@ -75,6 +77,17 @@ const MATH_REVEAL_MS = 1200
 function _clearMathTimer(roomId) {
   const t = mathTimers.get(roomId)
   if (t) { clearTimeout(t); mathTimers.delete(roomId) }
+}
+
+// Pinpoint: one timer per room drives the round. It auto-reveals the next clue
+// every PINPOINT_CLUE_MS; once all 5 are showing, the next tick is the round
+// timeout (resolve unanswered, then advance after a brief reveal pause).
+const pinpointTimers = new Map()
+const PINPOINT_CLUE_MS = 5_000     // a new clue every 5s (and the final answer window)
+const PINPOINT_REVEAL_MS = 1600    // pause on the revealed answer before the next round
+function _clearPinpointTimer(roomId) {
+  const t = pinpointTimers.get(roomId)
+  if (t) { clearTimeout(t); pinpointTimers.delete(roomId) }
 }
 
 // Sudoku timing: a transient edit lock auto-releases after 3s (so a cell never
@@ -371,6 +384,64 @@ export function registerMatchHandlers(io, socket) {
     }
   })
 
+  // ── Pinpoint answer ───────────────────────────────────────────────────────
+  // First CORRECT answer wins the round (points = how few clues you needed). A
+  // wrong answer locks only YOU out for the round; the opponent plays on. The
+  // round resolves on a correct answer, both players locked out, or the timeout.
+  socket.on('pinpoint:answer', async ({ roomId, index, choice } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'PINPOINT' || room.phase !== 'PLAYING') {
+        return ack?.({ ok: false, error: 'Match not active' })
+      }
+      const m = room.match
+      if (!m || m.resolved || index !== m.index) return ack?.({ ok: false, error: 'Already resolved' })
+      if (m.locked?.[playerId]) return ack?.({ ok: false, error: 'You already guessed this round' })
+
+      let didResolve = false, correct = false, justLocked = false
+      let points = 0, revealed = m.revealed
+      const answer = m.rounds[index]?.answer
+      await roomManager.update(roomId, r => {
+        const mm = r.match
+        if (mm.resolved || index !== mm.index || mm.locked?.[playerId]) return
+        revealed = mm.revealed
+        correct = String(choice) === mm.rounds[index].answer
+        if (correct) {
+          points = PinpointEngine.pointsFor(revealed)
+          mm.scores[playerId] = (mm.scores[playerId] || 0) + points
+          mm.resolved = true
+          didResolve = true
+        } else {
+          mm.locked[playerId] = true
+          justLocked = true
+          // Both players have now guessed wrong → nobody scores, round is over.
+          if (r.players.every(p => mm.locked[p.id])) { mm.resolved = true; didResolve = true }
+        }
+      })
+
+      const updated = await roomManager.get(roomId)
+      if (didResolve) {
+        _clearPinpointTimer(roomId)
+        io.to(roomId).emit('pinpoint:resolved', {
+          index, byPlayerId: correct ? playerId : null, correct, answer, points: correct ? points : 0,
+          bothWrong: !correct,
+          scores: updated.players.map(p => ({ id: p.id, score: updated.match.scores[p.id] || 0 })),
+        })
+        ack?.({ ok: true, correct })
+        _advancePinpoint(io, roomId)
+      } else if (justLocked) {
+        // Round continues — just tell everyone this player is out for the round.
+        io.to(roomId).emit('pinpoint:locked', { index, byPlayerId: playerId })
+        ack?.({ ok: true, correct: false })
+      } else {
+        ack?.({ ok: false, error: 'Already resolved' })
+      }
+    } catch (err) {
+      logger.error({ err }, 'pinpoint:answer error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
   // ── Sudoku: claim a transient edit lock on a cell ─────────────────────────
   socket.on('sudoku:lock', async ({ roomId, index } = {}, ack) => {
     try {
@@ -521,6 +592,8 @@ export function registerMatchHandlers(io, socket) {
   socket.on('tango:place',  (d, ack) => { _handleRacePlace(io, socket, d, playerId); ack?.({ ok: true }) })
   // Zip: a whole drawn path (not per-cell) — its own path-aware handler, same race lifecycle.
   socket.on('zip:path',     (d, ack) => { _handleZipPath(io, socket, d, playerId); ack?.({ ok: true }) })
+  // Crossclimb: a whole reordering of the rungs — its own order-aware handler, same race lifecycle.
+  socket.on('crossclimb:order', (d, ack) => { _handleCrossclimbOrder(io, socket, d, playerId); ack?.({ ok: true }) })
   // Give up a race: you're done (frozen progress, ranks as DNF) and switch to watching
   // the others. Ends the match if everyone is now done.
   socket.on('race:giveup', async ({ roomId } = {}, ack) => {
@@ -1039,6 +1112,29 @@ async function _startMatch(io, roomId) {
       }
     })
   }
+  if (room.mode === 'PINPOINT') {
+    const [a, b] = room.players
+    // Best-of-5: 5 rounds. Store the rounds (incl. answers) as plain data so the
+    // room stays JSON-serialisable; the answer + hidden clues never go public.
+    const engine = new PinpointEngine({ count: 5 })
+    const rounds = engine.rounds
+    const total = engine.total
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:     'PINPOINT',
+        rounds,                       // [{ clues, options, answer }] — server-only answers
+        index:    0,
+        total,
+        revealed: 1,                  // clues showing for the current round
+        scores:   { [a.id]: 0, [b.id]: 0 },
+        locked:   {},                 // playerId → true once they've answered wrong this round
+        resolved: false,
+        round:    _publicPinpointRound(rounds, 0, 1, total),
+      }
+    })
+  }
   if (room.mode === 'SUDOKU') {
     const [a, b] = room.players
     const engine = new SudokuEngine({ difficulty: room.difficulty || 'medium' })
@@ -1145,6 +1241,33 @@ async function _startMatch(io, roomId) {
         solution:  engine.solution,            // SERVER ONLY (ordered path)
         boards:    Object.fromEntries(ids.map(id => [id, []])),   // each player's path
         placed:    Object.fromEntries(ids.map(id => [id, 0])),
+        solved:    Object.fromEntries(ids.map(id => [id, false])),
+        gaveUp:    Object.fromEntries(ids.map(id => [id, false])),
+        highlights: {},
+        finishMs:  Object.fromEntries(ids.map(id => [id, null])),
+        order:     ids,
+        startedAt: Date.now(),
+        deadline:  Date.now() + RACE_MS,
+      }
+    })
+    _startRaceTimer(io, roomId)
+  }
+
+  if (room.mode === 'CROSSCLIMB') {
+    // Race shape, but each player's board is their current ORDERING of the same
+    // scrambled rungs (everyone starts from the identical scramble).
+    const ids = room.players.map(p => p.id)
+    const engine = new CrossclimbEngine({ difficulty: room.difficulty || 'medium' })
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:      'CROSSCLIMB',
+        words:     engine.words,               // public (scrambled rungs)
+        len:       engine.len,
+        solution:  engine.solution,            // SERVER ONLY (the ordered ladder)
+        boards:    Object.fromEntries(ids.map(id => [id, [...engine.words]])),   // each player's order
+        placed:    Object.fromEntries(ids.map(id => [id, ccLinks(engine.words)])),
         solved:    Object.fromEntries(ids.map(id => [id, false])),
         gaveUp:    Object.fromEntries(ids.map(id => [id, false])),
         highlights: {},
@@ -1288,6 +1411,7 @@ async function _startMatch(io, roomId) {
 
   if (updated.mode === 'XOX')  _startMoveTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'MATH') _startQuestionTimer(io, roomId)
+  if (updated.mode === 'PINPOINT') _startClueTimer(io, roomId)
   if (updated.mode === 'SPIN') _armSpinTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'SOS')  _startSosTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'RUMMY') _startRummyTimer(io, roomId, updated.match.turnId)
@@ -1632,6 +1756,89 @@ function _startQuestionTimer(io, roomId) {
   mathTimers.set(roomId, t)
 }
 
+// ── Pinpoint round engine ──────────────────────────────────────────────────
+// Client-safe round view: only the clues revealed so far (never the answer).
+function _publicPinpointRound(rounds, i, revealed, total) {
+  const r = rounds[i]
+  if (!r) return null
+  return { index: i, clues: r.clues.slice(0, revealed), options: r.options, revealed, total }
+}
+
+// One room-level timer drives the live round: reveal a new clue every tick until
+// all 5 show, then the next tick is the round timeout (resolve unanswered).
+function _startClueTimer(io, roomId) {
+  _clearPinpointTimer(roomId)
+  const t = setTimeout(async () => {
+    const room = await roomManager.get(roomId)
+    if (!room || room.mode !== 'PINPOINT' || room.phase !== 'PLAYING') return
+    const m = room.match
+    if (!m || m.resolved) return
+
+    if (m.revealed < 5) {
+      let round = null
+      await roomManager.update(roomId, r => {
+        r.match.revealed++
+        r.match.round = _publicPinpointRound(r.match.rounds, r.match.index, r.match.revealed, r.match.total)
+        round = r.match.round
+      })
+      io.to(roomId).emit('pinpoint:clue', round)
+      _startClueTimer(io, roomId)   // schedule the next reveal / the timeout
+    } else {
+      // All clues shown and still unanswered → time's up, nobody scores. Re-check
+      // resolved inside the lock so a last-instant correct answer still wins.
+      const answer = m.rounds[m.index]?.answer
+      let didTimeout = false
+      await roomManager.update(roomId, r => {
+        if (r.match.resolved) return
+        r.match.resolved = true
+        didTimeout = true
+      })
+      if (!didTimeout) return
+      io.to(roomId).emit('pinpoint:resolved', {
+        index: m.index, byPlayerId: null, correct: false, answer, points: 0, timeout: true,
+        scores: room.players.map(p => ({ id: p.id, score: m.scores[p.id] || 0 })),
+      })
+      _advancePinpoint(io, roomId)
+    }
+  }, PINPOINT_CLUE_MS)
+  pinpointTimers.set(roomId, t)
+}
+
+// Advance Pinpoint to the next round (after a brief reveal pause), or end the game.
+async function _advancePinpoint(io, roomId) {
+  _clearPinpointTimer(roomId)
+  await new Promise(res => setTimeout(res, PINPOINT_REVEAL_MS))
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'PINPOINT' || room.phase !== 'PLAYING') return
+
+  let over = false
+  await roomManager.update(roomId, r => {
+    const mm = r.match
+    mm.index++
+    mm.resolved = false
+    mm.revealed = 1
+    mm.locked = {}
+    if (mm.index >= mm.total) over = true
+    else mm.round = _publicPinpointRound(mm.rounds, mm.index, 1, mm.total)
+  })
+
+  const updated = await roomManager.get(roomId)
+  if (over) {
+    const [a, b] = updated.players
+    const sa = updated.match.scores[a.id] || 0
+    const sb = updated.match.scores[b.id] || 0
+    const draw = sa === sb
+    const winnerId = draw ? null : (sa > sb ? a.id : b.id)
+    await _endMatch(io, roomId, { winnerId, draw })
+  } else {
+    io.to(roomId).emit('pinpoint:round', {
+      ...updated.match.round,
+      scores: updated.players.map(p => ({ id: p.id, score: updated.match.scores[p.id] || 0 })),
+    })
+    _startClueTimer(io, roomId)
+  }
+}
+
 // ── Match end ─────────────────────────────────────────────────────────────────
 export async function endMatch(io, roomId, { winnerId = null, draw = false } = {}) {
   return _endMatch(io, roomId, { winnerId, draw })
@@ -1720,6 +1927,7 @@ async function _finishXoxMatch(io, roomId, winnerId) {
 async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = null, reason = null }) {
   clearTimer(roomId)
   _clearMathTimer(roomId)
+  _clearPinpointTimer(roomId)
   _clearRoomSudokuLockTimers(roomId)
   cancelRoomGrace(roomId) // game finished → don't let a late disconnect override it
   await roomManager.update(roomId, r => {
@@ -1980,6 +2188,14 @@ const RACE_CONFIG = {
     correct:  (b) => zipProgress(b),
     progress: (b) => zipProgress(b),
   },
+  CROSSCLIMB: {
+    // Move is a whole reordering (handled by `crossclimb:order`) — `board` is the
+    // ordered word array; progress = adjacent links that already differ by one letter.
+    orderBased: true,
+    isSolved: (b) => ccIsLadder(b),
+    correct:  (b) => ccLinks(b),
+    progress: (b) => ccLinks(b),
+  },
 }
 export const RACE_MODES = new Set(Object.keys(RACE_CONFIG))
 
@@ -2125,6 +2341,39 @@ async function _handleZipPath(io, socket, { roomId, path } = {}, playerId) {
   }
 }
 
+// Crossclimb's move is a whole reordering of the rungs. The submitted order must
+// be a permutation of THIS player's words (anti-cheat — can't smuggle in other
+// words); we re-validate the ladder server-side. Same race lifecycle as Zip.
+async function _handleCrossclimbOrder(io, socket, { roomId, order } = {}, playerId) {
+  try {
+    const room = await roomManager.get(roomId)
+    if (!room || room.mode !== 'CROSSCLIMB' || room.phase !== 'PLAYING') return
+    const m = room.match
+    if (!m || !m.boards[playerId] || m.solved[playerId] || m.gaveUp?.[playerId]) return   // locked once done
+    if (!Array.isArray(order) || order.length !== m.words.length) return
+    // Must be exactly a permutation of the puzzle's words.
+    if ([...order].sort().join('') !== [...m.words].sort().join('')) return
+
+    let solvedNow = false
+    await roomManager.update(roomId, r => {
+      const mm = r.match
+      mm.boards[playerId] = order
+      mm.placed[playerId] = ccLinks(order)
+      if (ccIsLadder(order)) {
+        mm.solved[playerId] = true
+        mm.finishMs[playerId] = Date.now() - mm.startedAt
+        solvedNow = true
+      }
+    })
+
+    const updated = await roomManager.get(roomId)
+    _broadcastRaceUpdate(io, updated, playerId, socket)
+    if (solvedNow) await _maybeEndRace(io, roomId)
+  } catch (err) {
+    logger.error({ err }, 'crossclimb order error')
+  }
+}
+
 // ── Views ──────────────────────────────────────────────────────────────────
 // XOX has no hidden info, but SPIN carries per-viewer private state (a player's
 // own wrong letters) + a live round countdown, so the view is built per viewer.
@@ -2185,6 +2434,20 @@ function _publicMatch(match) {
       total:    match.total,
       scores:   match.scores,
       question: match.question,
+      resolved: match.resolved,
+    }
+  }
+  if (match.kind === 'PINPOINT') {
+    // Strip the rounds array (answers + unrevealed clues) — only the public round
+    // (clues shown so far + options), progress, scores and lock state go out.
+    return {
+      kind:     'PINPOINT',
+      index:    match.index,
+      total:    match.total,
+      scores:   match.scores,
+      round:    match.round,
+      revealed: match.revealed,
+      locked:   match.locked || {},
       resolved: match.resolved,
     }
   }
@@ -2277,6 +2540,8 @@ function _publicMatch(match) {
       constraints: match.constraints,  // TANGO
       numbers:     match.numbers,      // ZIP
       walls:       match.walls,        // ZIP
+      words:       match.words,        // CROSSCLIMB (scrambled rungs)
+      len:         match.len,          // CROSSCLIMB
       placed:      match.placed,
       solved:      match.solved,
       gaveUp:      match.gaveUp || {},

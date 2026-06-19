@@ -35,6 +35,38 @@ const ROASTS = {
     correct: ['Correct — don’t let it go to your head.', 'Right! A broken clock, etc.'],
     wrong:   ['Wrong. Confidently wrong, even.', 'That’s a no. Try using your fingers.'],
   },
+  CROSSCLIMB: {
+    win:  [
+      'Climbed the ladder fastest. Mind the ego on the way down.',
+      'One letter at a time, all the way to a win. Tidy.',
+      'You out-laddered them. Spelling bee energy, respect.',
+    ],
+    lose: [
+      'Stuck on the bottom rung while they reached the top.',
+      'Six words. One order. You found a different one. Wrong, but creative.',
+      'Out-climbed. The ladder remains undefeated for you.',
+    ],
+    draw: [
+      'A tie — two ladders, equally wobbly.',
+      'Dead even. You both squinted at the same rungs.',
+    ],
+  },
+  PINPOINT: {
+    win:  [
+      'Pinned it on the first clue, did you? Show-off.',
+      'You connected the dots faster. The dots are unimpressed.',
+      'A win built on vibes and one lucky guess. We saw it.',
+    ],
+    lose: [
+      'Five clues and you still picked the decoy. Bold.',
+      'The category was right there. You waved as it passed.',
+      'Outguessed. By a human. Sit with that.',
+    ],
+    draw: [
+      'Dead even — two minds, equally confused.',
+      'A tie. You both squinted at the same clues for nothing.',
+    ],
+  },
   SUDOKU: {
     win:  [
       'You out-numbered your partner. Petty. I respect it.',

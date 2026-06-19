@@ -8,9 +8,9 @@ import { useHaptic } from '../hooks/useHaptic.js'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import styles from './LobbyPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏', QUEENS: '👑', TANGO: '☀️', ZIP: '🔢' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP'])
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb' }
+const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏', QUEENS: '👑', TANGO: '☀️', ZIP: '🔢', PINPOINT: '📌', CROSSCLIMB: '🪜' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB'])
 const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU', 'QUEENS', 'TANGO', 'ZIP'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
@@ -71,7 +71,8 @@ export default function LobbyPage() {
   const isQueens = mode === 'QUEENS'
   const isTango  = mode === 'TANGO'
   const isZip    = mode === 'ZIP'
-  const isRace   = isQueens || isTango || isZip
+  const isCrossclimb = mode === 'CROSSCLIMB'
+  const isRace   = isQueens || isTango || isZip || isCrossclimb
   // SOS carries its grid size in the `difficulty` field ('8' | '10').
   const isSos = mode === 'SOS'
   // Raja Mantri: multiplayer-only (no AI — bluffing bots is hollow), exactly 4
@@ -80,13 +81,13 @@ export default function LobbyPage() {
   // Rummy: multiplayer-first (no AI in v1), a 2–6 player party game.
   const isRummy = mode === 'RUMMY'
   const isParty = mode === 'SPIN' || isRummy || isRace
-  // Sudoku now has a full solo mode; Raja Mantri and Rummy stay multiplayer-only.
-  const mpOnly = isRmcs || isRummy
+  // Sudoku now has a full solo mode; Raja Mantri, Rummy, Pinpoint and Crossclimb stay multiplayer-only.
+  const mpOnly = isRmcs || isRummy || mode === 'PINPOINT' || isCrossclimb
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
   const [difficulty, setDifficulty] = useState(mode === 'SOS' ? '8' : 'medium')
-  const [partySize, setPartySize] = useState(['QUEENS', 'TANGO', 'ZIP'].includes(mode) ? 2 : 4)   // party room size (races default to a 2-player duel)
+  const [partySize, setPartySize] = useState(['QUEENS', 'TANGO', 'ZIP', 'CROSSCLIMB'].includes(mode) ? 2 : 4)   // party room size (races default to a 2-player duel)
   const [joinCode, setJoinCode] = useState('')
   const [nameEdit, setNameEdit] = useState(displayName)
   const [error, setError] = useState('')
@@ -307,6 +308,8 @@ export default function LobbyPage() {
                       ? 'Create a Tango race (2–8 players) and share the code. Everyone solves the same board — fastest wins. The host starts when everyone’s in.'
                       : isZip
                       ? 'Create a Zip race (2–8 players) and share the code. Everyone draws the same path puzzle — fastest wins. The host starts when everyone’s in.'
+                      : isCrossclimb
+                      ? 'Create a Crossclimb race (2–8 players) and share the code. Everyone reorders the same word ladder — fastest wins. The host starts when everyone’s in.'
                       : isRummy
                       ? 'Create a Rummy table (2–6 players) and share the code. The host starts when everyone’s in.'
                       : mode === 'RMCS'

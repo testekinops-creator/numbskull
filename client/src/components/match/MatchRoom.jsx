@@ -20,6 +20,7 @@ import RoomToasts from '../game/RoomToasts.jsx'
 import MultiplayerTutorial from '../tutorial/MultiplayerTutorial.jsx'
 import XoxBoard from './XoxBoard.jsx'
 import MathBattle from './MathBattle.jsx'
+import Pinpoint from './Pinpoint.jsx'
 import SudokuBoard from './SudokuBoard.jsx'
 import SudokuMpHud from './SudokuMpHud.jsx'
 import SosTimeoutFlash from './SosTimeoutFlash.jsx'
@@ -31,6 +32,7 @@ import RummyBoard from './RummyBoard.jsx'
 import QueensBoard from './QueensBoard.jsx'
 import TangoBoard from './TangoBoard.jsx'
 import ZipBoard from './ZipBoard.jsx'
+import CrossclimbBoard from './CrossclimbBoard.jsx'
 import RaceHud from './RaceHud.jsx'
 import RaceWatch from './RaceWatch.jsx'
 import { useSound } from '../../hooks/useSound.js'
@@ -43,7 +45,7 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy', QUEENS: '👑 Queens', TANGO: '☀️ Tango', ZIP: '🔢 Zip' }
+const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy', QUEENS: '👑 Queens', TANGO: '☀️ Tango', ZIP: '🔢 Zip', PINPOINT: '📌 Pinpoint', CROSSCLIMB: '🪜 Crossclimb' }
 
 // Queens race time (ms → m:ss) for the standings card.
 function fmtRaceTime(ms) {
@@ -55,12 +57,12 @@ function fmtRaceTime(ms) {
 export default function MatchRoom({ roomId, mode }) {
   const navigate = useNavigate()
   const {
-    state, matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
+    state, matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer, pinpointAnswer,
     sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
     spinSpin, spinGuess, spinVowel, spinSolve,
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     rummyDraw, rummyDiscard, rummyDeclare,
-    queensPlace, tangoPlace, zipPath, raceGiveUp, raceRematch, raceHighlight,
+    queensPlace, tangoPlace, zipPath, crossclimbOrder, raceGiveUp, raceRematch, raceHighlight,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -72,6 +74,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   const [chatOpen, setChatOpen] = useState(false)
   const [mathChoice, setMathChoice] = useState(null)
+  const [pinpointChoice, setPinpointChoice] = useState(null)
   const [copied, setCopied] = useState(false)
   const [resultRevealed, setResultRevealed] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -92,7 +95,7 @@ export default function MatchRoom({ roomId, mode }) {
   // (flag already set) ready instantly, exactly as before. Party rooms are
   // unaffected — the host starts those manually.
   const tutVariant = mode === 'SPIN' ? 'spin' : mode === 'RMCS' ? 'rmcs'
-    : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : mode === 'QUEENS' ? 'queens' : mode === 'TANGO' ? 'tango' : mode === 'ZIP' ? 'zip' : 'match'
+    : mode === 'SUDOKU' ? 'sudoku' : mode === 'SOS' ? 'sos' : mode === 'RUMMY' ? 'rummy' : mode === 'QUEENS' ? 'queens' : mode === 'TANGO' ? 'tango' : mode === 'ZIP' ? 'zip' : mode === 'PINPOINT' ? 'pinpoint' : mode === 'CROSSCLIMB' ? 'crossclimb' : 'match'
   const [tutorialPending, setTutorialPending] = useState(() => {
     try { return !localStorage.getItem(`ns_mp_tut_${tutVariant}`) } catch { return false }
   })
@@ -132,7 +135,7 @@ export default function MatchRoom({ roomId, mode }) {
   const opponent = room?.players?.find(p => p.id !== playerId)
   const match = state.match
   const isParty = (room?.maxPlayers || 2) > 2          // 3–8 player party room
-  const isRaceMode = mode === 'QUEENS' || mode === 'TANGO' || mode === 'ZIP'   // shared puzzle-race games
+  const isRaceMode = mode === 'QUEENS' || mode === 'TANGO' || mode === 'ZIP' || mode === 'CROSSCLIMB'   // shared puzzle-race games
   const iAmDone = isRaceMode && !!(state.match?.solved?.[playerId] || state.match?.gaveUp?.[playerId])   // finished or gave up → watch mode
   const iSolved = isRaceMode && !!state.match?.solved?.[playerId]   // SOLVED (not gave up)
   // When I solve, hold on MY finished board for a beat (final move + confetti) before watch/result.
@@ -169,6 +172,7 @@ export default function MatchRoom({ roomId, mode }) {
       case 'RUMMY':
       case 'SPIN': return state.myTurn
       case 'MATH': return !!match.question && !match.resolved && mathChoice == null
+      case 'PINPOINT': return !!match.round && !match.resolved && !match.locked?.[playerId]
       case 'RMCS':
         if (match.stage === 'REVEAL') return !match.revealed?.[playerId]
         if (match.stage === 'GUESS')  return match.mantriId === playerId
@@ -390,6 +394,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   // Reset my picked option whenever a new Math question arrives.
   useEffect(() => { setMathChoice(null) }, [match?.question?.index])
+  useEffect(() => { setPinpointChoice(null) }, [match?.round?.index])
 
   // Sound feedback when a Math question resolves.
   useEffect(() => {
@@ -406,6 +411,13 @@ export default function MatchRoom({ roomId, mode }) {
     mathAnswer(roomId, match.question.index, choice)
   }
 
+  function handlePinpointAnswer(choice) {
+    if (!match || match.resolved || match.locked?.[playerId]) return
+    unlock()
+    setPinpointChoice(choice)
+    pinpointAnswer(roomId, match.round.index, choice)
+  }
+
   const mySymbol = match?.symbols?.[playerId]
   const mathReveal = match?.lastResolved
     ? {
@@ -413,6 +425,18 @@ export default function MatchRoom({ roomId, mode }) {
         byMe:    match.lastResolved.byPlayerId === playerId,
         correct: match.lastResolved.correct, // answerer's correctness (server-authoritative)
         timeout: match.lastResolved.timeout,
+      }
+    : null
+
+  // Pinpoint: map the server's lastResolved to the view's reveal shape.
+  const pinpointReveal = match?.kind === 'PINPOINT' && match.lastResolved
+    ? {
+        answer:    match.lastResolved.answer,
+        byMe:      match.lastResolved.byPlayerId === playerId,
+        correct:   match.lastResolved.correct,
+        points:    match.lastResolved.points,
+        timeout:   match.lastResolved.timeout,
+        bothWrong: match.lastResolved.bothWrong,
       }
     : null
 
@@ -636,6 +660,22 @@ export default function MatchRoom({ roomId, mode }) {
                 />
               </TurnGlow>
             )}
+            {mode === 'PINPOINT' && match.round && (
+              <TurnGlow active={myMove} maxWidth={460}>
+                <Pinpoint
+                  round={match.round}
+                  myScore={match.scores?.[playerId] ?? 0}
+                  oppScore={opponent ? (match.scores?.[opponent.id] ?? 0) : 0}
+                  oppName={opponent?.name || 'Opponent'}
+                  onAnswer={handlePinpointAnswer}
+                  locked={match.resolved || !!match.locked?.[playerId]}
+                  myLocked={!!match.locked?.[playerId]}
+                  oppLocked={!!(opponent && match.locked?.[opponent.id])}
+                  myChoice={pinpointChoice}
+                  reveal={pinpointReveal}
+                />
+              </TurnGlow>
+            )}
             {mode === 'SUDOKU' && match.grid && (
               <>
                 <SudokuMpHud match={match} playerId={playerId} opponent={opponent} />
@@ -803,6 +843,27 @@ export default function MatchRoom({ roomId, mode }) {
                       disabled={iAmDone}
                       highlights={match.highlights?.[playerId] || []}
                       onPath={(p) => { unlock(); zipPath(roomId, p) }}
+                    />
+                  </>
+                )}
+              </>
+            )}
+
+            {mode === 'CROSSCLIMB' && match.words && match.myBoard && (
+              <>
+                <RaceHud match={match} players={room.players} playerId={playerId} icon="🪜" total={Math.max(1, (match.len || match.words.length) - 1)} />
+                {watching ? (
+                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="CROSSCLIMB"
+                    onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
+                ) : (
+                  <>
+                    <p className={styles.turnLabel}>{iSolved ? '✅ Solved!' : 'Reorder so each step changes exactly one letter'}</p>
+                    <CrossclimbBoard
+                      order={match.myBoard}
+                      solved={iSolved}
+                      disabled={iAmDone}
+                      highlights={match.highlights?.[playerId] || []}
+                      onOrder={(o) => { unlock(); crossclimbOrder(roomId, o) }}
                     />
                   </>
                 )}

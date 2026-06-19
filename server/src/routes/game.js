@@ -19,7 +19,7 @@ gameRouter.get('/roast', (_req, res) => {
 
 // ── Record a finished game for the logged-in user ──────────────────────────
 const recordSchema = z.object({
-  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP']),
+  mode: z.enum(['GTN', 'BC', 'COUNTDOWN', 'NUMBER_CHAIN', 'NUMBER_TOWERS', 'REVERSE', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB']),
   won:  z.boolean(),
   multiplayer: z.boolean().optional().default(false),
 })

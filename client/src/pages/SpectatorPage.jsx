@@ -12,9 +12,10 @@ import SosBoard from '../components/match/SosBoard.jsx'
 import SudokuBoard from '../components/match/SudokuBoard.jsx'
 import SpinBattleMatch from '../components/match/SpinBattleMatch.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
+import Pinpoint from '../components/match/Pinpoint.jsx'
 import styles from './SpectatorPage.module.css'
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip' }
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb' }
 const noop = () => {}
 const SPECTATOR_ID = '__spectator__'   // never matches a real player → no controls light up
 
@@ -95,8 +96,10 @@ export default function SpectatorPage() {
   // Live progress leaderboard for the private-board race modes (Queens/Tango/Zip).
   function renderRaceProgress() {
     if (!match) return <p className={styles.waiting}>Waiting for the game to start…</p>
-    const total = room.mode === 'QUEENS' ? match.n : match.n * match.n
-    const icon  = room.mode === 'QUEENS' ? '👑' : room.mode === 'TANGO' ? '▦' : '🔢'
+    const total = room.mode === 'QUEENS' ? match.n
+      : room.mode === 'CROSSCLIMB' ? Math.max(1, (match.len || (match.words?.length || 1)) - 1)
+      : match.n * match.n
+    const icon  = room.mode === 'QUEENS' ? '👑' : room.mode === 'TANGO' ? '▦' : room.mode === 'CROSSCLIMB' ? '🪜' : '🔢'
     const fmt = (ms) => { const s = Math.round((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
     const rows = [...players].sort((a, b) => {
       const sa = !!match.solved?.[a.id], sb = !!match.solved?.[b.id]
@@ -154,9 +157,17 @@ export default function SpectatorPage() {
             myScore={match.scores?.[p0?.id] ?? 0} oppScore={match.scores?.[p1?.id] ?? 0}
             oppName={p1?.name || 'P2'} onAnswer={noop} locked durationMs={15000} />
         ) : <p className={styles.waiting}>Next question…</p>
+      case 'PINPOINT':
+        return match.round ? (
+          <Pinpoint round={match.round}
+            myScore={match.scores?.[p0?.id] ?? 0} oppScore={match.scores?.[p1?.id] ?? 0}
+            oppName={p1?.name || 'P2'} onAnswer={noop} locked
+            reveal={null} />
+        ) : <p className={styles.waiting}>Next round…</p>
       case 'QUEENS':
       case 'TANGO':
       case 'ZIP':
+      case 'CROSSCLIMB':
         // Race boards are private (per-player) — a watcher can't see the cells, so we
         // show a live progress leaderboard that scales from 2 to 8 players.
         return renderRaceProgress()

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import QueensBoard from './QueensBoard.jsx'
 import TangoBoard from './TangoBoard.jsx'
 import ZipBoard from './ZipBoard.jsx'
+import CrossclimbBoard from './CrossclimbBoard.jsx'
 import styles from './RaceWatch.module.css'
 
 // Once you've finished (solved or gave up) a race, watch the other players' boards
@@ -10,7 +11,7 @@ import styles from './RaceWatch.module.css'
 export default function RaceWatch({ match, players = [], playerId, mode, onHighlight }) {
   const opponents = players.filter(p => p.id !== playerId)
   const isDone = (id) => !!(match.solved?.[id] || match.gaveUp?.[id])
-  const total = mode === 'QUEENS' ? match.n : match.n * match.n
+  const total = mode === 'QUEENS' ? match.n : mode === 'CROSSCLIMB' ? Math.max(1, (match.len || (match.words?.length || 1)) - 1) : match.n * match.n
   // Still-racing opponents first (more interesting to watch), then by progress.
   const ordered = [...opponents].sort((a, b) => {
     if (isDone(a.id) !== isDone(b.id)) return isDone(a.id) ? 1 : -1
@@ -36,6 +37,7 @@ export default function RaceWatch({ match, players = [], playerId, mode, onHighl
     if (mode === 'QUEENS') return <QueensBoard n={match.n} regions={match.regions} board={board} onPlace={() => {}} disabled highlights={hl} onHighlight={point} />
     if (mode === 'TANGO')  return <TangoBoard n={match.n} givens={match.givens} constraints={match.constraints} board={board} onPlace={() => {}} disabled highlights={hl} onHighlight={point} />
     if (mode === 'ZIP')    return <ZipBoard n={match.n} numbers={match.numbers} walls={match.walls} path={board} onPath={() => {}} disabled highlights={hl} onHighlight={point} />
+    if (mode === 'CROSSCLIMB') return <CrossclimbBoard order={board} onOrder={() => {}} disabled highlights={hl} onHighlight={point} />
     return null
   }
 

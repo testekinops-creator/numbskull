@@ -381,6 +381,68 @@ function reducer(state, action) {
       }
     }
 
+    // Pinpoint: a fresh round begins (clue 1 of the next category)
+    case 'PINPOINT_ROUND': {
+      const p = action.payload
+      if (!state.match) return state
+      return {
+        ...state,
+        match: {
+          ...state.match,
+          index:    p.index,
+          total:    p.total,
+          revealed: p.revealed,
+          round:    { index: p.index, clues: p.clues, options: p.options, revealed: p.revealed, total: p.total },
+          scores:   arrToScoreMap(p.scores, state.match.scores),
+          locked:   {},
+          resolved: false,
+          lastResolved: null,
+        },
+      }
+    }
+
+    // Pinpoint: another clue was revealed for the current round
+    case 'PINPOINT_CLUE': {
+      const p = action.payload
+      if (!state.match) return state
+      return {
+        ...state,
+        match: {
+          ...state.match,
+          revealed: p.revealed,
+          round: { index: p.index, clues: p.clues, options: p.options, revealed: p.revealed, total: p.total },
+        },
+      }
+    }
+
+    // Pinpoint: a player guessed wrong (round continues — they're locked out of it)
+    case 'PINPOINT_LOCKED': {
+      const p = action.payload
+      if (!state.match || p.index !== state.match.index) return state
+      return {
+        ...state,
+        match: { ...state.match, locked: { ...(state.match.locked || {}), [p.byPlayerId]: true } },
+      }
+    }
+
+    // Pinpoint: the round resolved (correct, both wrong, or timeout)
+    case 'PINPOINT_RESOLVED': {
+      const p = action.payload
+      if (!state.match) return state
+      return {
+        ...state,
+        match: {
+          ...state.match,
+          scores:   arrToScoreMap(p.scores, state.match.scores),
+          resolved: true,
+          lastResolved: {
+            index: p.index, byPlayerId: p.byPlayerId, correct: p.correct,
+            answer: p.answer, points: p.points || 0, timeout: !!p.timeout, bothWrong: !!p.bothWrong,
+          },
+        },
+      }
+    }
+
     // Sudoku: one cell changed (filled correct/wrong, or cleared)
     case 'SUDOKU_UPDATE': {
       const p = action.payload
@@ -694,6 +756,11 @@ export function RoomProvider({ children }) {
       dispatch({ type: 'MATH_RESOLVED', payload, playerId })
     })
 
+    socket.on('pinpoint:round',    (payload = {}) => dispatch({ type: 'PINPOINT_ROUND',    payload, playerId }))
+    socket.on('pinpoint:clue',     (payload = {}) => dispatch({ type: 'PINPOINT_CLUE',     payload, playerId }))
+    socket.on('pinpoint:locked',   (payload = {}) => dispatch({ type: 'PINPOINT_LOCKED',   payload, playerId }))
+    socket.on('pinpoint:resolved', (payload = {}) => dispatch({ type: 'PINPOINT_RESOLVED', payload, playerId }))
+
     socket.on('sudoku:update', (payload = {}) => {
       dispatch({ type: 'SUDOKU_UPDATE', payload, playerId })
     })
@@ -804,6 +871,10 @@ export function RoomProvider({ children }) {
       socket.off('race:update')
       socket.off('math:question')
       socket.off('math:resolved')
+      socket.off('pinpoint:round')
+      socket.off('pinpoint:clue')
+      socket.off('pinpoint:locked')
+      socket.off('pinpoint:resolved')
       socket.off('sudoku:update')
       socket.off('sudoku:lock')
       socket.off('sudoku:unlock')
@@ -905,6 +976,8 @@ export function RoomProvider({ children }) {
     socket?.emit('math:answer', { roomId, index, choice })
   }, [socket])
 
+  const pinpointAnswer = useCallback((roomId, index, choice) => emitAck(socket, 'pinpoint:answer', { roomId, index, choice }), [socket])
+
   const sudokuLock   = useCallback((roomId, index)        => socket?.emit('sudoku:lock',   { roomId, index }),        [socket])
   const sudokuUnlock = useCallback((roomId, index)        => socket?.emit('sudoku:unlock', { roomId, index }),        [socket])
   const sudokuFill   = useCallback((roomId, index, value) => socket?.emit('sudoku:fill',   { roomId, index, value }), [socket])
@@ -920,6 +993,8 @@ export function RoomProvider({ children }) {
   const tangoPlace  = useCallback((roomId, index, state) => emitAck(socket, 'tango:place',  { roomId, index, state }), [socket])
   // Zip sends the whole drawn path; high-frequency during a drag, so plain emit (no ack).
   const zipPath     = useCallback((roomId, path) => socket?.emit('zip:path', { roomId, path }), [socket])
+  // Crossclimb sends the whole reordering of the rungs (one per ▲/▼ move).
+  const crossclimbOrder = useCallback((roomId, order) => socket?.emit('crossclimb:order', { roomId, order }), [socket])
   // Give up a race (forfeit this puzzle) → you're done and switch to watching the others.
   const raceGiveUp  = useCallback((roomId) => emitAck(socket, 'race:giveup', { roomId }), [socket])
   // Host runs the race back with a fresh puzzle once everyone's done.
@@ -1024,12 +1099,12 @@ export function RoomProvider({ children }) {
       setReady, submitGuess, requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, spectate, unspectate,
       sendChat, sendEmoji, clearUnreadChat, reconnectRoom,
       clearChatToast, sendFriendRequest, acceptFriendRequest, checkFriendStatus, clearIncomingFriend,
-      matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer,
+      matchReady, hostStart, xoxMove, sosMove, sosClaim, matchForfeit, mathAnswer, pinpointAnswer,
       sudokuLock, sudokuUnlock, sudokuFill, sudokuClear,
       spinSpin, spinGuess, spinVowel, spinSolve,
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
       rummyDraw, rummyDiscard, rummyDeclare,
-      queensPlace, tangoPlace, zipPath, raceGiveUp, raceRematch, raceHighlight,
+      queensPlace, tangoPlace, zipPath, crossclimbOrder, raceGiveUp, raceRematch, raceHighlight,
     }}>
       {children}
     </RoomContext.Provider>
