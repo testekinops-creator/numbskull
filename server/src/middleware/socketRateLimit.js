@@ -8,6 +8,8 @@ const EVENT_LIMITS = {
   'room:join':             { max: 10, windowMs: 60_000 },
   'room:quickmatch':       { max: 5,  windowMs: 30_000 },
   'room:reconnect':        { max: 30, windowMs: 30_000 },
+  'room:spectate':         { max: 30, windowMs: 30_000 },
+  'match:host_start':      { max: 15, windowMs: 30_000 },
   'chat:message':          { max: 20, windowMs: 10_000 },
   'chat:emoji':            { max: 40, windowMs: 10_000 },
   // New game modes (XOX / Math Battle / Sudoku)
@@ -19,6 +21,14 @@ const EVENT_LIMITS = {
   'sudoku:lock':           { max: 200, windowMs: 30_000 },
   'sudoku:unlock':         { max: 200, windowMs: 30_000 },
   'sudoku:clear':          { max: 100, windowMs: 30_000 },
+  // Puzzle-race moves (Queens/Tango/Zip). Generous so a fast Zip drag (one emit per
+  // cell entered) is never throttled, but still bounded against abuse.
+  'queens:place':          { max: 400,  windowMs: 30_000 },
+  'tango:place':           { max: 400,  windowMs: 30_000 },
+  'zip:path':              { max: 1200, windowMs: 30_000 },
+  'race:giveup':           { max: 10,   windowMs: 30_000 },
+  'race:rematch':          { max: 15,   windowMs: 30_000 },
+  'race:highlight':        { max: 120,  windowMs: 30_000 },
   // WebRTC voice-call signaling (ICE can be chatty)
   'call:offer':            { max: 10,  windowMs: 30_000 },
   'call:answer':           { max: 10,  windowMs: 30_000 },

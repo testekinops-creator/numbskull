@@ -54,6 +54,8 @@
 .wall { stroke: #ff7043; stroke-width: 0.13; stroke-linecap: round; }
 
 .solved { box-shadow: 0 0 0 3px var(--color-juice, #00f5ff), 0 0 30px rgba(0, 245, 255, 0.4); }
+.highlight { box-shadow: inset 0 0 0 3px #ffb74d, 0 0 12px rgba(255, 183, 77, 0.7); animation: hlPulse 1.1s ease-in-out infinite; }
+@keyframes hlPulse { 50% { box-shadow: inset 0 0 0 3px #ffcc80, 0 0 18px rgba(255, 183, 77, 0.95); } }
 
 @keyframes pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .start { animation: none; } }

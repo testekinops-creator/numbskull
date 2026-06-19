@@ -38,6 +38,7 @@ import { useHaptic } from '../../hooks/useHaptic.js'
 import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
 import { useAwayTimeout } from '../../hooks/useAwayTimeout.js'
 import { getModeRoast } from '../../utils/roasts.js'
+import { celebrateWin } from '../../utils/celebrate.js'
 import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
@@ -59,7 +60,7 @@ export default function MatchRoom({ roomId, mode }) {
     spinSpin, spinGuess, spinVowel, spinSolve,
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     rummyDraw, rummyDiscard, rummyDeclare,
-    queensPlace, tangoPlace, zipPath, raceGiveUp,
+    queensPlace, tangoPlace, zipPath, raceGiveUp, raceRematch, raceHighlight,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -80,6 +81,7 @@ export default function MatchRoom({ roomId, mode }) {
   const [callActive, setCallActive] = useState(false)   // a voice call is live (lifts/widens the bottom chrome)
   const [confirmLeave, setConfirmLeave] = useState(false)   // premium "leave the game?" guard
   const [confirmGiveUp, setConfirmGiveUp] = useState(false) // "give up the race?" guard
+  const [revealing, setRevealing] = useState(false)         // brief "Solved!" beat showing my final move before watch/result
   // Ignore a brief opponent drop (e.g. a page refresh) — only alarm after ~2.5s.
   const showOppLost = useDelayedFlag(connected && state.opponentConnLost, 2500)
 
@@ -116,6 +118,14 @@ export default function MatchRoom({ roomId, mode }) {
     // on success, match:start flips the phase back to PLAYING and the card unmounts
   }
 
+  async function doRacePlayAgain() {
+    setRematchErr(''); setRematching(true)
+    unlock()
+    const r = await raceRematch(roomId)
+    if (!r?.ok) { setRematchErr(r?.error || 'Could not restart — try again'); setRematching(false) }
+    // on success, match:start flips the phase back to PLAYING and the card unmounts
+  }
+
   const room = state.room
   const phase = room?.phase || 'IDLE'
   const me = room?.players?.find(p => p.id === playerId)
@@ -124,10 +134,24 @@ export default function MatchRoom({ roomId, mode }) {
   const isParty = (room?.maxPlayers || 2) > 2          // 3–8 player party room
   const isRaceMode = mode === 'QUEENS' || mode === 'TANGO' || mode === 'ZIP'   // shared puzzle-race games
   const iAmDone = isRaceMode && !!(state.match?.solved?.[playerId] || state.match?.gaveUp?.[playerId])   // finished or gave up → watch mode
+  const iSolved = isRaceMode && !!state.match?.solved?.[playerId]   // SOLVED (not gave up)
+  // When I solve, hold on MY finished board for a beat (final move + confetti) before watch/result.
+  const watching = iAmDone && !revealing
   const isHost = room?.hostId === playerId
   const showCall = !isParty && !!opponent              // voice is 1v1 only
   // Drop the call flag if call support goes away (opponent left / party room).
   useEffect(() => { if (!showCall) setCallActive(false) }, [showCall])
+
+  // The moment I SOLVE: confetti + hold on my finished board for ~1.5s (so the
+  // final move actually shows) before flipping to watch mode / the result card.
+  // (Gave-up players skip this — straight to watching.)
+  useEffect(() => {
+    if (!iSolved) return
+    setRevealing(true)
+    celebrateWin()
+    const t = setTimeout(() => setRevealing(false), 1500)
+    return () => clearTimeout(t)
+  }, [iSolved])
   // Reserve bottom space so the floating dock + call bar never sit over the board
   // or the result buttons. At game over the dock is tucked away, so we only need
   // to clear a lingering call pill (if a call is still live).
@@ -345,7 +369,7 @@ export default function MatchRoom({ roomId, mode }) {
   // XOX: let the finished board (with its winning line) sit for a beat before
   // showing the game-over card. Other modes reveal immediately.
   useEffect(() => {
-    if (phase !== 'GAME_OVER') { setResultRevealed(false); return }
+    if (phase !== 'GAME_OVER') { setResultRevealed(false); setRematching(false); return }
     if (mode !== 'XOX') { setResultRevealed(true); return }
     const t = setTimeout(() => setResultRevealed(true), 1800)
     return () => clearTimeout(t)
@@ -705,15 +729,19 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'QUEENS' && match.regions && match.myBoard && (
               <>
                 <RaceHud match={match} players={room.players} playerId={playerId} icon="👑" total={match.n} />
-                {iAmDone ? (
-                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="QUEENS" />
+                {watching ? (
+                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="QUEENS"
+                    onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
                 ) : (
                   <>
-                    <p className={styles.turnLabel}>Place one 👑 per row, column &amp; color — none touching</p>
+                    <p className={styles.turnLabel}>{iSolved ? '✅ Solved!' : 'Place one 👑 per row, column & color — none touching'}</p>
                     <QueensBoard
                       n={match.n}
                       regions={match.regions}
                       board={match.myBoard}
+                      solved={iSolved}
+                      disabled={iAmDone}
+                      highlights={match.highlights?.[playerId] || []}
                       onPlace={(index, state) => { unlock(); queensPlace(roomId, index, state) }}
                     />
                   </>
@@ -724,16 +752,20 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'TANGO' && match.givens && match.myBoard && (
               <>
                 <RaceHud match={match} players={room.players} playerId={playerId} icon="▦" total={match.n * match.n} />
-                {iAmDone ? (
-                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="TANGO" />
+                {watching ? (
+                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="TANGO"
+                    onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
                 ) : (
                   <>
-                    <p className={styles.turnLabel}>Fill ☀️/🌙 — 3 each per row &amp; column, no 3 in a row, obey =/×</p>
+                    <p className={styles.turnLabel}>{iSolved ? '✅ Solved!' : 'Fill ☀️/🌙 — 3 each per row & column, no 3 in a row, obey =/×'}</p>
                     <TangoBoard
                       n={match.n}
                       givens={match.givens}
                       constraints={match.constraints}
                       board={match.myBoard}
+                      solved={iSolved}
+                      disabled={iAmDone}
+                      highlights={match.highlights?.[playerId] || []}
                       onPlace={(index, state) => { unlock(); tangoPlace(roomId, index, state) }}
                     />
                   </>
@@ -744,11 +776,14 @@ export default function MatchRoom({ roomId, mode }) {
             {mode === 'ZIP' && match.numbers && match.myBoard && (
               <>
                 <RaceHud match={match} players={room.players} playerId={playerId} icon="🔢" total={match.n * match.n} />
-                {iAmDone ? (
-                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="ZIP" />
+                {watching ? (
+                  <RaceWatch match={match} players={room.players} playerId={playerId} mode="ZIP"
+                    onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
                 ) : (
                   <>
-                    {(() => {
+                    {iSolved ? (
+                      <p className={styles.turnLabel}>✅ Solved!</p>
+                    ) : (() => {
                       const myPath = match.myBoard || []
                       const total = match.n * match.n
                       const lastNum = Math.max(0, ...match.numbers)
@@ -764,6 +799,9 @@ export default function MatchRoom({ roomId, mode }) {
                       walls={match.walls}
                       path={match.myBoard}
                       optimistic
+                      solved={iSolved}
+                      disabled={iAmDone}
+                      highlights={match.highlights?.[playerId] || []}
                       onPath={(p) => { unlock(); zipPath(roomId, p) }}
                     />
                   </>
@@ -826,8 +864,17 @@ export default function MatchRoom({ roomId, mode }) {
               {mode === 'RMCS' && !isHost && room.players.length === 4 && (
                 <p className={styles.seriesLine}>Waiting for the host to run it back…</p>
               )}
+              {/* Race host can run a fresh puzzle for everyone still here. */}
+              {isRaceMode && isHost && room.players.length >= 2 && (
+                <button className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={rematching} onClick={doRacePlayAgain}>
+                  {rematching ? 'Starting…' : '🔄 Play again'}
+                </button>
+              )}
+              {isRaceMode && !isHost && room.players.length >= 2 && (
+                <p className={styles.seriesLine}>Waiting for the host to play again…</p>
+              )}
               <button
-                className={`btn ${mode === 'RMCS' && isHost && room.players.length === 4 ? 'btn-ghost' : 'btn-juice'} btn-lg`}
+                className={`btn ${(isHost && ((mode === 'RMCS' && room.players.length === 4) || (isRaceMode && room.players.length >= 2))) ? 'btn-ghost' : 'btn-juice'} btn-lg`}
                 style={{ width: '100%' }}
                 onClick={() => { leaveRoom(roomId); navigate('/home') }}
               >

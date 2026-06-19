@@ -9,11 +9,12 @@ import styles from './TangoBoard.module.css'
 const NEXT = { empty: 'sun', sun: 'moon', moon: 'empty' }
 const GLYPH = { sun: '☀️', moon: '🌙' }
 
-export default function TangoBoard({ n, givens = [], constraints = [], board, onPlace, disabled = false, solved = false }) {
+export default function TangoBoard({ n, givens = [], constraints = [], board, onPlace, disabled = false, solved = false, highlights = [], onHighlight }) {
   const conflicts = useMemo(
     () => (board ? conflictCells(board, n, constraints) : new Set()),
     [board, n, constraints],
   )
+  const highlightSet = useMemo(() => new Set(highlights), [highlights])
   // Map each clue to the LEFT/TOP cell it hangs off (a<b; b=a+1 → right edge, b=a+n → bottom edge).
   const { right, down } = useMemo(() => {
     const right = {}, down = {}
@@ -41,9 +42,9 @@ export default function TangoBoard({ n, givens = [], constraints = [], board, on
           <button
             key={i}
             type="button"
-            disabled={disabled || given}
-            className={`${styles.cell} ${given ? styles.given : ''} ${conflict ? styles.conflict : ''}`}
-            onPointerUp={(e) => { e.preventDefault(); if (!disabled && !given) onPlace(i, NEXT[cell] || 'empty') }}
+            disabled={(disabled || given) && !onHighlight}
+            className={`${styles.cell} ${given ? styles.given : ''} ${conflict ? styles.conflict : ''} ${highlightSet.has(i) ? styles.highlight : ''}`}
+            onPointerUp={(e) => { e.preventDefault(); if (onHighlight) onHighlight(i); else if (!disabled && !given) onPlace(i, NEXT[cell] || 'empty') }}
             aria-label={`Cell ${i + 1}: ${cell}${given ? ' (fixed)' : ''}`}
           >
             {cell !== 'empty' && <span className={styles.sym}>{GLYPH[cell]}</span>}

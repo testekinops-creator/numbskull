@@ -8,11 +8,12 @@ import styles from './QueensBoard.module.css'
 // both multiplayer (MatchRoom) and solo (QueensSoloPage) render identically.
 const NEXT = { empty: 'queen', queen: 'x', x: 'empty' }
 
-export default function QueensBoard({ n, regions, board, onPlace, disabled = false, solved = false }) {
+export default function QueensBoard({ n, regions, board, onPlace, disabled = false, solved = false, highlights = [], onHighlight }) {
   const conflicts = useMemo(
     () => (board ? conflictCells(board, regions, n) : new Set()),
     [board, regions, n],
   )
+  const highlightSet = useMemo(() => new Set(highlights), [highlights])
 
   if (!n || !regions || !board) return null
 
@@ -37,8 +38,8 @@ export default function QueensBoard({ n, regions, board, onPlace, disabled = fal
           <button
             key={i}
             type="button"
-            disabled={disabled}
-            className={`${styles.cell} ${conflict ? styles.conflict : ''}`}
+            disabled={disabled && !onHighlight}
+            className={`${styles.cell} ${conflict ? styles.conflict : ''} ${highlightSet.has(i) ? styles.highlight : ''}`}
             style={{
               backgroundColor: `${color}59`,   // ~35% alpha fill
               borderTopWidth: bTop ? 3 : 1,
@@ -46,7 +47,7 @@ export default function QueensBoard({ n, regions, board, onPlace, disabled = fal
               borderLeftWidth: bLeft ? 3 : 1,
               borderRightWidth: bRight ? 3 : 1,
             }}
-            onPointerUp={(e) => { e.preventDefault(); if (!disabled) onPlace(i, NEXT[cell] || 'empty') }}
+            onPointerUp={(e) => { e.preventDefault(); if (onHighlight) onHighlight(i); else if (!disabled) onPlace(i, NEXT[cell] || 'empty') }}
             aria-label={`Row ${r + 1}, column ${c + 1}: ${cell}`}
           >
             {cell === 'queen' && <span className={styles.queen}>👑</span>}

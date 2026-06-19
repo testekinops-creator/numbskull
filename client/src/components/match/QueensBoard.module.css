@@ -36,6 +36,10 @@
 
 /* A queen breaking a rule (shared row/col/region or touching) glows red. */
 .conflict { box-shadow: inset 0 0 0 3px var(--color-pink, #ff3e8a); }
+/* A cell a finished watcher is pointing at to help (toggle/stays). */
+.highlight { box-shadow: inset 0 0 0 3px #ffb74d, 0 0 12px rgba(255, 183, 77, 0.7); animation: hlPulse 1.1s ease-in-out infinite; }
+@keyframes hlPulse { 50% { box-shadow: inset 0 0 0 3px #ffcc80, 0 0 18px rgba(255, 183, 77, 0.95); } }
+@media (prefers-reduced-motion: reduce) { .highlight { animation: none; } }
 .conflict .queen { filter: drop-shadow(0 0 4px rgba(255, 62, 138, 0.9)); }
 
 .solved { box-shadow: 0 0 0 3px var(--color-juice, #00f5ff), 0 0 30px rgba(0, 245, 255, 0.4); }

@@ -540,6 +540,48 @@ export function registerMatchHandlers(io, socket) {
     }
   })
 
+  // Play again — the host restarts a finished race with a fresh puzzle (resets all
+  // per-player state). Mirrors rmcs:rematch.
+  socket.on('race:rematch', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || !RACE_MODES.has(room.mode)) return ack?.({ ok: false, error: 'Wrong mode' })
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can restart' })
+      if (room.phase !== 'GAME_OVER') return ack?.({ ok: false, error: 'Finish the game first' })
+      if (room.players.length < 2) return ack?.({ ok: false, error: 'Need at least 2 players' })
+      await _startMatch(io, roomId)   // fresh puzzle, resets state, emits match:start per viewer
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'race rematch error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // Point-to-help: a DONE watcher toggles a highlight on a still-racing player's board.
+  // Cell indices only (not secret) → broadcast so the target + watchers all see it.
+  socket.on('race:highlight', async ({ roomId, targetId, index } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || !RACE_MODES.has(room.mode) || room.phase !== 'PLAYING') return ack?.({ ok: false })
+      const m = room.match
+      if (!m) return ack?.({ ok: false })
+      // Caller must be done (watching); target must be a present, still-racing player.
+      if (!(m.solved[playerId] || m.gaveUp?.[playerId])) return ack?.({ ok: false })
+      if (!m.boards[targetId] || m.solved[targetId] || m.gaveUp?.[targetId]) return ack?.({ ok: false })
+      if (!Number.isInteger(index) || index < 0 || index >= m.boards[targetId].length) return ack?.({ ok: false })
+      await roomManager.update(roomId, r => {
+        const hl = r.match.highlights[targetId] || []
+        r.match.highlights[targetId] = hl.includes(index) ? hl.filter(i => i !== index) : [...hl, index]
+      })
+      const updated = await roomManager.get(roomId)
+      _broadcastRaceUpdate(io, updated, playerId, socket)
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'race highlight error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
   // ── Spin Battle: spin the wheel ───────────────────────────────────────────
   socket.on('spin:spin', async ({ roomId } = {}, ack) => {
     try {
@@ -1048,6 +1090,7 @@ async function _startMatch(io, roomId) {
         placed:    zero(),                     // queen count → live progress
         solved:    Object.fromEntries(ids.map(id => [id, false])),
         gaveUp:    Object.fromEntries(ids.map(id => [id, false])),
+        highlights: {},                        // targetId → [cell indices] pointed out by watchers
         finishMs:  Object.fromEntries(ids.map(id => [id, null])),      // ms-to-solve per player
         order:     ids,
         startedAt: Date.now(),
@@ -1077,6 +1120,7 @@ async function _startMatch(io, roomId) {
         placed:      Object.fromEntries(ids.map(id => [id, engine.givens.filter(Boolean).length])),
         solved:      Object.fromEntries(ids.map(id => [id, false])),
         gaveUp:      Object.fromEntries(ids.map(id => [id, false])),
+        highlights:  {},
         finishMs:    Object.fromEntries(ids.map(id => [id, null])),
         order:       ids,
         startedAt:   Date.now(),
@@ -1103,6 +1147,7 @@ async function _startMatch(io, roomId) {
         placed:    Object.fromEntries(ids.map(id => [id, 0])),
         solved:    Object.fromEntries(ids.map(id => [id, false])),
         gaveUp:    Object.fromEntries(ids.map(id => [id, false])),
+        highlights: {},
         finishMs:  Object.fromEntries(ids.map(id => [id, null])),
         order:     ids,
         startedAt: Date.now(),
@@ -1981,13 +2026,16 @@ async function _endRace(io, roomId) {
   await _endMatch(io, roomId, { winnerId: draw ? null : leaders[0].id, draw, ranking, reason: 'complete' })
 }
 
-// End the race once every present player is done — solved OR gave up.
+// End the race once every present player is done — solved OR gave up. Delay the end
+// briefly so the final move's broadcast paints first (clients see the winning piece
+// land + a "Solved!" beat instead of jumping straight to the result). `_endRace`
+// re-checks phase, so a late move / disconnect can't double-fire it.
 async function _maybeEndRace(io, roomId) {
   const room = await roomManager.get(roomId)
   if (!room || !RACE_MODES.has(room.mode) || room.phase !== 'PLAYING') return
   const m = room.match
   const everyoneDone = room.players.length > 0 && room.players.every(p => m.solved[p.id] || m.gaveUp?.[p.id])
-  if (everyoneDone) await _endRace(io, roomId)
+  if (everyoneDone) setTimeout(() => _endRace(io, roomId).catch(() => {}), 1500)
 }
 
 // Broadcast a race move. Mover gets their own view; opponents still playing +
@@ -2020,7 +2068,7 @@ async function _handleRacePlace(io, socket, { roomId, index, state } = {}, playe
     if (!m || !m.boards[playerId]) return
     if (!Number.isInteger(index) || index < 0 || index >= m.boards[playerId].length) return
     if (!cfg.states.includes(state)) return
-    if (m.solved[playerId]) return                              // board locked after solving
+    if (m.solved[playerId] || m.gaveUp?.[playerId]) return      // board locked once you're done
     if (cfg.givensLocked && m.givens?.[index]) return           // can't edit a pre-filled cell
 
     let solvedNow = false
@@ -2052,9 +2100,10 @@ async function _handleZipPath(io, socket, { roomId, path } = {}, playerId) {
     const room = await roomManager.get(roomId)
     if (!room || room.mode !== 'ZIP' || room.phase !== 'PLAYING') return
     const m = room.match
-    if (!m || !m.boards[playerId] || m.solved[playerId]) return
+    if (!m || !m.boards[playerId] || m.solved[playerId] || m.gaveUp?.[playerId]) return   // locked once done
     if (!Array.isArray(path)) return
-    if (!zipIsValidPartial(path, m.n, m.numbers, m.walls)) return   // reject illegal paths
+    if (path.length > m.n * m.n) return                            // bound payload (anti-abuse)
+    if (!zipIsValidPartial(path, m.n, m.numbers, m.walls)) return  // reject illegal paths
 
     let solvedNow = false
     await roomManager.update(roomId, r => {
@@ -2231,6 +2280,7 @@ function _publicMatch(match) {
       placed:      match.placed,
       solved:      match.solved,
       gaveUp:      match.gaveUp || {},
+      highlights:  match.highlights || {},
       finishMs:    match.finishMs,
       startedAt:   match.startedAt,
       deadline:    match.deadline,

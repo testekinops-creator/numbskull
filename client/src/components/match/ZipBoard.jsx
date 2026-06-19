@@ -11,7 +11,8 @@ import styles from './ZipBoard.module.css'
 // we ignore the server's lagging echoes (a strict prefix of what we've already drawn)
 // but adopt any external change (reconnect / restore). In solo the board is controlled
 // by the `path` prop (so the Clear/Undo buttons work) — already instant, no network.
-export default function ZipBoard({ n, numbers = [], walls = [], path = [], onPath, disabled = false, solved = false, optimistic = false }) {
+export default function ZipBoard({ n, numbers = [], walls = [], path = [], onPath, disabled = false, solved = false, optimistic = false, highlights = [], onHighlight }) {
+  const highlightSet = useMemo(() => new Set(highlights), [highlights])
   const draggingRef = useRef(false)
   const [localPath, setLocalPath] = useState(path)
   const effective = optimistic ? localPath : path
@@ -59,10 +60,12 @@ export default function ZipBoard({ n, numbers = [], walls = [], path = [], onPat
     return idx == null ? -1 : Number(idx)
   }
   const onPointerDown = (e) => {
+    const cell = cellFromPoint(e.clientX, e.clientY)
+    if (onHighlight) { if (cell >= 0) onHighlight(cell); return }   // point-mode: tap toggles a highlight
     if (disabled) return
     draggingRef.current = true
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* not supported */ }
-    applyTo(cellFromPoint(e.clientX, e.clientY))
+    applyTo(cell)
   }
   const onPointerMove = (e) => {
     if (!draggingRef.current) return
@@ -102,7 +105,7 @@ export default function ZipBoard({ n, numbers = [], walls = [], path = [], onPat
           <div
             key={i}
             data-idx={i}
-            className={`${styles.cell} ${onPath ? styles.onPath : ''} ${i === head ? styles.head : ''} ${i === oneCell && effective.length === 0 ? styles.start : ''}`}
+            className={`${styles.cell} ${onPath ? styles.onPath : ''} ${i === head ? styles.head : ''} ${i === oneCell && effective.length === 0 ? styles.start : ''} ${highlightSet.has(i) ? styles.highlight : ''}`}
             aria-label={`Cell ${i + 1}${num ? `, number ${num}` : ''}`}
           >
             {num > 0 && <span className={styles.num}>{num}</span>}

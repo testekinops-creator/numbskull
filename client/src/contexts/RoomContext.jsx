@@ -922,6 +922,10 @@ export function RoomProvider({ children }) {
   const zipPath     = useCallback((roomId, path) => socket?.emit('zip:path', { roomId, path }), [socket])
   // Give up a race (forfeit this puzzle) → you're done and switch to watching the others.
   const raceGiveUp  = useCallback((roomId) => emitAck(socket, 'race:giveup', { roomId }), [socket])
+  // Host runs the race back with a fresh puzzle once everyone's done.
+  const raceRematch = useCallback((roomId) => emitAck(socket, 'race:rematch', { roomId }), [socket])
+  // Finished watcher points a cell out (toggle) on a still-solving opponent's board — live for both.
+  const raceHighlight = useCallback((roomId, targetId, index) => emitAck(socket, 'race:highlight', { roomId, targetId, index }), [socket])
 
   const spinSpin  = useCallback((roomId)          => socket?.emit('spin:spin',  { roomId }),          [socket])
   const spinGuess = useCallback((roomId, letter)  => socket?.emit('spin:guess', { roomId, letter }),  [socket])
@@ -1025,7 +1029,7 @@ export function RoomProvider({ children }) {
       spinSpin, spinGuess, spinVowel, spinSolve,
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
       rummyDraw, rummyDiscard, rummyDeclare,
-      queensPlace, tangoPlace, zipPath, raceGiveUp,
+      queensPlace, tangoPlace, zipPath, raceGiveUp, raceRematch, raceHighlight,
     }}>
       {children}
     </RoomContext.Provider>
