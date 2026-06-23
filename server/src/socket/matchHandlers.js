@@ -630,8 +630,10 @@ export function registerMatchHandlers(io, socket) {
     }
   })
 
-  // Point-to-help: a DONE watcher toggles a highlight on a still-racing player's board.
-  // Cell indices only (not secret) → broadcast so the target + watchers all see it.
+  // Point-to-help: a DONE watcher points at ONE cell on a still-racing player's
+  // board. Single highlight — selecting a different cell moves it (the previous
+  // one clears); re-tapping the same cell turns it off. Cell index only (not
+  // secret) → broadcast so the target + watchers all see it.
   socket.on('race:highlight', async ({ roomId, targetId, index } = {}, ack) => {
     try {
       const room = await roomManager.get(roomId)
@@ -644,7 +646,8 @@ export function registerMatchHandlers(io, socket) {
       if (!Number.isInteger(index) || index < 0 || index >= m.boards[targetId].length) return ack?.({ ok: false })
       await roomManager.update(roomId, r => {
         const hl = r.match.highlights[targetId] || []
-        r.match.highlights[targetId] = hl.includes(index) ? hl.filter(i => i !== index) : [...hl, index]
+        // One cell at a time: a new cell replaces the old; re-tapping it clears.
+        r.match.highlights[targetId] = (hl.length === 1 && hl[0] === index) ? [] : [index]
       })
       const updated = await roomManager.get(roomId)
       _broadcastRaceUpdate(io, updated, playerId, socket)
