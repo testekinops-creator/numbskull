@@ -24,9 +24,11 @@ import {
 import { recordResult } from '../game/MonthlyLeaderboard.js'
 import { ROLE_POINTS, assignRoles, scoreRound, pickModifier } from '../game/rmcs.js'
 import { isBotId, botPickSuspect } from '../game/rmcsBot.js'
+import * as ludo from '../game/ludo.js'
+import { chooseLudoMove } from '../game/ludoBot.js'
 import { logger } from '../utils/logger.js'
 
-export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB'])
+export const MATCH_MODES = new Set(['XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB', 'LUDO'])
 
 // Puzzle-race modes (Queens, Tango, …): everyone gets the SAME unique-solution board
 // and fills their OWN private grid; players keep racing until all solve or this
@@ -88,6 +90,16 @@ const PINPOINT_REVEAL_MS = 1600    // pause on the revealed answer before the ne
 function _clearPinpointTimer(roomId) {
   const t = pinpointTimers.get(roomId)
   if (t) { clearTimeout(t); pinpointTimers.delete(roomId) }
+}
+
+// Ludo: one scheduler-timer per room. It auto-acts for an idle human after
+// LUDO_TURN_MS, and drives bot turns after a short think delay.
+const ludoTimers = new Map()
+const LUDO_TURN_MS = 30_000
+const LUDO_BOT_MS = 850
+function _clearLudoTimer(roomId) {
+  const t = ludoTimers.get(roomId)
+  if (t) { clearTimeout(t); ludoTimers.delete(roomId) }
 }
 
 // Sudoku timing: a transient edit lock auto-releases after 3s (so a cell never
@@ -594,6 +606,59 @@ export function registerMatchHandlers(io, socket) {
   socket.on('zip:path',     (d, ack) => { _handleZipPath(io, socket, d, playerId); ack?.({ ok: true }) })
   // Crossclimb: a whole reordering of the rungs — its own order-aware handler, same race lifecycle.
   socket.on('crossclimb:order', (d, ack) => { _handleCrossclimbOrder(io, socket, d, playerId); ack?.({ ok: true }) })
+
+  // Ludo: roll the die / move a token. Validation + turn flow live in the helpers;
+  // invalid or out-of-turn calls are safe no-ops (they never touch the turn timer).
+  socket.on('ludo:roll', ({ roomId } = {}, ack) => {
+    _ludoDoRoll(io, roomId, playerId).catch(err => logger.error({ err }, 'ludo:roll error'))
+    ack?.({ ok: true })
+  })
+  socket.on('ludo:move', ({ roomId, token } = {}, ack) => {
+    _ludoDoMove(io, roomId, playerId, token).catch(err => logger.error({ err }, 'ludo:move error'))
+    ack?.({ ok: true })
+  })
+  // Pick a colour in the lobby before the game starts (each colour unique).
+  socket.on('ludo:pick_color', async ({ roomId, color } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'LUDO') return ack?.({ ok: false, error: 'Wrong mode' })
+      if (room.phase !== 'LOBBY' && room.phase !== 'SETUP') return ack?.({ ok: false, error: 'Game already started' })
+      if (!ludo.COLORS.includes(color)) return ack?.({ ok: false, error: 'Unknown colour' })
+      if (!room.players.some(p => p.id === playerId)) return ack?.({ ok: false, error: 'Not in this room' })
+      let ok = false
+      await roomManager.update(roomId, r => {
+        r.ludoColors = r.ludoColors || {}
+        // colour must be free (or already yours → toggle off)
+        const owner = Object.entries(r.ludoColors).find(([, c]) => c === color)?.[0]
+        if (owner && owner !== playerId) return            // taken by someone else
+        if (r.ludoColors[playerId] === color) delete r.ludoColors[playerId]  // tap again = release
+        else r.ludoColors[playerId] = color
+        ok = true
+      })
+      const updated = await roomManager.get(roomId)
+      io.to(roomId).emit('room:updated', _roomSummary(updated))
+      ack?.({ ok })
+    } catch (err) {
+      logger.error({ err }, 'ludo:pick_color error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
+
+  // Host re-deals a fresh Ludo game with the same table.
+  socket.on('ludo:rematch', async ({ roomId } = {}, ack) => {
+    try {
+      const room = await roomManager.get(roomId)
+      if (!room || room.mode !== 'LUDO') return ack?.({ ok: false, error: 'Wrong mode' })
+      if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can play again' })
+      if (room.phase !== 'GAME_OVER') return ack?.({ ok: false, error: 'Finish the game first' })
+      if (room.players.length < 2) return ack?.({ ok: false, error: 'Need at least 2 players' })
+      await _startMatch(io, roomId)   // re-inits tokens/turn, flips PLAYING, emits match:start
+      ack?.({ ok: true })
+    } catch (err) {
+      logger.error({ err }, 'ludo:rematch error')
+      ack?.({ ok: false, error: err.message })
+    }
+  })
   // Give up a race: you're done (frozen progress, ranks as DNF) and switch to watching
   // the others. Ends the match if everyone is now done.
   socket.on('race:giveup', async ({ roomId } = {}, ack) => {
@@ -1344,6 +1409,46 @@ async function _startMatch(io, roomId) {
     })
   }
 
+  if (room.mode === 'LUDO') {
+    // 2–4 players, each a colour; bots fill empty seats. Tokens start in base,
+    // first seat to roll. dice=null means "needs to roll"; 1–6 means "awaiting a move".
+    const ids = room.players.map(p => p.id)
+    // Honour any lobby colour picks (unique); fill the rest spread for fairness
+    // (red/yellow are opposite, so a no-pick 2-player game still sits opposite).
+    const picks = room.ludoColors || {}
+    const FILL = ['red', 'yellow', 'green', 'blue']
+    const used = new Set()
+    const colorByPlayer = {}
+    for (const id of ids) {
+      const c = picks[id]
+      if (ludo.COLORS.includes(c) && !used.has(c)) { colorByPlayer[id] = c; used.add(c) }
+    }
+    const remaining = FILL.filter(c => !used.has(c))
+    let ri = 0
+    for (const id of ids) if (!colorByPlayer[id]) colorByPlayer[id] = remaining[ri++]
+    const cols = ids.map(id => colorByPlayer[id])
+    await roomManager.update(roomId, r => {
+      r.phase = 'PLAYING'
+      r.winnerId = null
+      r.match = {
+        kind:    'LUDO',
+        colors:  colorByPlayer,          // playerId → colour
+        order:   ids,                    // turn order (seat order)
+        tokens:  ludo.initTokens(cols),  // colour → [pos×4]
+        turnId:  ids[0],
+        dice:    null,                   // null = awaiting a roll; 1–6 = awaiting a move
+        movable: [],                     // token indices the current player may move
+        sixes:   0,                      // consecutive 6s this turn
+        lastRoll: null,
+        lastEvent: null,                 // 'roll'|'move'|'capture'|'pass'|'bust' — light client feedback
+        lastBy:   null,                  // who just acted (drives the client animation)
+        lastAuto: false,                 // true when the last action was auto-played on timeout
+        seq:      0,                     // monotonic — bumps on every action so the client can animate each one
+        turnEndsAt: Date.now() + LUDO_TURN_MS,   // server deadline for the visible turn countdown
+      }
+    })
+  }
+
   if (room.mode === 'RMCS') {
     // 4-player hidden-role game. Roles live ONLY on the server; each player gets
     // just their own role via the per-viewer _matchView. Totals accumulate across
@@ -1419,6 +1524,7 @@ async function _startMatch(io, roomId) {
   if (updated.mode === 'SOS')  _startSosTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'RUMMY') _startRummyTimer(io, roomId, updated.match.turnId)
   if (updated.mode === 'RMCS') { _armRmcsStageTimer(io, roomId, RMCS_REVEAL_MS); _driveBotReveals(io, roomId) }
+  if (updated.mode === 'LUDO') _ludoSchedule(io, roomId)
 }
 
 // ── RMCS helpers ──────────────────────────────────────────────────────────────
@@ -1842,6 +1948,132 @@ async function _advancePinpoint(io, roomId) {
   }
 }
 
+// ── Ludo turn engine ────────────────────────────────────────────────────────
+function _ludoEmit(io, room) {
+  io.to(room.id).emit('ludo:update', { match: _publicMatch(room.match) })
+}
+
+// Next player id in seat order.
+function _ludoNext(m) {
+  const i = m.order.indexOf(m.turnId)
+  return m.order[(i + 1) % m.order.length]
+}
+
+// Final standings: most tokens home wins, ties broken by total progress.
+function _ludoRanking(room) {
+  const m = room.match
+  const ranked = [...room.players]
+    .map(p => {
+      const col = m.colors[p.id]
+      const home = (m.tokens[col] || []).filter(v => v === ludo.HOME).length
+      return { id: p.id, name: p.name, home, prog: ludo.progress(m.tokens, col) }
+    })
+    .sort((a, b) => b.home - a.home || b.prog - a.prog)
+  return ranked.map((e, i) => ({ id: e.id, name: e.name, rank: i + 1, ludoHome: e.home }))
+}
+
+const _ludoDeadline = () => Date.now() + LUDO_TURN_MS
+
+// Arm the per-room scheduler: drive the bot's action, or auto-act for an idle
+// human after LUDO_TURN_MS so a game never stalls. One timer per room. The human
+// timeout passes auto=true so the client can flag the turn as auto-played.
+async function _ludoSchedule(io, roomId) {
+  _clearLudoTimer(roomId)
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'LUDO' || room.phase !== 'PLAYING') return
+  const m = room.match
+  const pid = m.turnId
+  const bot = isBotId(pid)
+  const delay = bot ? LUDO_BOT_MS : LUDO_TURN_MS
+  if (m.dice == null) {
+    ludoTimers.set(roomId, setTimeout(() => _ludoDoRoll(io, roomId, pid, !bot).catch(err => logger.error({ err }, 'ludo auto-roll')), delay))
+  } else {
+    const pick = bot ? chooseLudoMove(m.tokens, m.colors[pid], m.dice, m.movable) : m.movable[0]
+    ludoTimers.set(roomId, setTimeout(() => _ludoDoMove(io, roomId, pid, pick, !bot).catch(err => logger.error({ err }, 'ludo auto-move')), delay))
+  }
+}
+
+// Roll for `pid` (no-op unless it's their turn and they haven't rolled yet).
+async function _ludoDoRoll(io, roomId, pid, auto = false) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'LUDO' || room.phase !== 'PLAYING') return
+  const m = room.match
+  if (m.turnId !== pid || m.dice != null) return
+  _clearLudoTimer(roomId)
+
+  const roll = 1 + Math.floor(Math.random() * 6)
+  const color = m.colors[pid]
+  const newSixes = roll === 6 ? m.sixes + 1 : 0
+
+  // Three 6s in a row → turn forfeited.
+  if (newSixes === 3) {
+    await roomManager.update(roomId, r => {
+      r.match.lastRoll = 6; r.match.dice = null; r.match.movable = []; r.match.sixes = 0
+      r.match.lastEvent = 'bust'; r.match.lastBy = pid; r.match.lastAuto = auto
+      r.match.seq = (r.match.seq || 0) + 1
+      r.match.turnId = _ludoNext(r.match); r.match.turnEndsAt = _ludoDeadline()
+    })
+  } else {
+    const legal = ludo.legalMoves(m.tokens, color, roll)
+    if (legal.length === 0) {
+      // nothing to move → pass (a 6 with no legal move grants no extra turn)
+      await roomManager.update(roomId, r => {
+        r.match.lastRoll = roll; r.match.dice = null; r.match.movable = []; r.match.sixes = 0
+        r.match.lastEvent = 'pass'; r.match.lastBy = pid; r.match.lastAuto = auto
+        r.match.seq = (r.match.seq || 0) + 1
+        r.match.turnId = _ludoNext(r.match); r.match.turnEndsAt = _ludoDeadline()
+      })
+    } else {
+      await roomManager.update(roomId, r => {
+        r.match.lastRoll = roll; r.match.dice = roll; r.match.movable = legal; r.match.sixes = newSixes
+        r.match.lastEvent = 'roll'; r.match.lastBy = pid; r.match.lastAuto = auto
+        r.match.seq = (r.match.seq || 0) + 1; r.match.turnEndsAt = _ludoDeadline()
+      })
+    }
+  }
+  const updated = await roomManager.get(roomId)
+  _ludoEmit(io, updated)
+  _ludoSchedule(io, roomId)
+}
+
+// Move token `token` for `pid` (no-op unless legal for the current roll).
+async function _ludoDoMove(io, roomId, pid, token, auto = false) {
+  const room = await roomManager.get(roomId)
+  if (!room || room.mode !== 'LUDO' || room.phase !== 'PLAYING') return
+  const m = room.match
+  if (m.turnId !== pid || m.dice == null) return
+  if (!Number.isInteger(token) || !m.movable.includes(token)) return
+  _clearLudoTimer(roomId)
+
+  const roll = m.dice
+  const color = m.colors[pid]
+  let won = false
+  await roomManager.update(roomId, r => {
+    const res = ludo.applyMove(r.match.tokens, color, token, roll)
+    won = ludo.isWin(r.match.tokens, color)
+    // A 6, a capture, OR landing a token home all earn another roll.
+    const bonus = roll === 6 || res.captured.length > 0 || res.finished
+    r.match.dice = null
+    r.match.movable = []
+    r.match.lastEvent = res.captured.length ? 'capture' : 'move'
+    r.match.lastBy = pid; r.match.lastAuto = auto; r.match.seq = (r.match.seq || 0) + 1
+    if (!won) {
+      if (bonus) { r.match.turnEndsAt = _ludoDeadline() }   // same player rolls again
+      else { r.match.sixes = 0; r.match.turnId = _ludoNext(r.match); r.match.turnEndsAt = _ludoDeadline() }
+    }
+  })
+
+  const updated = await roomManager.get(roomId)
+  _ludoEmit(io, updated)
+  if (won) {
+    // Let the winning token finish walking home on every client before the card.
+    await new Promise(r => setTimeout(r, 1200))
+    await _endMatch(io, roomId, { winnerId: pid, ranking: _ludoRanking(updated) })
+    return
+  }
+  _ludoSchedule(io, roomId)
+}
+
 // ── Match end ─────────────────────────────────────────────────────────────────
 export async function endMatch(io, roomId, { winnerId = null, draw = false } = {}) {
   return _endMatch(io, roomId, { winnerId, draw })
@@ -1931,6 +2163,7 @@ async function _endMatch(io, roomId, { winnerId = null, draw = false, ranking = 
   clearTimer(roomId)
   _clearMathTimer(roomId)
   _clearPinpointTimer(roomId)
+  _clearLudoTimer(roomId)
   _clearRoomSudokuLockTimers(roomId)
   cancelRoomGrace(roomId) // game finished → don't let a late disconnect override it
   await roomManager.update(roomId, r => {
@@ -2454,6 +2687,25 @@ function _publicMatch(match) {
       resolved: match.resolved,
     }
   }
+  if (match.kind === 'LUDO') {
+    // No hidden info — the whole board is public.
+    return {
+      kind:    'LUDO',
+      colors:  match.colors,
+      order:   match.order,
+      tokens:  match.tokens,
+      turnId:  match.turnId,
+      dice:    match.dice,
+      movable: match.movable,
+      sixes:   match.sixes,
+      lastRoll: match.lastRoll,
+      lastEvent: match.lastEvent,
+      lastBy:   match.lastBy,
+      lastAuto: match.lastAuto,
+      seq:      match.seq,
+      turnEndsAt: match.turnEndsAt,
+    }
+  }
   if (match.kind === 'SPIN') {
     // Strip the answer (reveal it only once the round is decided).
     return {
@@ -2615,6 +2867,7 @@ function _roomSummary(room) {
     players: room.players.map(p => ({ id: p.id, name: p.name, avatar: p.avatar ?? null, ready: p.ready, score: p.score, isBot: !!p.isBot })),
     hostId: room.hostId,
     spectatorCount: room.spectators?.length || 0,
+    ludoColors: room.ludoColors || {},   // Ludo lobby colour picks
     createdAt: room.createdAt,   // lets the lobby show a truthful "waiting for…" clock
   }
 }

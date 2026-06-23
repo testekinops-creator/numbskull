@@ -103,7 +103,7 @@ export function registerRoomHandlers(io, socket) {
     try {
       const room = await roomManager.get(roomId)
       if (!room) return ack?.({ ok: false, error: 'Room not found' })
-      if (room.mode !== 'RMCS') return ack?.({ ok: false, error: 'Bots are only for Raja Mantri' })
+      if (room.mode !== 'RMCS' && room.mode !== 'LUDO') return ack?.({ ok: false, error: 'Bots are only for Raja Mantri & Ludo' })
       if (room.hostId !== playerId) return ack?.({ ok: false, error: 'Only the host can add bots' })
       if (room.phase !== 'LOBBY' && room.phase !== 'SETUP') return ack?.({ ok: false, error: 'Game already started' })
 
@@ -550,6 +550,7 @@ function sanitize(room, viewerId) {
     spectatorCount: room.spectators.length,
     round: room.round ? sanitizeRound(room.round, viewerId) : null,
     hostId: room.hostId,
+    ludoColors: room.ludoColors || {},   // Ludo lobby colour picks
     createdAt: room.createdAt,   // lets the lobby show a truthful "waiting for…" clock
   }
 }

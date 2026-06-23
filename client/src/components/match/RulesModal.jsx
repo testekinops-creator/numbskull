@@ -183,6 +183,23 @@ const RULES = {
       { h: 'Winning', p: 'Five rounds. Highest total points wins — a tie is a draw.' },
     ],
   },
+  LUDO: {
+    title: '🎲 Ludo',
+    sections: [
+      { h: 'Goal', p: 'Be the first to walk all four of your tokens around the board and into your home. 2–4 players take turns; empty seats can be filled with bots.' },
+      { h: 'Turns', list: [
+        'On your turn, tap Roll. You can only move a token out of its base on a 6.',
+        'Tap a glowing token to move it that many steps along the track.',
+        'Roll a 6 and you go again — but three 6s in a row burns your turn.',
+      ] },
+      { h: 'Captures & safety', list: [
+        'Land exactly on a lone opponent and you send it back to its base.',
+        'Star squares and coloured start squares are safe — no captures there.',
+        'You need an exact roll to step into the final home — overshooting waits.',
+      ] },
+      { h: 'Winning', p: 'First to get all four tokens home wins. Standings rank everyone by tokens home.' },
+    ],
+  },
   GTN: {
     title: '🎯 Guess The Number',
     sections: [

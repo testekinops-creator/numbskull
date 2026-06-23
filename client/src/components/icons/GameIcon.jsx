@@ -6,7 +6,7 @@
 const ACCENTS = {
   gtn: '#00F5FF', bc: '#FF3E8A', xox: '#00F5FF', math: '#FF3E8A', sudoku: '#00F5FF',
   queens: '#FFD740', tango: '#00F5FF', zip: '#FF3E8A', pinpoint: '#FFD740',
-  crossclimb: '#00F5FF', spin: '#FF3E8A', sos: '#00F5FF',
+  crossclimb: '#00F5FF', spin: '#FF3E8A', sos: '#00F5FF', ludo: '#6C63FF',
   countdown: '#FFD740', chain: '#00E676', towers: '#2DD4BF',
   sprout: '#00E676', skull: '#FF3E8A', chip: '#00F5FF',
   shield: '#00E676', medal: '#FFD740', flame: '#FF8A3D', lock: '#8A82B0',
@@ -71,6 +71,18 @@ const GLYPHS = {
   crossclimb: (a) => (<>
     <path d="M8 3v18 M16 3v18" stroke={L} strokeWidth="1.7" strokeLinecap="round" />
     <path d="M8 6.5h8 M8 11h8 M8 15.5h8 M8 20h8" stroke={a} strokeWidth="1.6" strokeLinecap="round" />
+  </>),
+  ludo: () => (<>
+    {/* four corner tokens — the four Ludo colours */}
+    <circle cx="5" cy="5" r="2.6" fill="#FF4D6D" />
+    <circle cx="19" cy="5" r="2.6" fill="#22D466" />
+    <circle cx="19" cy="19" r="2.6" fill="#FFC93C" />
+    <circle cx="5" cy="19" r="2.6" fill="#3AA0FF" />
+    {/* centre die */}
+    <rect x="8" y="8" width="8" height="8" rx="2" stroke={L} strokeWidth="1.5" />
+    <circle cx="10.4" cy="10.4" r="0.95" fill={L} />
+    <circle cx="12" cy="12" r="0.95" fill={L} />
+    <circle cx="13.6" cy="13.6" r="0.95" fill={L} />
   </>),
   spin: (a) => (<>
     <circle cx="12" cy="12.5" r="8.2" stroke={L} strokeWidth="1.6" />

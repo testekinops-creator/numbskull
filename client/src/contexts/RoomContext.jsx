@@ -254,6 +254,16 @@ function reducer(state, action) {
         match: action.match ? { ...state.match, ...action.match } : state.match,
       }
 
+    // Ludo: full public board snapshot after each roll / move (no hidden info).
+    case 'LUDO_UPDATE':
+      return {
+        ...state,
+        match: action.match ? { ...state.match, ...action.match } : state.match,
+        myTurn: action.match?.turnId !== undefined
+          ? action.match.turnId === action.playerId
+          : state.myTurn,
+      }
+
     // RMCS: the host dealt a fresh round — per-viewer payload REPLACES the match
     // (it carries my new private role; the old round's must not linger).
     case 'RMCS_ROUND':
@@ -748,6 +758,9 @@ export function RoomProvider({ children }) {
     // Puzzle race (Queens/Tango): a board update (mine carries myBoard; opponent's is progress-only).
     socket.on('race:update', ({ match } = {}) => dispatch({ type: 'RACE_UPDATE', match, playerId }))
 
+    // Ludo: full public board after every roll / move.
+    socket.on('ludo:update', ({ match } = {}) => dispatch({ type: 'LUDO_UPDATE', match, playerId }))
+
     socket.on('math:question', (payload = {}) => {
       dispatch({ type: 'MATH_QUESTION', payload, playerId })
     })
@@ -869,6 +882,7 @@ export function RoomProvider({ children }) {
       socket.off('rummy:update')
       socket.off('rummy:declared')
       socket.off('race:update')
+      socket.off('ludo:update')
       socket.off('math:question')
       socket.off('math:resolved')
       socket.off('pinpoint:round')
@@ -1002,6 +1016,11 @@ export function RoomProvider({ children }) {
   // Finished watcher points a cell out (toggle) on a still-solving opponent's board — live for both.
   const raceHighlight = useCallback((roomId, targetId, index) => emitAck(socket, 'race:highlight', { roomId, targetId, index }), [socket])
 
+  const ludoRoll = useCallback((roomId)        => emitAck(socket, 'ludo:roll', { roomId }),        [socket])
+  const ludoMove = useCallback((roomId, token) => emitAck(socket, 'ludo:move', { roomId, token }), [socket])
+  const ludoRematch = useCallback((roomId)     => emitAck(socket, 'ludo:rematch', { roomId }),     [socket])
+  const ludoPickColor = useCallback((roomId, color) => emitAck(socket, 'ludo:pick_color', { roomId, color }), [socket])
+
   const spinSpin  = useCallback((roomId)          => socket?.emit('spin:spin',  { roomId }),          [socket])
   const spinGuess = useCallback((roomId, letter)  => socket?.emit('spin:guess', { roomId, letter }),  [socket])
   const spinVowel = useCallback((roomId, letter)  => socket?.emit('spin:vowel', { roomId, letter }),  [socket])
@@ -1105,6 +1124,7 @@ export function RoomProvider({ children }) {
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
       rummyDraw, rummyDiscard, rummyDeclare,
       queensPlace, tangoPlace, zipPath, crossclimbOrder, raceGiveUp, raceRematch, raceHighlight,
+      ludoRoll, ludoMove, ludoRematch, ludoPickColor,
     }}>
       {children}
     </RoomContext.Provider>

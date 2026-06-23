@@ -1,0 +1,488 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+/* ── Scoreboard ─────────────────────────────────────────────── */
+.scoreRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  width: min(94vw, 480px);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 7px;
+  border-radius: 999px;
+  background: #ffffff0f;
+  border: 1px solid #ffffff1a;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.chipTurn {
+  background: color-mix(in srgb, var(--c) 22%, transparent);
+  border-color: var(--c);
+  box-shadow: 0 0 0 1px var(--c), 0 6px 18px color-mix(in srgb, var(--c) 40%, transparent);
+  transform: translateY(-1px) scale(1.03);
+}
+.chipDot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--ch), var(--c));
+  box-shadow: 0 0 8px var(--c);
+}
+.chipName { font-size: .82rem; font-weight: 700; color: #ECE8FF; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chipHome { display: inline-flex; gap: 3px; }
+.chipPip { width: 6px; height: 6px; border-radius: 50%; background: #ffffff26; }
+.chipPipOn { background: var(--ch); box-shadow: 0 0 6px var(--c); }
+
+/* Countdown ring on the active human's chip. */
+.chipClock {
+  position: relative;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: conic-gradient(var(--ck) calc(var(--frac) * 360deg), #ffffff1f 0);
+  transition: background .25s linear;
+}
+.chipClock::after {
+  content: attr(data-s);
+  position: absolute; inset: 3px;
+  border-radius: 50%;
+  background: #15102f;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .58rem; font-weight: 800;
+}
+
+/* ── Board ──────────────────────────────────────────────────── */
+.board {
+  position: relative;
+  width: min(94vw, 480px);
+  aspect-ratio: 1 / 1;
+  border: 10px solid #15102f;
+  border-radius: 22px;
+  background: #15102f;
+  box-shadow: 0 22px 60px #000a, inset 0 0 0 1px #ffffff14, 0 0 0 1px var(--turn);
+  transition: box-shadow .35s ease;
+}
+.grid {
+  position: relative;
+  width: 100%; height: 100%;
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f0b24;
+}
+
+.cell { position: relative; }
+.blank { background: transparent; }
+
+.track {
+  background: linear-gradient(160deg, #fbfaff, #e7e2f6);
+  box-shadow: inset 0 0 0 1px #0000001f;
+}
+/* Safe square — a clear, premium gold star that reads through a token sitting on it. */
+.safe { background: linear-gradient(160deg, #fff7e6, #ffeec2); }
+.safe::before {
+  content: '★';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .82em; line-height: 1;
+  color: #F4B740;
+  text-shadow: 0 0 4px #f4b74088, 0 1px 1px #0002;
+  z-index: 1;
+}
+.start {
+  background: linear-gradient(160deg, var(--ch), var(--c));
+  box-shadow: inset 0 0 0 1px #00000026, inset 0 0 8px #ffffff55;
+  animation: startGlow 2.2s ease-in-out infinite;
+}
+/* a directional arrow showing which way this colour leaves its start */
+.start::after {
+  content: '➜';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .74em; font-weight: 900;
+  color: #ffffffe0;
+  text-shadow: 0 1px 2px #0005;
+  transform: rotate(var(--arot, 0deg));
+}
+@keyframes startGlow {
+  0%, 100% { box-shadow: inset 0 0 0 1px #00000026, inset 0 0 8px #ffffff55; }
+  50%      { box-shadow: inset 0 0 0 1px #00000026, inset 0 0 12px #ffffff88, 0 0 8px var(--c); }
+}
+.homeLane {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ch) 85%, #fff), var(--c));
+  box-shadow: inset 0 0 0 1px #00000022;
+}
+
+/* ── Corner bases ───────────────────────────────────────────── */
+.base {
+  position: relative;
+  margin: 4%;
+  border-radius: 16px;
+  background: linear-gradient(150deg, var(--ch), var(--c) 55%, var(--cd));
+  box-shadow: inset 0 2px 6px #ffffff44, inset 0 -4px 10px #0003, 0 4px 14px #0004;
+  display: flex; align-items: center; justify-content: center;
+  transition: box-shadow .25s ease, transform .25s ease;
+}
+.baseActive {
+  box-shadow: inset 0 2px 6px #ffffff55, 0 0 0 3px #fff, 0 0 22px var(--c);
+  transform: scale(1.012);
+}
+
+/* Base slots: one white box per token, the colored base showing as lines between. */
+.pocketLayer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.pocket {
+  position: absolute;
+  width: 11.6%; height: 11.6%;          /* proper square, a touch bigger */
+  transform: translate(-50%, -56%);     /* lift slightly so the standing pawn is framed */
+  border-radius: 12px;
+  background: linear-gradient(160deg, #ffffff, #ece7f8);
+  /* thin black line inside the box (inset shadow → no box-size change) */
+  box-shadow: inset 0 0 0 1.5px #1a1530cc, inset 0 2px 5px #ffffffdd, inset 0 -4px 7px #0001, 0 2px 5px #0005;
+}
+
+/* ── Centre pinwheel (the "win" box) ────────────────────────── */
+.center {
+  position: relative;
+  /* thin black frame around the win box */
+  box-shadow: inset 0 0 0 2px #1a1530dd;
+}
+.center > span[class*="tri"] { position: absolute; inset: 0; }
+.triTop    { clip-path: polygon(0 0, 100% 0, 50% 50%); filter: brightness(1.02); }
+.triRight  { clip-path: polygon(100% 0, 100% 100%, 50% 50%); }
+.triBottom { clip-path: polygon(100% 100%, 0 100%, 50% 50%); }
+.triLeft   { clip-path: polygon(0 100%, 0 0, 50% 50%); }
+.centerGem {
+  position: absolute; left: 50%; top: 50%;
+  width: 26%; height: 26%; transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #d9d2f5 55%, #8a80c4);
+  box-shadow: 0 0 14px #fff8, inset 0 -2px 4px #0004, inset 0 0 0 1.5px #1a1530aa;
+}
+
+/* ── Tokens ─────────────────────────────────────────────────── */
+.tokenLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.token {
+  position: absolute;
+  width: 5.9%; height: 8.05%;     /* pawn aspect ≈ 44:60 */
+  padding: 0; border: none; background: none;
+  pointer-events: auto;
+  cursor: default;
+  transform-origin: 50% 82%;       /* scale pivots at the foot so clusters stay grounded */
+  filter: drop-shadow(0 2px 2px #0006);
+  transition:
+    left .42s cubic-bezier(.34, 1.18, .5, 1),
+    top  .42s cubic-bezier(.34, 1.18, .5, 1),
+    transform .42s cubic-bezier(.34, 1.18, .5, 1),
+    filter .2s ease;
+}
+.token svg { display: block; width: 100%; height: 100%; overflow: visible; transition: transform .2s ease; }
+/* Ambient breathing ground shadow under every token. */
+.token::after {
+  content: '';
+  position: absolute;
+  left: 50%; bottom: 4%;
+  width: 60%; height: 12%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.5), transparent 70%);
+  z-index: -1;
+  animation: tokenShadow 2.8s ease-in-out infinite;
+}
+@keyframes tokenShadow {
+  0%, 100% { transform: translateX(-50%) scaleX(1);    opacity: .5; }
+  50%      { transform: translateX(-50%) scaleX(.74);  opacity: .3; }
+}
+.tokenHome { width: 4.6%; height: 6.3%; }
+.movable {
+  cursor: pointer;
+  filter: drop-shadow(0 0 5px var(--ch)) drop-shadow(0 0 9px var(--c)) drop-shadow(0 2px 2px #0006);
+}
+.movable svg { animation: tokenBob 1.05s ease-in-out infinite; }
+.movable:hover svg { transform: translateY(-2px) scale(1.06); }
+@keyframes tokenBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-3px) scale(1.045); }
+}
+
+/* Box-by-box hop — quick crisp single-cell step with a slight lift. */
+.hopping {
+  transition: left .16s linear, top .16s linear, transform .16s linear, filter .2s ease;
+  filter: drop-shadow(0 6px 5px #0007);
+}
+.hopping svg { transform: translateY(-15%) scale(1.07); transition: transform .16s ease; }
+
+/* Striker pounce — leaps up and slams down onto the captured square. */
+.slam svg { animation: slamHit .42s cubic-bezier(.3, .7, .4, 1); transform-origin: 50% 88%; }
+@keyframes slamHit {
+  0%   { transform: translateY(0) scale(1); }
+  34%  { transform: translateY(-90%) scale(1.1); }                 /* leap up */
+  60%  { transform: translateY(0) scaleY(.78) scaleX(1.2); filter: brightness(1.3); }  /* slam + squash */
+  78%  { transform: translateY(0) scaleY(1.08) scaleX(.94); }
+  100% { transform: translateY(0) scale(1); filter: none; }
+}
+
+/* Reassemble — the token pops back together in its base slot. */
+.reform svg { animation: reformPop .32s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes reformPop {
+  0%   { transform: scale(.2); opacity: .35; filter: brightness(1.6); }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); filter: none; }
+}
+
+/* Captured token shatters into shards, which then stream back to its base. */
+.shatter {
+  position: absolute;
+  width: 6%; height: 6%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 86;
+  transition: left .47s cubic-bezier(.5, 0, .6, 1), top .47s cubic-bezier(.5, 0, .6, 1);
+}
+.shard {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 34%; height: 34%;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 7px currentColor;
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(1);
+  animation: shardOut .42s ease-out forwards;
+}
+@keyframes shardOut {
+  0%   { transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(var(--a)) translateY(-210%) scale(.65) rotate(40deg); opacity: .95; }
+}
+/* travel phase: shards converge to centre while the container glides to base */
+.shatterTravel .shard { animation: shardIn .47s ease-in forwards; }
+@keyframes shardIn {
+  0%   { transform: translate(-50%, -50%) rotate(var(--a)) translateY(-210%) scale(.65); opacity: .95; }
+  100% { transform: translate(-50%, -50%) scale(.3); opacity: .2; }
+}
+
+/* Capture impact burst at the landing square. */
+.impact {
+  position: absolute;
+  width: 11%; height: 11%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 88;
+  background: radial-gradient(circle, #ffffffd9 0 24%, #ffffff66 40%, transparent 64%);
+  box-shadow: 0 0 18px #fff9;
+  animation: impactBurst .55s ease-out forwards;
+}
+@keyframes impactBurst {
+  0%   { transform: translate(-50%, -50%) scale(.3); opacity: 1; }
+  60%  { opacity: .85; }
+  100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+}
+
+/* Spawn burst — a coloured ring when a token is released onto its start square. */
+.spawnBurst {
+  position: absolute;
+  width: 8%; height: 8%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 18;
+  border: 2.5px solid currentColor;
+  box-shadow: 0 0 14px currentColor;
+  animation: spawnBurst .62s ease-out forwards;
+}
+@keyframes spawnBurst {
+  0%   { transform: translate(-50%, -50%) scale(.25); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+
+/* Move preview — a bold glowing target at each movable token's landing square,
+   coloured by outcome (capture/home/safe/normal). Always pulses so it's obvious. */
+.ghost {
+  position: absolute;
+  width: 6.2%; height: 6.2%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 16;
+  color: #14E0FF;
+  border: 2.5px solid currentColor;
+  background: radial-gradient(circle, color-mix(in srgb, currentColor 32%, transparent), transparent 72%);
+  box-shadow: 0 0 0 1.5px #ffffff99, 0 0 9px currentColor, inset 0 0 6px currentColor;  /* white ring → pops on any cell colour */
+  opacity: 0.68;
+  animation: ghostPulse 1.1s ease-in-out infinite;
+}
+/* a glowing centre dot marks the exact landing spot */
+.ghost::after {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  width: 30%; height: 30%; transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+.ghost_capture { color: #FF2D55; }
+.ghost_home    { color: #FFB300; }
+.ghost_safe    { color: #00D26A; }
+.ghost_normal  { color: #14E0FF; }
+.ghostActive { animation-duration: .75s; filter: brightness(1.18); opacity: 0.9; }
+@keyframes ghostPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1);    box-shadow: 0 0 0 2px #ffffffcc, 0 0 8px currentColor, inset 0 0 6px currentColor; }
+  50%      { transform: translate(-50%, -50%) scale(1.14); box-shadow: 0 0 0 2px #fff, 0 0 22px currentColor, inset 0 0 12px currentColor; }
+}
+
+/* ── Event toast ────────────────────────────────────────────── */
+.toast {
+  position: absolute;
+  left: 50%; top: 40%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: #0c0a18; font-weight: 800; font-size: 1.06rem;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  text-shadow: 0 0 3px #fff, 0 0 8px #fff, 0 1px 2px #ffffffcc;
+  z-index: 60;
+  pointer-events: none;
+  animation: toastPop .34s cubic-bezier(.2, 1.35, .4, 1);
+}
+.toast::before {
+  content: '';
+  width: 11px; height: 11px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--tc, #fff) 70%);
+  box-shadow: 0 0 10px var(--tc, #fff);
+}
+.toastSix     { --tc: #FFC93C; --tg: #FFC93C55; }
+.toastCapture { --tc: #FF4D6D; --tg: #FF4D6D55; }
+.toastBust    { --tc: #FF8A3D; --tg: #FF8A3D44; }
+.toastPass    { --tc: #9b93c9; --tg: transparent; }
+.toastHome    { --tc: #22D466; --tg: #22D46655; }
+@keyframes toastPop {
+  from { opacity: 0; transform: translate(-50%, -36%) scale(.82); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ── Control bar: turn message (left) · die (right) ──────────── */
+.hud {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: min(94vw, 480px);
+  padding: 6px 30px;        /* inset so the die sits well inside the board edge */
+  min-height: 74px;
+}
+.turnText {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 1.04rem;
+  letter-spacing: .2px;
+  text-transform: capitalize;
+  color: #fff;
+  text-shadow: 0 1px 3px #0006;
+  margin-top: -16px;        /* lift up near the board, aligned with the die */
+}
+.turnDot {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--turn) 75%);
+  box-shadow: 0 0 10px var(--turn);
+}
+.dieWrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-top: -16px;        /* lift the die up a little */
+}
+
+/* 3D cube die */
+.dieBtn {
+  width: 64px; height: 64px;
+  align-self: center;
+  margin: 0 auto;
+  padding: 0; border: none; background: none;
+  perspective: 420px;
+  cursor: default;
+  transition: transform .14s ease;
+}
+.dieReady { cursor: pointer; }
+.dieReady:hover { transform: translateY(-2px) scale(1.06); }
+.diePressed { transform: scale(.9); }
+.scene {
+  position: relative;
+  display: block;
+  width: 56px; height: 56px;
+  margin: 4px auto;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 6px 7px #0007);
+}
+.dieReady .scene { animation: dieGlow 1.35s ease-in-out infinite; }
+@keyframes dieGlow {
+  0%, 100% { filter: drop-shadow(0 5px 6px #0007); }
+  50%      { filter: drop-shadow(0 0 9px var(--turn)) drop-shadow(0 5px 6px #0007); }
+}
+.cube {
+  position: absolute;
+  width: 56px; height: 56px;
+  transform-style: preserve-3d;
+  transition: transform .72s cubic-bezier(.2, .8, .3, 1);
+}
+.cubeRolling { transition: transform .72s cubic-bezier(.34, .8, .3, 1); }
+.face {
+  position: absolute;
+  width: 56px; height: 56px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+  padding: 8px;
+  border-radius: 12px;
+  background: linear-gradient(150deg, #ffffff, #e4def4 70%, #cec6e6);
+  box-shadow: inset 0 2px 3px #fff, inset 0 -4px 7px #00000018, 0 0 0 1px #00000016;
+  backface-visibility: hidden;
+}
+.face1 { transform: rotateY(0deg)    translateZ(28px); }
+.face6 { transform: rotateY(180deg)  translateZ(28px); }
+.face3 { transform: rotateY(90deg)   translateZ(28px); }
+.face4 { transform: rotateY(-90deg)  translateZ(28px); }
+.face2 { transform: rotateX(90deg)   translateZ(28px); }
+.face5 { transform: rotateX(-90deg)  translateZ(28px); }
+.diePip {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #6a3f93, #16112f);
+  box-shadow: inset 0 1px 1px #0006;
+  transition: opacity .1s ease;
+}
+.rollHint {
+  color: #c7c0ea;
+  font-size: .76rem;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  opacity: .85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token, .token svg, .token::after, .hopping, .slam svg, .reform svg, .shatter, .shard, .impact, .spawnBurst, .start, .cube, .dieReady .scene, .movable, .movable svg, .chipTurn, .ghostActive {
+    animation: none !important; transition: none !important;
+  }
+}

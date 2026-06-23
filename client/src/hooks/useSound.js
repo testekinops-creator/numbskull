@@ -143,6 +143,51 @@ export function useSound() {
     } catch {}
   }, [])
 
+  // Ludo dice: a quick rattle of clicks (the tumble) ending in a landing thunk.
+  const playDice = useCallback((durationMs = 620) => {
+    if (!isSoundEnabled()) return
+    const ctx = ensureCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    try {
+      const dur = durationMs / 1000
+      let t = 0
+      while (t < dur - 0.1) { tone(ctx, 760 + Math.random() * 900, t, 0.028, 'square', 0.07); t += 0.045 }
+      tone(ctx, 190, dur, 0.18, 'triangle', 0.30)   // die lands
+      tone(ctx, 110, dur + 0.02, 0.24, 'sine', 0.22)
+    } catch {}
+  }, [])
+
+  // Token hop — soft two-note pop.
+  const playStep = useCallback(() => {
+    if (!isSoundEnabled()) return
+    const ctx = ensureCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    try { tone(ctx, 620, 0, 0.11, 'sine', 0.20); tone(ctx, 880, 0.05, 0.1, 'sine', 0.13) } catch {}
+  }, [])
+
+  // Capture — punchy descending thunk.
+  const playCapture = useCallback(() => {
+    if (!isSoundEnabled()) return
+    const ctx = ensureCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    try {
+      ;[540, 392, 294].forEach((f, i) => tone(ctx, f, i * 0.06, 0.18, 'sawtooth', 0.20))
+      tone(ctx, 140, 0.02, 0.26, 'triangle', 0.26)
+    } catch {}
+  }, [])
+
+  // A token reaching home — bright rising chime.
+  const playHome = useCallback(() => {
+    if (!isSoundEnabled()) return
+    const ctx = ensureCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    try { ;[659.25, 880, 1046.5].forEach((f, i) => tone(ctx, f, i * 0.08, 0.32, 'triangle', 0.24)) } catch {}
+  }, [])
+
   const playWin = useCallback(() => {
     if (!isSoundEnabled()) return
     const ctx = ensureCtx()
@@ -168,5 +213,5 @@ export function useSound() {
     } catch {}
   }, [])
 
-  return { playTone, playSpin, playTick, playWin, playLose, unlock }
+  return { playTone, playSpin, playTick, playDice, playStep, playCapture, playHome, playWin, playLose, unlock }
 }

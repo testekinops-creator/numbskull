@@ -193,6 +193,31 @@
 .gameName { font-size: var(--text-lg); font-weight: var(--weight-bold); letter-spacing: 0.01em; }
 .gameDesc { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.4; }
 
+/* Scannable metadata chips (players · bots · length) */
+.chipRow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: var(--weight-semibold);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* Ludo gets its signature 4-colour accent edge. */
+.ludoCard::before {
+  background: linear-gradient(180deg, #FF4D6D 0%, #22D466 36%, #FFC93C 68%, #3AA0FF 100%);
+  box-shadow: 0 0 14px rgba(255, 77, 109, 0.45), 0 0 22px rgba(58, 160, 255, 0.3);
+  top: 10%; bottom: 10%;
+}
+.ludoCard:hover { border-color: rgba(255, 255, 255, 0.22); }
+
 .playArrow {
   flex-shrink: 0;
   width: 42px;

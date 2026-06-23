@@ -17,8 +17,8 @@ function IconLabel({ icon: Icon, children }) {
   return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon size={16} />{children}</span>
 }
 
-const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb' }
-const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB'])
+const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb', LUDO: 'Ludo' }
+const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB', 'LUDO'])
 const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU', 'QUEENS', 'TANGO', 'ZIP'])  // "Solo" rather than "vs AI"
 
 export default function LobbyPage() {
@@ -88,9 +88,11 @@ export default function LobbyPage() {
   const isRmcs = mode === 'RMCS'
   // Rummy: multiplayer-first (no AI in v1), a 2–6 player party game.
   const isRummy = mode === 'RUMMY'
-  const isParty = mode === 'SPIN' || isRummy || isRace
-  // Sudoku now has a full solo mode; Raja Mantri, Rummy, Pinpoint and Crossclimb stay multiplayer-only.
-  const mpOnly = isRmcs || isRummy || mode === 'PINPOINT' || isCrossclimb
+  // Ludo: 2–4 player party game; empty seats fill with AI bots (added in the room).
+  const isLudo = mode === 'LUDO'
+  const isParty = mode === 'SPIN' || isRummy || isRace || isLudo
+  // Sudoku now has a full solo mode; Raja Mantri, Rummy, Pinpoint, Crossclimb and Ludo stay multiplayer-only.
+  const mpOnly = isRmcs || isRummy || mode === 'PINPOINT' || isCrossclimb || isLudo
   // Multiplayer is the primary option for every mode (Sudoku is MP-only anyway).
   const [topTab, setTopTab] = useState('multi')  // ai | multi
   const [mpTab, setMpTab]   = useState('quick')   // quick | create | join
@@ -327,13 +329,15 @@ export default function LobbyPage() {
                       ? 'Create a Crossclimb race (2–8 players) and share the code. Everyone reorders the same word ladder — fastest wins. The host starts when everyone’s in.'
                       : isRummy
                       ? 'Create a Rummy table (2–6 players) and share the code. The host starts when everyone’s in.'
+                      : isLudo
+                      ? 'Create a Ludo board (2–4 players) and share the code. Fill empty seats with AI bots, then the host starts.'
                       : mode === 'RMCS'
                       ? 'Create a room and share the code with 3 friends — Raja Mantri needs exactly 4 players.'
                       : 'Create a private room and share the code with a friend.'}
                   </p>
                   {isParty && (
                     <div className={styles.tabs} style={{ marginBottom: 'var(--space-3, 12px)' }}>
-                      {(isRummy ? [2, 3, 4, 5, 6] : [2, 3, 4, 6, 8]).map(n => (
+                      {(isRummy ? [2, 3, 4, 5, 6] : isLudo ? [2, 3, 4] : [2, 3, 4, 6, 8]).map(n => (
                         <button
                           key={n}
                           className={`${styles.tab} ${partySize === n ? styles.activeTab : ''}`}

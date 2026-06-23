@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import GameLogo from '../components/GameLogo.jsx'
 import MoreDrawer from '../components/MoreDrawer.jsx'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
-import { HomeIcon, MenuIcon, EyeIcon, SkullIcon, CoinIcon } from '../components/icons/Icons.jsx'
+import { HomeIcon, MenuIcon, EyeIcon, SkullIcon, CoinIcon, UsersIcon, BotIcon, ClockIcon } from '../components/icons/Icons.jsx'
 import GameIcon from '../components/icons/GameIcon.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
@@ -83,6 +83,14 @@ const GAMES = [
     accent: 'var(--color-juice)',
   },
   {
+    mode: 'LUDO',
+    icon: '🎲',
+    name: 'Ludo',
+    desc: 'Roll, race your 4 tokens home, capture rivals on the way.',
+    accent: 'var(--color-juice)',
+    chips: [{ icon: 'users', label: '2–4' }, { icon: 'bot', label: 'vs Bots' }, { icon: 'clock', label: '~10 min' }],
+  },
+  {
     mode: 'SPIN',
     icon: '🎡',
     name: 'Spin Battle',
@@ -118,7 +126,7 @@ const GAMES = [
 const ICON_KEY = {
   GTN: 'gtn', BC: 'bc', XOX: 'xox', MATH: 'math', SUDOKU: 'sudoku', QUEENS: 'queens',
   TANGO: 'tango', ZIP: 'zip', PINPOINT: 'pinpoint', CROSSCLIMB: 'crossclimb',
-  SPIN: 'spin', SOS: 'sos', RMCS: 'queens', RUMMY: 'chip',
+  SPIN: 'spin', SOS: 'sos', RMCS: 'queens', RUMMY: 'chip', LUDO: 'ludo',
 }
 
 export default function HomeListPage() {
@@ -178,7 +186,7 @@ export default function HomeListPage() {
         {GAMES.filter(g => !g.hidden).map((g, i) => (
           <button
             key={g.mode}
-            className={`${styles.gameCard} anim-slide-up`}
+            className={`${styles.gameCard} anim-slide-up ${g.mode === 'LUDO' ? styles.ludoCard : ''}`}
             style={{ animationDelay: `${i * 70}ms`, '--accent': g.accent }}
             onClick={() => playGame(g.mode)}
           >
@@ -186,6 +194,18 @@ export default function HomeListPage() {
             <div className={styles.gameText}>
               <span className={styles.gameName}>{g.name}</span>
               <span className={styles.gameDesc}>{g.desc}</span>
+              {g.chips && (
+                <span className={styles.chipRow}>
+                  {g.chips.map((c, j) => (
+                    <span key={j} className={styles.metaChip}>
+                      {c.icon === 'users' && <UsersIcon size={12} />}
+                      {c.icon === 'bot' && <BotIcon size={12} />}
+                      {c.icon === 'clock' && <ClockIcon size={12} />}
+                      {c.label}
+                    </span>
+                  ))}
+                </span>
+              )}
             </div>
             <span className={styles.playArrow}>▶</span>
           </button>

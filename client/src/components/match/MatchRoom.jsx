@@ -33,6 +33,7 @@ import QueensBoard from './QueensBoard.jsx'
 import TangoBoard from './TangoBoard.jsx'
 import ZipBoard from './ZipBoard.jsx'
 import CrossclimbBoard from './CrossclimbBoard.jsx'
+import LudoBoard from './LudoBoard.jsx'
 import RaceHud from './RaceHud.jsx'
 import RaceWatch from './RaceWatch.jsx'
 import { useSound } from '../../hooks/useSound.js'
@@ -60,7 +61,9 @@ import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb' }
+const MODE_NAMES = { XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb', LUDO: 'Ludo' }
+const LUDO_COLORS = ['red', 'green', 'yellow', 'blue']
+const LUDO_HEX = { red: '#FF4D6D', green: '#22D466', yellow: '#FFC93C', blue: '#3AA0FF' }
 
 // Queens race time (ms → m:ss) for the standings card.
 function fmtRaceTime(ms) {
@@ -78,6 +81,7 @@ export default function MatchRoom({ roomId, mode }) {
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     rummyDraw, rummyDiscard, rummyDeclare,
     queensPlace, tangoPlace, zipPath, crossclimbOrder, raceGiveUp, raceRematch, raceHighlight,
+    ludoRoll, ludoMove, ludoRematch, ludoPickColor,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -124,7 +128,7 @@ export default function MatchRoom({ roomId, mode }) {
 
   async function doAddBot() { await addBot(roomId) }
   async function doFillBots() {
-    const need = 4 - (room?.players?.length || 0)   // server caps at 4, so extra calls are no-ops
+    const need = (room?.maxPlayers || 4) - (room?.players?.length || 0)   // server caps at maxPlayers
     for (let i = 0; i < need; i++) await addBot(roomId)
   }
 
@@ -144,12 +148,20 @@ export default function MatchRoom({ roomId, mode }) {
     // on success, match:start flips the phase back to PLAYING and the card unmounts
   }
 
+  async function doLudoPlayAgain() {
+    setRematchErr(''); setRematching(true)
+    unlock()
+    const r = await ludoRematch(roomId)
+    if (!r?.ok) { setRematchErr(r?.error || 'Could not restart — try again'); setRematching(false) }
+    // on success, match:start flips the phase back to PLAYING and the card unmounts
+  }
+
   const room = state.room
   const phase = room?.phase || 'IDLE'
   const me = room?.players?.find(p => p.id === playerId)
   const opponent = room?.players?.find(p => p.id !== playerId)
   const match = state.match
-  const isParty = (room?.maxPlayers || 2) > 2          // 3–8 player party room
+  const isParty = (room?.maxPlayers || 2) > 2 || mode === 'LUDO'   // 3–8 player party room (Ludo is always a party, even 2P)
   const isRaceMode = mode === 'QUEENS' || mode === 'TANGO' || mode === 'ZIP' || mode === 'CROSSCLIMB'   // shared puzzle-race games
   const iAmDone = isRaceMode && !!(state.match?.solved?.[playerId] || state.match?.gaveUp?.[playerId])   // finished or gave up → watch mode
   const iSolved = isRaceMode && !!state.match?.solved?.[playerId]   // SOLVED (not gave up)
@@ -593,6 +605,9 @@ export default function MatchRoom({ roomId, mode }) {
                 {room.players.map(p => (
                   <li key={p.id} className={styles.partyItem}>
                     <Avatar id={p.avatar} seed={p.id} name={p.name} size={32} ring={p.id === room.hostId ? 'gold' : false} />
+                    {mode === 'LUDO' && room.ludoColors?.[p.id] && (
+                      <span style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0, background: LUDO_HEX[room.ludoColors[p.id]], boxShadow: `0 0 6px ${LUDO_HEX[room.ludoColors[p.id]]}` }} />
+                    )}
                     <span className={styles.partyItemName}>{p.name}{p.id === playerId ? ' (you)' : ''}</span>
                     {p.isBot && <span className={styles.partyBotTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><BotIcon size={13} /> bot</span>}
                     {p.id === room.hostId && <span className={styles.partyHostTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CrownIcon size={13} /> host</span>}
@@ -603,8 +618,35 @@ export default function MatchRoom({ roomId, mode }) {
                 ))}
               </ul>
               <p className={styles.partyCode}>Share code: <b>{room.code}</b></p>
-              {/* RMCS: short a player? fill empty seats with bots so you can start now. */}
-              {isHost && mode === 'RMCS' && room.players.length < 4 && (
+              {/* Ludo: pick your colour before the host starts (each colour unique). */}
+              {mode === 'LUDO' && (
+                <div className={styles.ludoPick}>
+                  <span className={styles.ludoPickLabel}>Pick your colour</span>
+                  <div className={styles.ludoSwatches}>
+                    {LUDO_COLORS.map(c => {
+                      const owner = Object.entries(room.ludoColors || {}).find(([, col]) => col === c)?.[0]
+                      const mine = (room.ludoColors || {})[playerId] === c
+                      const takenByOther = owner && owner !== playerId
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`${styles.ludoSwatch} ${mine ? styles.ludoSwatchMine : ''} ${takenByOther ? styles.ludoSwatchTaken : ''}`}
+                          style={{ background: LUDO_HEX[c] }}
+                          disabled={takenByOther}
+                          onClick={() => ludoPickColor(roomId, c)}
+                          aria-label={`Pick ${c}${takenByOther ? ' (taken)' : ''}`}
+                          title={takenByOther ? 'Taken' : c}
+                        >
+                          {mine && <CheckIcon size={16} />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {/* RMCS / Ludo: short a player? fill empty seats with bots so you can start now. */}
+              {isHost && (mode === 'RMCS' || mode === 'LUDO') && room.players.length < (room.maxPlayers || 4) && (
                 <div className={styles.botRow}>
                   <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={doAddBot}><IL icon={BotIcon} size={15}>Add bot</IL></button>
                   <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={doFillBots}>Fill with bots</button>
@@ -895,6 +937,16 @@ export default function MatchRoom({ roomId, mode }) {
               </>
             )}
 
+            {mode === 'LUDO' && match.tokens && (
+              <LudoBoard
+                match={match}
+                players={room.players}
+                playerId={playerId}
+                onRoll={() => { unlock(); ludoRoll(roomId) }}
+                onMove={(token) => { unlock(); ludoMove(roomId, token) }}
+              />
+            )}
+
             {/* Give up — race only, while still playing. Done players are already watching. */}
             {isRaceMode && !iAmDone && (
               <button className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} onClick={() => setConfirmGiveUp(true)}>
@@ -927,6 +979,8 @@ export default function MatchRoom({ roomId, mode }) {
                     {/* Race modes (Queens/Tango): solve time, else DNF + progress. SPIN: roundWins/trophies. RMCS: point totals. */}
                     {isRaceMode ? (
                       <span className={styles.rankWins}>{r.solved ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ClockIcon size={13} /> {fmtRaceTime(r.timeMs)}</span> : `DNF · ${r.correct ?? 0}`}</span>
+                    ) : r.ludoHome != null ? (
+                      <span className={styles.rankWins}>{r.ludoHome}/4 home</span>
                     ) : r.total != null ? (
                       <span className={styles.rankWins}>{r.total} pts</span>
                     ) : (
@@ -959,8 +1013,17 @@ export default function MatchRoom({ roomId, mode }) {
               {isRaceMode && !isHost && room.players.length >= 2 && (
                 <p className={styles.seriesLine}>Waiting for the host to play again…</p>
               )}
+              {/* Ludo host re-deals a fresh board with the same table. */}
+              {mode === 'LUDO' && isHost && room.players.length >= 2 && (
+                <button className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={rematching} onClick={doLudoPlayAgain}>
+                  {rematching ? 'Starting…' : <IL icon={RefreshIcon}>Play again</IL>}
+                </button>
+              )}
+              {mode === 'LUDO' && !isHost && room.players.length >= 2 && (
+                <p className={styles.seriesLine}>Waiting for the host to play again…</p>
+              )}
               <button
-                className={`btn ${(isHost && ((mode === 'RMCS' && room.players.length === 4) || (isRaceMode && room.players.length >= 2))) ? 'btn-ghost' : 'btn-juice'} btn-lg`}
+                className={`btn ${(isHost && ((mode === 'RMCS' && room.players.length === 4) || (isRaceMode && room.players.length >= 2) || (mode === 'LUDO' && room.players.length >= 2))) ? 'btn-ghost' : 'btn-juice'} btn-lg`}
                 style={{ width: '100%' }}
                 onClick={() => { leaveRoom(roomId); navigate('/home') }}
               >
