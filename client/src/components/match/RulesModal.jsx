@@ -1,4 +1,7 @@
 import { useEffect } from 'react'
+import GameIcon from '../icons/GameIcon.jsx'
+import { GAME_ICON_KEY } from '../../utils/gameIcons.js'
+import { CloseIcon } from '../icons/Icons.jsx'
 import s from './RulesModal.module.css'
 
 // Per-mode "How to play" content. SPIN gets the full breakdown (it's the most
@@ -217,8 +220,10 @@ export default function RulesModal({ mode = 'SPIN', onClose }) {
     <div className={s.backdrop} onClick={onClose} role="dialog" aria-modal="true" aria-label="How to play">
       <div className={`${s.panel} anim-slide-up`} onClick={e => e.stopPropagation()}>
         <div className={s.head}>
-          <h2 className={s.title}>{r.title}</h2>
-          <button className={s.close} onClick={onClose} aria-label="Close">✕</button>
+          <h2 className={s.title} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {GAME_ICON_KEY[mode] && <GameIcon icon={GAME_ICON_KEY[mode]} size={22} />} {r.title.replace(/^\S+️?\s/, '')}
+          </h2>
+          <button className={s.close} onClick={onClose} aria-label="Close"><CloseIcon size={16} /></button>
         </div>
         <p className={s.sub}>How to play · scoring · rules</p>
 

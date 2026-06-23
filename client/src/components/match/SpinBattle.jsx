@@ -2,6 +2,7 @@ import { useState } from 'react'
 import CountUp from 'react-countup'
 import SpinWheel from './SpinWheel.jsx'
 import PuzzleBoard from './PuzzleBoard.jsx'
+import { RefreshIcon, BulbIcon, CloseIcon } from '../icons/Icons.jsx'
 import styles from './SpinBattle.module.css'
 
 const CONSONANTS = 'BCDFGHJKLMNPQRSTVWXYZ'.split('')
@@ -68,7 +69,7 @@ export default function SpinBattle({
         onClick={onSpin}
         disabled={!idle}
       >
-        {spinning ? 'Spinning…' : '🎡 SPIN'}
+        {spinning ? 'Spinning…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><RefreshIcon size={17} /> SPIN</span>}
       </button>
 
       {/* Consonant keyboard */}
@@ -104,8 +105,8 @@ export default function SpinBattle({
 
       {/* Solve */}
       {!showSolve ? (
-        <button className={`btn btn-ghost ${styles.solveToggle}`} onClick={() => setShowSolve(true)} disabled={!canSolve}>
-          💡 Solve the puzzle
+        <button className={`btn btn-ghost ${styles.solveToggle}`} onClick={() => setShowSolve(true)} disabled={!canSolve} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          <BulbIcon size={16} /> Solve the puzzle
         </button>
       ) : (
         <form className={styles.solveForm} onSubmit={submitSolve}>
@@ -118,7 +119,7 @@ export default function SpinBattle({
             maxLength={60}
           />
           <button type="submit" className="btn btn-juice" disabled={!canSolve}>Solve</button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowSolve(false)}>✕</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowSolve(false)}><CloseIcon size={15} /></button>
         </form>
       )}
     </div>

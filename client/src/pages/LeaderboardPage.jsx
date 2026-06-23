@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { SkeletonLeaderboard } from '../components/Skeleton.jsx'
 import Avatar from '../components/avatar/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import { TrophyIcon, CrownIcon } from '../components/icons/Icons.jsx'
 import styles from './LeaderboardPage.module.css'
 
 function monthName(period) {
@@ -57,7 +58,7 @@ export default function LeaderboardPage() {
         </div>
 
         <div className={styles.sub}>
-          <span className={styles.month}>🏆 {monthName(period)} · Multiplayer wins</span>
+          <span className={styles.month} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><TrophyIcon size={16} /> {monthName(period)} · Multiplayer wins</span>
           <span className={styles.reset}>Resets at month end</span>
         </div>
 
@@ -107,7 +108,7 @@ function PodiumSpot({ place, e, myId }) {
   const isMe = e.entrantId === myId
   return (
     <div className={`${styles.spot} ${styles['spot' + place]} ${isMe ? styles.spotMe : ''}`}>
-      {place === 1 && <span className={styles.crown} aria-hidden="true">👑</span>}
+      {place === 1 && <span className={styles.crown} aria-hidden="true"><CrownIcon size={18} style={{ color: '#FFD740' }} /></span>}
       <Avatar seed={e.entrantId} name={e.name} size={place === 1 ? 64 : 52}
         ring={place === 1 ? 'gold' : place === 2 ? 'silver' : 'bronze'} />
       <span className={styles.spotName}>{e.name}</span>

@@ -4,6 +4,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react'
 import { api } from '../services/api.js'
 import { SkeletonBadgeGrid } from '../components/Skeleton.jsx'
 import { ErrorState } from '../components/States.jsx'
+import { LockIcon } from '../components/icons/Icons.jsx'
 import styles from './BadgesPage.module.css'
 
 const EARNED_KEY = 'ns_badges_earned'
@@ -49,7 +50,7 @@ export default function BadgesPage() {
             const unlocked = earnedSet.has(b.slug)
             return (
               <div key={b.slug} className={`${styles.badge} ${unlocked ? styles.unlocked : styles.locked}`} title={b.description}>
-                <span className={styles.badgeIcon}>{unlocked ? b.icon : '🔒'}</span>
+                <span className={styles.badgeIcon}>{unlocked ? b.icon : <LockIcon size={24} />}</span>
                 <span className={styles.badgeName}>{b.name}</span>
                 {unlocked && <span className={styles.badgeDesc}>{b.description}</span>}
               </div>

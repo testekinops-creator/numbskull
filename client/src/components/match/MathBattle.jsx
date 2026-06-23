@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import CountUp from 'react-countup'
 import styles from './MathBattle.module.css'
 import { useHaptic } from '../../hooks/useHaptic.js'
+import { InfinityIcon, CheckIcon, CloseIcon, ClockIcon } from '../icons/Icons.jsx'
 
 // Pure presentational Math Battle view. Both the AI page and the multiplayer
 // MatchRoom pass these props; neither game logic lives here.
@@ -34,7 +35,7 @@ export default function MathBattle({
           <span className={styles.scoreLabel}>{solo ? 'Correct' : 'You'}</span>
           <span className={styles.scoreVal}><CountUp end={myScore} duration={0.5} preserveValue /></span>
         </div>
-        <div className={styles.qCount}>{endless ? `♾️ Q ${index + 1}` : `Q ${Math.min(index + 1, total)} / ${total}`}</div>
+        <div className={styles.qCount} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{endless ? <><InfinityIcon size={14} /> Q {index + 1}</> : `Q ${Math.min(index + 1, total)} / ${total}`}</div>
         {solo ? (
           <div style={{ minWidth: 64 }} aria-hidden="true" />
         ) : (
@@ -85,14 +86,14 @@ export default function MathBattle({
       <div key={reveal ? `rv${index}` : 'rv'} className={`${styles.revealRow} ${reveal ? 'anim-msg' : ''}`}>
         {reveal && (
           reveal.timeout ? (
-            <span className={styles.revealNeutral}>⏱️ Time! The answer was {reveal.answer}.</span>
+            <span className={styles.revealNeutral} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><ClockIcon size={14} /> Time! The answer was {reveal.answer}.</span>
           ) : reveal.byMe ? (
             reveal.correct
-              ? <span className={styles.revealGood}>✓ Correct!{solo ? '' : ' +1'}</span>
-              : <span className={styles.revealBad}>
-                  {solo
-                    ? `✗ Wrong — the answer was ${reveal.answer}`
-                    : `✗ Wrong −1 — ${oppName} gets +1 (answer: ${reveal.answer})`}
+              ? <span className={styles.revealGood} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckIcon size={14} /> Correct!{solo ? '' : ' +1'}</span>
+              : <span className={styles.revealBad} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <CloseIcon size={14} /> {solo
+                    ? `Wrong — the answer was ${reveal.answer}`
+                    : `Wrong −1 — ${oppName} gets +1 (answer: ${reveal.answer})`}
                 </span>
           ) : (
             reveal.correct

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import CountUp from 'react-countup'
 import styles from './Pinpoint.module.css'
 import { useHaptic } from '../../hooks/useHaptic.js'
+import { GemIcon, CheckIcon, CloseIcon, ClockIcon } from '../icons/Icons.jsx'
 
 // Pure presentational Pinpoint view. Both players see the same clues revealed one
 // at a time and pick the connecting category from four options. Answer on fewer
@@ -43,7 +44,7 @@ export default function Pinpoint({
       {/* Worth pill — counts down as more clues appear */}
       <div className={styles.worthRow}>
         <span className={styles.prompt}>What connects these?</span>
-        {!reveal && <span key={revealed} className={`${styles.worth} anim-msg`}>💎 +{worth}</span>}
+        {!reveal && <span key={revealed} className={`${styles.worth} anim-msg`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><GemIcon size={13} /> +{worth}</span>}
       </div>
 
       {/* Clue list — revealed clues plus dim placeholders for the rest */}
@@ -81,16 +82,16 @@ export default function Pinpoint({
       <div key={reveal ? `rv${index}` : (myLocked ? `lk${index}` : 'rv')} className={`${styles.revealRow} ${reveal || myLocked ? 'anim-msg' : ''}`}>
         {reveal ? (
           reveal.timeout ? (
-            <span className={styles.revealNeutral}>⏱️ Time! It was <b>{reveal.answer}</b>.</span>
+            <span className={styles.revealNeutral} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><ClockIcon size={14} /> Time! It was <b>{reveal.answer}</b>.</span>
           ) : reveal.bothWrong ? (
             <span className={styles.revealNeutral}>Both missed — it was <b>{reveal.answer}</b>.</span>
           ) : reveal.byMe ? (
-            <span className={styles.revealGood}>✓ Got it! +{reveal.points}</span>
+            <span className={styles.revealGood} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckIcon size={14} /> Got it! +{reveal.points}</span>
           ) : (
             <span className={styles.revealNeutral}>{oppName} pinned it (+{reveal.points}) — <b>{reveal.answer}</b></span>
           )
         ) : myLocked ? (
-          <span className={styles.revealBad}>✗ Not that one — wait for the answer.</span>
+          <span className={styles.revealBad} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CloseIcon size={14} /> Not that one — wait for the answer.</span>
         ) : oppLocked ? (
           <span className={styles.revealNeutral}>{oppName} guessed wrong — your chance!</span>
         ) : null}

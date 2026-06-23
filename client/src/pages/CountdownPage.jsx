@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameIcon from '../components/icons/GameIcon.jsx'
 import styles from './CountdownPage.module.css'
 
 export default function CountdownPage() {
@@ -68,7 +69,7 @@ export default function CountdownPage() {
       <div className={`panel ${styles.page}`}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
-          <span className={`badge badge-juice`}>🔢 Countdown</span>
+          <span className={`badge badge-juice`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GameIcon icon="countdown" size={15} /> Countdown</span>
           <span className={`${styles.timer} ${styles[urgency]}`}>{timeLeft}s</span>
         </div>
 

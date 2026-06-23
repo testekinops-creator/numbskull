@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useGame } from '../contexts/GameContext.jsx'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { LockIcon } from '../components/icons/Icons.jsx'
 import styles from './ModeSelectPage.module.css'
 
 export default function ModeSelectPage() {
@@ -26,7 +28,7 @@ export default function ModeSelectPage() {
             onClick={() => navigate('/play/GTN')}
           >
             <div className={styles.modeTop}>
-              <span className={styles.modeIcon}>🎯</span>
+              <span className={styles.modeIcon}><GameIcon icon="gtn" size={34} /></span>
               <div className={styles.modeText}>
                 <h2 className={styles.modeName}>Guess The Number</h2>
                 <p className={styles.modeDesc}>Higher or lower. 1–100. How fast can you find it?</p>
@@ -47,7 +49,7 @@ export default function ModeSelectPage() {
             aria-describedby="bc-lock-hint"
           >
             <div className={styles.modeTop}>
-              <span className={styles.modeIcon}>{bcUnlocked ? '🐂' : '🔒'}</span>
+              <span className={styles.modeIcon}>{bcUnlocked ? <GameIcon icon="bc" size={34} /> : <LockIcon size={28} />}</span>
               <div className={styles.modeText}>
                 <h2 className={styles.modeName}>Bulls &amp; Cows</h2>
                 <p className={styles.modeDesc}>Crack the 4-digit code. Bulls hit, cows misplace.</p>

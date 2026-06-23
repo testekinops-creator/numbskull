@@ -13,6 +13,9 @@ import SosBoard from '../components/match/SosBoard.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getModeRoast } from '../utils/roasts.js'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { BotIcon, EditIcon } from '../components/icons/Icons.jsx'
+import { DIFFICULTY } from '../components/icons/difficulty.js'
 import styles from './SosAiPage.module.css'
 
 const SIZES = [[8, '8 × 8'], [10, '10 × 10']]
@@ -142,8 +145,8 @@ export default function SosAiPage() {
       <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <span className="badge badge-juice">🔠 SOS</span>
-          <span className={styles.vsTag}>vs 🤖</span>
+          <span className="badge badge-juice" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GameIcon icon="sos" size={15} /> SOS</span>
+          <span className={styles.vsTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>vs <BotIcon size={14} /></span>
         </div>
 
         {phase === 'SETUP' && (
@@ -161,9 +164,14 @@ export default function SosAiPage() {
 
             <div className={styles.choiceLabel}>Difficulty</div>
             <div className={styles.row}>
-              {DIFFS.map(([id, label]) => (
-                <button key={id} className={`${styles.choiceBtn} ${difficulty === id ? styles.choiceActive : ''}`} onClick={() => setDifficulty(id)}>{label}</button>
-              ))}
+              {DIFFS.map(([id, label]) => {
+                const { Icon, color } = DIFFICULTY[id]
+                return (
+                  <button key={id} className={`${styles.choiceBtn} ${difficulty === id ? styles.choiceActive : ''}`} onClick={() => setDifficulty(id)}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon size={14} style={{ color }} /> {label}</span>
+                  </button>
+                )
+              })}
             </div>
 
             <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={startGame} disabled={busy}>
@@ -177,10 +185,10 @@ export default function SosAiPage() {
           <div className={styles.play}>
             <div className={styles.statusRow}>
               <SkullMascot expression={myTurn ? 'annoyed' : 'grudging'} size={52} />
-              <span className={styles.status}>
-                {claiming ? '✏️ Draw your S‑O‑S!' : myTurn ? 'Your move' : '🤖 thinking…'}
+              <span className={styles.status} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {claiming ? <><EditIcon size={15} /> Draw your S‑O‑S!</> : myTurn ? 'Your move' : <><BotIcon size={15} /> thinking…</>}
               </span>
-              <span className={styles.scoreTag}>You <b>{scores.player}</b> · 🤖 <b>{scores.ai}</b></span>
+              <span className={styles.scoreTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>You <b>{scores.player}</b> · <BotIcon size={14} /> <b>{scores.ai}</b></span>
             </div>
             <SosBoard
               size={size}

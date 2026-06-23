@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react'
+import GameIcon from '../icons/GameIcon.jsx'
+import { ClockIcon, MedalIcon, CheckIcon } from '../icons/Icons.jsx'
 import styles from './RaceHud.module.css'
 
 // Shared HUD for puzzle-race games (Queens, Tango, …): a countdown + every player's
-// live progress (a count only — never positions), with a ✅ + solve-time badge once
-// they finish. `icon`/`total` label the progress (Queens: 👑 placed/n; Tango: filled/36).
+// live progress (a count only — never positions), with a ✓ + solve-time badge once
+// they finish. `iconKey` is the GameIcon glyph for this mode; `total` is the goal count.
 function fmt(ms) {
   const s = Math.max(0, Math.round(ms / 1000))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function RaceHud({ match, players = [], playerId, icon = '👑', total }) {
+export default function RaceHud({ match, players = [], playerId, iconKey = 'queens', total }) {
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 500)
@@ -29,18 +31,23 @@ export default function RaceHud({ match, players = [], playerId, icon = '👑', 
 
   return (
     <div className={styles.hud}>
-      {left != null && <span className={`${styles.timer} ${low ? styles.low : ''}`}>⏳ {fmt(left)}</span>}
+      {left != null && (
+        <span className={`${styles.timer} ${low ? styles.low : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <ClockIcon size={13} /> {fmt(left)}
+        </span>
+      )}
       <div className={styles.players}>
         {rows.map(p => {
           const solved = !!match.solved?.[p.id]
           const mine = p.id === playerId
+          const leader = p.id === rows[0].id && solved
           return (
-            <span key={p.id} className={`${styles.pill} ${mine ? styles.you : ''} ${solved ? styles.done : ''}`}>
-              {p.id === rows[0].id && solved ? '🥇 ' : ''}
-              {mine ? 'You' : p.name}{' '}
+            <span key={p.id} className={`${styles.pill} ${mine ? styles.you : ''} ${solved ? styles.done : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              {leader && <MedalIcon size={13} style={{ color: '#FFD740' }} />}
+              {mine ? 'You' : p.name}
               {solved
-                ? `✅ ${fmt(match.finishMs?.[p.id] ?? 0)}`
-                : `${icon} ${match.placed?.[p.id] ?? 0}/${total}`}
+                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckIcon size={13} /> {fmt(match.finishMs?.[p.id] ?? 0)}</span>
+                : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><GameIcon icon={iconKey} size={14} /> {match.placed?.[p.id] ?? 0}/{total}</span>}
             </span>
           )
         })}

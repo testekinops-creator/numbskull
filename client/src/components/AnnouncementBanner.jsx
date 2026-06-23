@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../services/api.js'
+import { AlertIcon, ToolIcon, InfoIcon, CloseIcon } from './icons/Icons.jsx'
 import styles from './AnnouncementBanner.module.css'
 
 export default function AnnouncementBanner() {
@@ -21,10 +22,10 @@ export default function AnnouncementBanner() {
   return (
     <div className={`${styles.banner} ${typeClass}`} role="alert">
       <span className={styles.icon}>
-        {ann.type === 'warning' ? '⚠️' : ann.type === 'maintenance' ? '🔧' : 'ℹ️'}
+        {ann.type === 'warning' ? <AlertIcon size={18} /> : ann.type === 'maintenance' ? <ToolIcon size={18} /> : <InfoIcon size={18} />}
       </span>
       <p className={styles.msg}>{ann.message}</p>
-      <button className={styles.close} onClick={() => setDismissed(true)} aria-label="Dismiss announcement">✕</button>
+      <button className={styles.close} onClick={() => setDismissed(true)} aria-label="Dismiss announcement"><CloseIcon size={15} /></button>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { usePlayer } from '../../contexts/PlayerContext.jsx'
+import { AlertIcon } from '../icons/Icons.jsx'
 import styles from './SocialLoginButtons.module.css'
 
 // Compact horizontal row of premium auth icons: Google, Facebook and (optionally)
@@ -113,7 +114,7 @@ export default function SocialLoginButtons({ label = 'or continue with', onDone,
         )}
       </div>
 
-      {onGuest && <p className={styles.guestNote}>⚠️ Guest progress isn’t saved</p>}
+      {onGuest && <p className={styles.guestNote} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><AlertIcon size={13} /> Guest progress isn’t saved</p>}
       {err && <p className={styles.err} role="alert">{err}</p>}
     </div>
   )

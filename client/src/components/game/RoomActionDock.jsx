@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import EmojiPicker from './EmojiPicker.jsx'
 import VoiceCall from '../match/VoiceCall.jsx'
 import RulesModal from '../match/RulesModal.jsx'
+import { SpeakerOffIcon } from '../icons/Icons.jsx'
 import { useMusicEnabled } from '../../services/gameMusic.js'
 import styles from './RoomActionDock.module.css'
 
@@ -57,8 +58,8 @@ export default function RoomActionDock({ roomId, mode, hasOpponent, showCall, op
         aria-hidden={tuckedAway || undefined}
       >
         {hasOpponent && mute && (
-          <div className={styles.silentPill} title="Silent Round — no table talk">
-            <span aria-hidden="true">🤫</span> Silent
+          <div className={styles.silentPill} title="Silent Round — no table talk" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <SpeakerOffIcon size={15} /> Silent
           </div>
         )}
 

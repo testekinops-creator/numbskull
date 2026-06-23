@@ -11,6 +11,8 @@ import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getModeRoast } from '../utils/roasts.js'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { UserIcon, TargetIcon, InfinityIcon, TrophyIcon } from '../components/icons/Icons.jsx'
 import styles from './MathBattleAiPage.module.css'
 
 const DIFFICULTIES = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']]
@@ -128,8 +130,8 @@ export default function MathBattleAiPage() {
       <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <span className="badge badge-juice">🧮 Math Battle</span>
-          <span className={styles.vsTag}>🧠 Solo</span>
+          <span className="badge badge-juice" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GameIcon icon="math" size={15} /> Math Battle</span>
+          <span className={styles.vsTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><UserIcon size={14} /> Solo</span>
         </div>
 
         {phase === 'SETUP' && (
@@ -148,13 +150,13 @@ export default function MathBattleAiPage() {
                 className={`${styles.diffBtn} ${gameMode === 'standard' ? styles.diffActive : ''}`}
                 onClick={() => setGameMode('standard')}
               >
-                🎯 Standard
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><TargetIcon size={15} /> Standard</span>
               </button>
               <button
                 className={`${styles.diffBtn} ${gameMode === 'endless' ? styles.diffActive : ''}`}
                 onClick={() => setGameMode('endless')}
               >
-                ♾️ Endless
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><InfinityIcon size={15} /> Endless</span>
               </button>
             </div>
             {gameMode === 'endless' && best > 0 && (
@@ -204,7 +206,7 @@ export default function MathBattleAiPage() {
         {phase === 'DONE' && gameMode === 'endless' && (
           <div className={`${styles.setup} anim-slide-up`}>
             <SkullMascot expression={correct >= best && correct > 0 ? 'impressed' : 'annoyed'} size={92} glow={correct >= best && correct > 0} />
-            <h1 className={styles.setupTitle}>{correct >= best && correct > 0 ? '🏆 New best streak!' : 'Run over'}</h1>
+            <h1 className={styles.setupTitle} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{correct >= best && correct > 0 ? <><TrophyIcon size={20} /> New best streak!</> : 'Run over'}</h1>
             <div className={styles.scoreBig}>{correct}</div>
             <p className={styles.setupHint}>in a row · best {best}</p>
             {doneRoast && <p className={styles.doneRoast}>&ldquo;{doneRoast}&rdquo;</p>}

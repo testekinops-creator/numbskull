@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useRoom } from '../contexts/RoomContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { api } from '../services/api.js'
+import { UserPlusIcon } from './icons/Icons.jsx'
 import styles from './FriendNotifications.module.css'
 
 // Global social notifications — mounted app-level (in App.jsx) so they appear
@@ -41,7 +42,7 @@ export default function FriendNotifications() {
     setBusy(true)
     try {
       await api.post(`/users/${id}/friend/${action}`)
-      if (action === 'accept') showFlash(`🤝 You're now friends with ${name || 'them'}!`)
+      if (action === 'accept') showFlash(`You're now friends with ${name || 'them'}!`)
     } catch {
       // Already-friends / expired request etc. — silent; the card is gone either way.
     } finally {
@@ -57,7 +58,7 @@ export default function FriendNotifications() {
     const p = state.friendPresence
     if (p?.online && p.ts !== presenceTs.current) {
       presenceTs.current = p.ts
-      setPresenceMsg(`🟢 ${p.name || 'A friend'} is online`)
+      setPresenceMsg(`${p.name || 'A friend'} is online`)
       clearTimeout(presenceTimer.current)
       presenceTimer.current = setTimeout(() => setPresenceMsg(null), TOAST_MS)
     }
@@ -72,7 +73,7 @@ export default function FriendNotifications() {
     const a = state.friendAccepted
     if (a?.name && a.ts !== acceptedTs.current) {
       acceptedTs.current = a.ts
-      setAcceptedMsg(`🤝 ${a.name} accepted your friend request`)
+      setAcceptedMsg(`${a.name} accepted your friend request`)
       clearTimeout(acceptedTimer.current)
       acceptedTimer.current = setTimeout(() => setAcceptedMsg(null), TOAST_MS)
     }
@@ -91,7 +92,7 @@ export default function FriendNotifications() {
       {incoming && (
         <div className={styles.card} role="dialog" aria-label="Friend request">
           <div className={styles.cardBody}>
-            <span className={styles.icon}>👋</span>
+            <span className={styles.icon}><UserPlusIcon size={20} /></span>
             <span className={styles.text}>
               <strong>{incoming.fromName || 'Someone'}</strong> wants to be friends
             </span>

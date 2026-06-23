@@ -1,3 +1,4 @@
+import { EditIcon, BulbIcon } from '../icons/Icons.jsx'
 import styles from './SudokuNumberPad.module.css'
 
 // Premium Sudoku number pad — shared by solo and multiplayer. Numbers 1–9 plus
@@ -54,7 +55,7 @@ export default function SudokuNumberPad({
               aria-pressed={notesMode}
               title="Pencil notes"
             >
-              <span className={styles.actionIcon}>✏️</span>
+              <span className={styles.actionIcon}><EditIcon size={18} /></span>
               <span className={styles.actionLabel}>Notes{notesMode ? ' • On' : ''}</span>
             </button>
           )}
@@ -66,7 +67,7 @@ export default function SudokuNumberPad({
           )}
           {onHint && (
             <button type="button" className={styles.action} onClick={onHint} disabled={hintsLeft != null && hintsLeft <= 0} title="Hint">
-              <span className={styles.actionIcon}>💡</span>
+              <span className={styles.actionIcon}><BulbIcon size={18} /></span>
               <span className={styles.actionLabel}>Hint</span>
               {hintsLeft != null && <span className={styles.actionBadge}>{hintsLeft}</span>}
             </button>

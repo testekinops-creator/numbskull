@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api.js'
 import SkullMascot from '../components/skull/SkullMascot.jsx'
+import GameIcon from '../components/icons/GameIcon.jsx'
 import styles from './NumberChainPage.module.css'
 
 const OPS = ['+', '-', '*', '/']
@@ -46,7 +47,7 @@ export default function NumberChainPage() {
       <div className={`panel ${styles.page}`}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
-          <span className={`badge badge-juice`}>🧮 Number Chain</span>
+          <span className={`badge badge-juice`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GameIcon icon="chain" size={15} /> Number Chain</span>
           {state && !state.over && (
             <span className={styles.movesLeft}>{state.movesLeft ?? '—'} moves left</span>
           )}

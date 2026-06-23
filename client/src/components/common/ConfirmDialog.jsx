@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useFocusTrap } from '../../hooks/useFocusTrap.js'
+import { AlertIcon } from '../icons/Icons.jsx'
 import styles from './ConfirmDialog.module.css'
 
 // Premium confirmation modal. Backdrop-blur + glowing gradient card. Escape or a
@@ -9,7 +10,7 @@ export default function ConfirmDialog({
   open,
   title = 'Are you sure?',
   message,
-  icon = '⚠️',
+  icon = <AlertIcon size={26} />,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   tone = 'danger',          // 'danger' | 'default'

@@ -1,3 +1,4 @@
+import { SkullIcon } from './icons/Icons.jsx'
 import styles from './PlayButton.module.css'
 
 export default function PlayButton({ onClick, pressed }) {
@@ -8,7 +9,7 @@ export default function PlayButton({ onClick, pressed }) {
       aria-label="Play Numbskull"
     >
       {/* Skull icon — scales and flies right on hover */}
-      <span className={styles.icon} aria-hidden="true">💀</span>
+      <span className={styles.icon} aria-hidden="true"><SkullIcon size={28} /></span>
 
       {/* "now!" slides in from left on hover */}
       <span className={styles.now}>now!</span>

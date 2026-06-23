@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CheckIcon } from '../icons/Icons.jsx'
 import styles from './CrossclimbBoard.module.css'
 
 // Presentational Crossclimb ladder. The board IS the player's current ORDER of
@@ -73,7 +74,7 @@ export default function CrossclimbBoard({ order = [], onOrder, disabled = false,
             </div>
             {i < effective.length - 1 && (
               <div className={`${styles.link} ${linkOk ? styles.linkOk : ''}`} aria-hidden="true">
-                {linkOk ? '✓' : ''}
+                {linkOk ? <CheckIcon size={14} /> : ''}
               </div>
             )}
           </div>

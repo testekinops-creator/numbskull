@@ -9,6 +9,10 @@ import AboutModal from '../components/AboutModal.jsx'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
 import { enablePushNotifications, disablePushNotifications } from '../services/pwa.js'
 import { VERSION_LINE, BUILD_DATE, COMMIT_MSG } from '../utils/buildInfo.js'
+import {
+  UserIcon, ExitIcon, SpeakerIcon, SpeakerOffIcon, GamepadIcon, BellIcon,
+  AccessibilityIcon, ChatIcon, MailIcon, AlertIcon, InfoIcon, SparkleIcon, CheckIcon,
+} from '../components/icons/Icons.jsx'
 import styles from './SettingsPage.module.css'
 
 const CB_KEY      = 'ns_colorblind_mode'
@@ -143,7 +147,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Account ── */}
-        <Section icon="👤" title="Account">
+        <Section icon={<UserIcon size={18} />} title="Account">
           <div className={styles.row}>
             <div className={styles.rowInfo}>
               <span className={styles.rowLabel}>{isRegistered ? user.username : 'Guest'}</span>
@@ -165,19 +169,19 @@ export default function SettingsPage() {
 
           <div className={styles.row}>
             <div className={styles.rowInfo}>
-              <span className={styles.rowLabel}>🆔 Player ID</span>
+              <span className={styles.rowLabel}>Player ID</span>
               <span className={styles.rowDesc}><code className={styles.idCode}>{shortId}</code></span>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={copyId}>{copied ? '✓ Copied' : 'Copy'}</button>
+            <button className="btn btn-ghost btn-sm" onClick={copyId}>{copied ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckIcon size={14} /> Copied</span> : 'Copy'}</button>
           </div>
 
           {isRegistered && (
-            <ButtonRow icon="🚪" label="Log Out" danger onClick={handleLogout} />
+            <ButtonRow icon={<ExitIcon size={18} />} label="Log Out" danger onClick={handleLogout} />
           )}
         </Section>
 
         {/* ── Audio ── */}
-        <Section icon="🔊" title="Audio">
+        <Section icon={<SpeakerIcon size={18} />} title="Audio">
           <SliderRow
             label="Sound Volume"
             description="Musical pitch feedback on guesses. 0 = muted."
@@ -187,7 +191,7 @@ export default function SettingsPage() {
         </Section>
 
         {/* ── Gameplay ── */}
-        <Section icon="🎮" title="Gameplay">
+        <Section icon={<GamepadIcon size={18} />} title="Gameplay">
           <ToggleRow
             label="Haptic Feedback"
             description="Vibration patterns on mobile devices."
@@ -216,7 +220,7 @@ export default function SettingsPage() {
 
         {/* ── Notifications (registered users — needs a persistent account) ── */}
         {isRegistered && (
-          <Section icon="🔔" title="Notifications">
+          <Section icon={<BellIcon size={18} />} title="Notifications">
             <ToggleRow
               label={pushBusy ? 'Working…' : 'Daily game reminder'}
               description={pushMsg || 'A once-a-day nudge to play your most-played game.'}
@@ -227,7 +231,7 @@ export default function SettingsPage() {
         )}
 
         {/* ── Accessibility ── */}
-        <Section icon="♿" title="Accessibility">
+        <Section icon={<AccessibilityIcon size={18} />} title="Accessibility">
           <SelectRow
             label="Colorblind Mode"
             description="Adjusts accent colours for colour-vision deficiencies."
@@ -243,20 +247,20 @@ export default function SettingsPage() {
         </Section>
 
         {/* ── Support ── */}
-        <Section icon="💬" title="Support">
-          <LinkRow icon="✉️" label="Contact Support" href={`mailto:${SUPPORT_EMAIL}`} external />
-          <LinkRow icon="🐞" label="Report a Problem" href={`mailto:${SUPPORT_EMAIL}?subject=Numbskull%20bug%20report`} external />
+        <Section icon={<ChatIcon size={18} />} title="Support">
+          <LinkRow icon={<MailIcon size={18} />} label="Contact Support" href={`mailto:${SUPPORT_EMAIL}`} external />
+          <LinkRow icon={<AlertIcon size={18} />} label="Report a Problem" href={`mailto:${SUPPORT_EMAIL}?subject=Numbskull%20bug%20report`} external />
         </Section>
 
         {/* ── About ── */}
-        <Section icon="ℹ️" title="About">
-          <ButtonRow icon="🎮" label="About Numbskull" onClick={() => setAboutOpen(true)} />
+        <Section icon={<InfoIcon size={18} />} title="About">
+          <ButtonRow icon={<InfoIcon size={18} />} label="About Numbskull" onClick={() => setAboutOpen(true)} />
           <div className={styles.row}>
             <div className={styles.rowInfo}>
-              <span className={styles.rowLabel}>🏷️ Version</span>
+              <span className={styles.rowLabel}>Version</span>
               <span className={styles.rowDesc}>
                 {VERSION_LINE}{BUILD_DATE ? ` · ${BUILD_DATE}` : ''}
-                {COMMIT_MSG ? <><br /><span className={styles.whatsNew}>✨ {COMMIT_MSG}</span></> : null}
+                {COMMIT_MSG ? <><br /><span className={styles.whatsNew} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SparkleIcon size={13} /> {COMMIT_MSG}</span></> : null}
               </span>
             </div>
           </div>
@@ -321,7 +325,7 @@ function SliderRow({ label, description, value, onChange }) {
           style={{ '--fill': `${value}%` }}
           aria-label={label}
         />
-        <span className={styles.sliderVal}>{value === 0 ? '🔇' : `${value}%`}</span>
+        <span className={styles.sliderVal}>{value === 0 ? <SpeakerOffIcon size={14} /> : `${value}%`}</span>
       </div>
     </div>
   )

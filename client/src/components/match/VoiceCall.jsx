@@ -119,8 +119,8 @@ export default function VoiceCall({ roomId, opponentName, onActiveChange }) {
       {/* iOS blocked autoplay → a visible, tappable prompt so the call isn't
           silently muted. Tapping counts as the gesture iOS needs to play audio. */}
       {needsAudioUnlock && callState === 'connected' && createPortal(
-        <button className={`${styles.audioUnlock} anim-slide-up`} onClick={unlockAudio}>
-          🔊 Tap to hear {opponentName || 'opponent'}
+        <button className={`${styles.audioUnlock} anim-slide-up`} onClick={unlockAudio} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          <SpeakerIcon size={16} /> Tap to hear {opponentName || 'opponent'}
         </button>,
         document.body,
       )}

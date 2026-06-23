@@ -12,6 +12,8 @@ import RoomActionDock from '../components/game/RoomActionDock.jsx'
 import SpinBattle from '../components/match/SpinBattle.jsx'
 import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { SPIN_MS } from '../components/match/SpinWheel.jsx'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { UserIcon } from '../components/icons/Icons.jsx'
 import styles from './SpinBattleAiPage.module.css'
 
 const DIFFICULTIES = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']]
@@ -153,8 +155,8 @@ export default function SpinBattleAiPage() {
       <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <span className="badge badge-juice">🎡 Spin Battle</span>
-          <span className={styles.vsTag}>🧠 Solo</span>
+          <span className="badge badge-juice" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GameIcon icon="spin" size={15} /> Spin Battle</span>
+          <span className={styles.vsTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><UserIcon size={14} /> Solo</span>
         </div>
 
         {phase === 'SETUP' && (

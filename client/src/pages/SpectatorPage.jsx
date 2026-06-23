@@ -13,7 +13,12 @@ import SudokuBoard from '../components/match/SudokuBoard.jsx'
 import SpinBattleMatch from '../components/match/SpinBattleMatch.jsx'
 import MathBattle from '../components/match/MathBattle.jsx'
 import Pinpoint from '../components/match/Pinpoint.jsx'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { GAME_ICON_KEY } from '../utils/gameIcons.js'
+import { EyeIcon, DotIcon, MedalIcon, CheckIcon, TrophyIcon } from '../components/icons/Icons.jsx'
 import styles from './SpectatorPage.module.css'
+
+const MEDAL_COLOR = { 0: '#FFD740', 1: '#C0C7D0', 2: '#CD8E52' }
 
 const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb' }
 const noop = () => {}
@@ -59,7 +64,7 @@ export default function SpectatorPage() {
         <div className={`panel ${styles.spectator}`}>
           <div className={styles.header}>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-            <h1 className={styles.title}>👀 Friends Live</h1>
+            <h1 className={styles.title} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><EyeIcon size={20} /> Friends Live</h1>
           </div>
           {liveRooms.length === 0 ? (
             <p className={styles.empty}>
@@ -74,7 +79,7 @@ export default function SpectatorPage() {
                   <button className={`${styles.roomItem} card`} onClick={() => navigate(`/spectate/${r.id}`)}>
                     <span className={`badge badge-juice`}>{MODE_NAMES[r.mode] || r.mode}</span>
                     <span className={styles.roomPlayers}>{r.players.map(p => p.name).join(' vs ')}</span>
-                    <span className={`badge badge-pink`}>🔴 LIVE{r.spectatorCount ? ` · 👁 ${r.spectatorCount}` : ''}</span>
+                    <span className={`badge badge-pink`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><DotIcon size={8} color="#FF3E8A" /> LIVE{r.spectatorCount ? <> · <EyeIcon size={13} /> {r.spectatorCount}</> : ''}</span>
                   </button>
                 </li>
               ))}
@@ -99,7 +104,6 @@ export default function SpectatorPage() {
     const total = room.mode === 'QUEENS' ? match.n
       : room.mode === 'CROSSCLIMB' ? Math.max(1, (match.len || (match.words?.length || 1)) - 1)
       : match.n * match.n
-    const icon  = room.mode === 'QUEENS' ? '👑' : room.mode === 'TANGO' ? '▦' : room.mode === 'CROSSCLIMB' ? '🪜' : '🔢'
     const fmt = (ms) => { const s = Math.round((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
     const rows = [...players].sort((a, b) => {
       const sa = !!match.solved?.[a.id], sb = !!match.solved?.[b.id]
@@ -109,7 +113,7 @@ export default function SpectatorPage() {
     })
     return (
       <div className={styles.raceWrap}>
-        <p className={styles.waiting}>🔴 Live race — boards are private; here's everyone's progress</p>
+        <p className={styles.waiting} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><DotIcon size={8} color="#FF3E8A" /> Live race — boards are private; here's everyone's progress</p>
         <ul className={styles.raceList}>
           {rows.map((p, idx) => {
             const placed = match.placed?.[p.id] ?? 0
@@ -117,10 +121,10 @@ export default function SpectatorPage() {
             const pct = Math.max(0, Math.min(100, Math.round((100 * placed) / total)))
             return (
               <li key={p.id} className={styles.raceRow}>
-                <span className={styles.racePos}>{solved ? (idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`) : '•'}</span>
+                <span className={styles.racePos}>{solved ? (idx <= 2 ? <MedalIcon size={18} style={{ color: MEDAL_COLOR[idx] }} /> : `#${idx + 1}`) : '•'}</span>
                 <Avatar seed={p.id} name={p.name} size={30} ring={solved && idx === 0 ? 'gold' : false} />
-                <span className={styles.raceName}>{p.name}{p.isBot ? ' 🤖' : ''}</span>
-                <span className={styles.raceMeta}>{solved ? `✅ ${fmt(match.finishMs?.[p.id])}` : `${icon} ${placed}/${total}`}</span>
+                <span className={styles.raceName}>{p.name}{p.isBot ? ' (bot)' : ''}</span>
+                <span className={styles.raceMeta} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{solved ? <><CheckIcon size={13} /> {fmt(match.finishMs?.[p.id])}</> : <><GameIcon icon={GAME_ICON_KEY[room.mode]} size={14} /> {placed}/{total}</>}</span>
                 <div className={styles.raceBar}><div className={`${styles.raceFill} ${solved ? styles.raceDone : ''}`} style={{ width: `${solved ? 100 : pct}%` }} /></div>
               </li>
             )
@@ -186,7 +190,7 @@ export default function SpectatorPage() {
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/spectate')}>← All games</button>
           <span className={`badge badge-juice`}>{MODE_NAMES[room.mode] || room.mode}</span>
-          <span className={styles.watching}>👁 {room.spectatorCount || 1}</span>
+          <span className={styles.watching} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><EyeIcon size={15} /> {room.spectatorCount || 1}</span>
         </div>
 
         {/* Player scoreboard */}
@@ -194,7 +198,7 @@ export default function SpectatorPage() {
           {players.map(p => (
             <div key={p.id} className={`${styles.playerCard} ${match?.turnId === p.id ? styles.activeTurn : ''}`}>
               <Avatar seed={p.id} name={p.name} size={40} ring={match?.turnId === p.id ? 'cyan' : false} />
-              <span className={styles.pName}>{p.name}{p.isBot ? ' 🤖' : ''}</span>
+              <span className={styles.pName}>{p.name}{p.isBot ? ' (bot)' : ''}</span>
               <span className={styles.pScore}>{p.score ?? 0}</span>
             </div>
           ))}
@@ -202,7 +206,7 @@ export default function SpectatorPage() {
 
         <div className={styles.turnLine}>
           {over
-            ? (state.draw ? "It's a draw!" : winnerName ? `🏆 ${winnerName} won!` : 'Game over')
+            ? (state.draw ? "It's a draw!" : winnerName ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><TrophyIcon size={16} /> {winnerName} won!</span> : 'Game over')
             : turnName ? `${turnName}'s turn…` : 'Spectating live'}
         </div>
 

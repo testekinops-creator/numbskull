@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { SHORTCUTS } from '../hooks/useKeyboardShortcuts.js'
+import { CloseIcon } from './icons/Icons.jsx'
 import styles from './KeyboardShortcutsModal.module.css'
 
 export default function KeyboardShortcutsModal({ onClose }) {
@@ -14,7 +15,7 @@ export default function KeyboardShortcutsModal({ onClose }) {
       <div className={`card ${styles.modal}`} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>Keyboard Shortcuts</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close">✕</button>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close"><CloseIcon size={15} /></button>
         </div>
         <ul className={styles.list}>
           {SHORTCUTS.map(s => (

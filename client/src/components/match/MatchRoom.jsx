@@ -41,11 +41,26 @@ import { useDelayedFlag } from '../../hooks/useDelayedFlag.js'
 import { useAwayTimeout } from '../../hooks/useAwayTimeout.js'
 import { getModeRoast } from '../../utils/roasts.js'
 import { celebrateWin } from '../../utils/celebrate.js'
+import GameIcon from '../icons/GameIcon.jsx'
+import { GAME_ICON_KEY } from '../../utils/gameIcons.js'
+import {
+  CloseIcon, EyeIcon, MonitorIcon, CopyIcon, CheckIcon, WifiOffIcon, AlertIcon,
+  FlagIcon, ExitIcon, RefreshIcon, BotIcon, TrophyIcon, SkullIcon, HandshakeIcon,
+  ClockIcon, MedalIcon, CrownIcon, EditIcon,
+} from '../icons/Icons.jsx'
+
+// Medal colors for the top-3 placements.
+const MEDAL_COLOR = { 1: '#FFD740', 2: '#C0C7D0', 3: '#CD8E52' }
+
+// Inline icon + text, baseline-aligned — for chrome buttons/labels.
+const IL = ({ icon: I, size = 16, children }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><I size={size} />{children}</span>
+)
 import roomStyles from '../../pages/RoomPage.module.css'
 import styles from './MatchRoom.module.css'
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
-const MODE_NAMES = { XOX: '⭕ Tic-Tac-Toe', MATH: '🧮 Math Battle', SUDOKU: '🔢 Sudoku', SPIN: '🎡 Spin Battle', SOS: '🔠 SOS', RMCS: '👑 Raja Mantri', RUMMY: '🃏 Rummy', QUEENS: '👑 Queens', TANGO: '☀️ Tango', ZIP: '🔢 Zip', PINPOINT: '📌 Pinpoint', CROSSCLIMB: '🪜 Crossclimb' }
+const MODE_NAMES = { XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb' }
 
 // Queens race time (ms → m:ss) for the standings card.
 function fmtRaceTime(ms) {
@@ -379,7 +394,11 @@ export default function MatchRoom({ roomId, mode }) {
     return () => clearTimeout(t)
   }, [phase, mode])
 
-  const resultText = state.draw ? '🤝 Draw!' : state.won ? '🎉 You win!' : '💀 You lose'
+  const resultText = state.draw
+    ? <IL icon={HandshakeIcon} size={20}>Draw!</IL>
+    : state.won
+      ? <IL icon={TrophyIcon} size={20}>You win!</IL>
+      : <IL icon={SkullIcon} size={20}>You lose</IL>
   const overRoast = useMemo(
     () => (phase === 'GAME_OVER' ? getModeRoast(mode, state.draw ? 'draw' : state.won ? 'win' : 'lose') : null),
     [phase, mode, state.won, state.draw],
@@ -457,7 +476,7 @@ export default function MatchRoom({ roomId, mode }) {
       {mode === 'SOS' && <SosTimeoutFlash event={state.sosTimeout} playerId={playerId} opponentName={opponent?.name} />}
       <ConfirmDialog
         open={confirmLeave}
-        icon="🚪"
+        icon={<ExitIcon size={26} />}
         title="Leave the game?"
         message={phase === 'PLAYING' ? 'The match is in progress — leaving forfeits it to your opponent.' : 'You’ll leave this room and head back home.'}
         confirmLabel="Leave"
@@ -467,7 +486,7 @@ export default function MatchRoom({ roomId, mode }) {
       />
       <ConfirmDialog
         open={confirmGiveUp}
-        icon="🏳"
+        icon={<FlagIcon size={26} />}
         title="Give up this race?"
         message="You’ll stop solving and watch the others finish. You can’t resume — but you stay for the result."
         confirmLabel="Give up"
@@ -477,12 +496,12 @@ export default function MatchRoom({ roomId, mode }) {
       />
       {showOffline && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOffline}`}>
-          📡 You’re offline — reconnecting…
+          <IL icon={WifiOffIcon}>You’re offline — reconnecting…</IL>
         </div>
       )}
       {showOppLost && (
         <div className={`${roomStyles.connBanner} ${roomStyles.connOppLost}`}>
-          ⚠️ {opponent?.name || 'Opponent'} lost connection — waiting for them to return…
+          <IL icon={AlertIcon}>{opponent?.name || 'Opponent'} lost connection — waiting for them to return…</IL>
         </div>
       )}
 
@@ -490,18 +509,20 @@ export default function MatchRoom({ roomId, mode }) {
         {/* Header */}
         <div className={roomStyles.header}>
           <button className={`${roomStyles.hChip} ${roomStyles.hLeave}`} onClick={() => setConfirmLeave(true)}>
-            ✕ Leave
+            <IL icon={CloseIcon} size={15}>Leave</IL>
           </button>
-          <span className={`${roomStyles.hChip} ${roomStyles.hMode}`}>{MODE_NAMES[mode] || mode}</span>
+          <span className={`${roomStyles.hChip} ${roomStyles.hMode}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <GameIcon icon={GAME_ICON_KEY[mode]} size={18} /> {MODE_NAMES[mode] || mode}
+          </span>
           <span className={`${roomStyles.hChip} ${room.isPublic ? roomStyles.hPublic : roomStyles.hCode}`}>
             {room.isPublic ? 'Public' : room.code}
           </span>
           <div className={roomStyles.watchCluster}>
             {room.spectatorCount > 0 && (
-              <span className={`${roomStyles.hChip} ${roomStyles.watchCount}`} title="People watching">👁 {room.spectatorCount}</span>
+              <span className={`${roomStyles.hChip} ${roomStyles.watchCount}`} title="People watching" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><EyeIcon size={15} /> {room.spectatorCount}</span>
             )}
             <button className={`${roomStyles.hChip} ${roomStyles.watchBtn}`} onClick={copyWatchLink} title="Copy a link for friends to watch">
-              {watchCopied ? '✓ Copied' : '📺 Watch'}
+              {watchCopied ? <IL icon={CheckIcon} size={15}>Copied</IL> : <IL icon={MonitorIcon} size={15}>Watch</IL>}
             </button>
           </div>
         </div>
@@ -518,11 +539,11 @@ export default function MatchRoom({ roomId, mode }) {
                 title="Copy room code"
                 aria-label="Copy room code"
               >
-                {copied ? '✓' : '⎘'}
+                {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
               </button>
             </div>
             <p className={roomStyles.codeHint}>
-              {copied ? '✓ Copied to clipboard!' : 'Share this code with a friend to invite them'}
+              {copied ? <IL icon={CheckIcon} size={14}>Copied to clipboard!</IL> : 'Share this code with a friend to invite them'}
             </p>
           </div>
         )}
@@ -567,16 +588,16 @@ export default function MatchRoom({ roomId, mode }) {
           isParty ? (
             <div className={styles.partyLobby}>
               <p className={styles.partyTitle}>Party room · {room.players.length}/{room.maxPlayers}</p>
-              <p className={styles.waitClock}>⏱ Waiting {waitClock}</p>
+              <p className={styles.waitClock} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ClockIcon size={15} /> Waiting {waitClock}</p>
               <ul className={styles.partyList}>
                 {room.players.map(p => (
                   <li key={p.id} className={styles.partyItem}>
                     <Avatar id={p.avatar} seed={p.id} name={p.name} size={32} ring={p.id === room.hostId ? 'gold' : false} />
                     <span className={styles.partyItemName}>{p.name}{p.id === playerId ? ' (you)' : ''}</span>
-                    {p.isBot && <span className={styles.partyBotTag}>🤖 bot</span>}
-                    {p.id === room.hostId && <span className={styles.partyHostTag}>👑 host</span>}
+                    {p.isBot && <span className={styles.partyBotTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><BotIcon size={13} /> bot</span>}
+                    {p.id === room.hostId && <span className={styles.partyHostTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CrownIcon size={13} /> host</span>}
                     {isHost && p.isBot && (
-                      <button className={styles.botRemove} onClick={() => removeBot(roomId, p.id)} aria-label="Remove bot" title="Remove bot">✕</button>
+                      <button className={styles.botRemove} onClick={() => removeBot(roomId, p.id)} aria-label="Remove bot" title="Remove bot"><CloseIcon size={13} /></button>
                     )}
                   </li>
                 ))}
@@ -585,7 +606,7 @@ export default function MatchRoom({ roomId, mode }) {
               {/* RMCS: short a player? fill empty seats with bots so you can start now. */}
               {isHost && mode === 'RMCS' && room.players.length < 4 && (
                 <div className={styles.botRow}>
-                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={doAddBot}>🤖 Add bot</button>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={doAddBot}><IL icon={BotIcon} size={15}>Add bot</IL></button>
                   <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={doFillBots}>Fill with bots</button>
                 </div>
               )}
@@ -607,7 +628,7 @@ export default function MatchRoom({ roomId, mode }) {
             </div>
           ) : (
             <p className={roomStyles.waitingText}>
-              {opponent ? 'Starting…' : <>Waiting for an opponent to join… <b>⏱ {waitClock}</b></>}
+              {opponent ? 'Starting…' : <>Waiting for an opponent to join… <b style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ClockIcon size={14} /> {waitClock}</b></>}
             </p>
           )
         )}
@@ -729,7 +750,11 @@ export default function MatchRoom({ roomId, mode }) {
                   <div className={styles.sosHud}>
                     <span className={`${styles.hudScore} ${styles.hudMe}`}>You <b>{myScore}</b></span>
                     <span key={claiming ? 'c' : state.myTurn ? 't' : 'o'} className={`${styles.turnLabel} anim-msg`}>
-                      {claiming ? '✏️ Draw your S‑O‑S!' : state.myTurn ? '🫵 Your move' : `⏳ ${opponent?.name || 'Opponent'}…`}
+                      {claiming
+                        ? <IL icon={EditIcon} size={15}>Draw your S‑O‑S!</IL>
+                        : state.myTurn
+                          ? 'Your move'
+                          : <IL icon={ClockIcon} size={15}>{opponent?.name || 'Opponent'}…</IL>}
                     </span>
                     <span className={styles.hudScore}>{opponent?.name || 'Opp'} <b>{oppScore}</b></span>
                   </div>
@@ -768,13 +793,13 @@ export default function MatchRoom({ roomId, mode }) {
 
             {mode === 'QUEENS' && match.regions && match.myBoard && (
               <>
-                <RaceHud match={match} players={room.players} playerId={playerId} icon="👑" total={match.n} />
+                <RaceHud match={match} players={room.players} playerId={playerId} iconKey="queens" total={match.n} />
                 {watching ? (
                   <RaceWatch match={match} players={room.players} playerId={playerId} mode="QUEENS"
                     onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
                 ) : (
                   <>
-                    <p className={styles.turnLabel}>{iSolved ? '✅ Solved!' : 'Place one 👑 per row, column & color — none touching'}</p>
+                    <p className={styles.turnLabel}>{iSolved ? <IL icon={CheckIcon}>Solved!</IL> : 'Place one 👑 per row, column & color — none touching'}</p>
                     <QueensBoard
                       n={match.n}
                       regions={match.regions}
@@ -791,13 +816,13 @@ export default function MatchRoom({ roomId, mode }) {
 
             {mode === 'TANGO' && match.givens && match.myBoard && (
               <>
-                <RaceHud match={match} players={room.players} playerId={playerId} icon="▦" total={match.n * match.n} />
+                <RaceHud match={match} players={room.players} playerId={playerId} iconKey="tango" total={match.n * match.n} />
                 {watching ? (
                   <RaceWatch match={match} players={room.players} playerId={playerId} mode="TANGO"
                     onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
                 ) : (
                   <>
-                    <p className={styles.turnLabel}>{iSolved ? '✅ Solved!' : 'Fill ☀️/🌙 — 3 each per row & column, no 3 in a row, obey =/×'}</p>
+                    <p className={styles.turnLabel}>{iSolved ? <IL icon={CheckIcon}>Solved!</IL> : 'Fill ☀️/🌙 — 3 each per row & column, no 3 in a row, obey =/×'}</p>
                     <TangoBoard
                       n={match.n}
                       givens={match.givens}
@@ -815,21 +840,21 @@ export default function MatchRoom({ roomId, mode }) {
 
             {mode === 'ZIP' && match.numbers && match.myBoard && (
               <>
-                <RaceHud match={match} players={room.players} playerId={playerId} icon="🔢" total={match.n * match.n} />
+                <RaceHud match={match} players={room.players} playerId={playerId} iconKey="zip" total={match.n * match.n} />
                 {watching ? (
                   <RaceWatch match={match} players={room.players} playerId={playerId} mode="ZIP"
                     onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
                 ) : (
                   <>
                     {iSolved ? (
-                      <p className={styles.turnLabel}>✅ Solved!</p>
+                      <p className={styles.turnLabel}><IL icon={CheckIcon}>Solved!</IL></p>
                     ) : (() => {
                       const myPath = match.myBoard || []
                       const total = match.n * match.n
                       const lastNum = Math.max(0, ...match.numbers)
                       const headNum = myPath.length ? match.numbers[myPath[myPath.length - 1]] : 0
                       if (lastNum > 0 && headNum === lastNum && myPath.length < total) {
-                        return <p className={`${styles.turnLabel} anim-msg`} style={{ color: '#ffd0b8' }}>⚠️ Dead end — {total - myPath.length} cells still empty. Undo and cover every cell, ending on the last number.</p>
+                        return <p className={`${styles.turnLabel} anim-msg`} style={{ color: '#ffd0b8', display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertIcon size={15} /> Dead end — {total - myPath.length} cells still empty. Undo and cover every cell, ending on the last number.</p>
                       }
                       return <p className={styles.turnLabel}>Draw one path 1→last through every cell — no wall crossings</p>
                     })()}
@@ -851,13 +876,13 @@ export default function MatchRoom({ roomId, mode }) {
 
             {mode === 'CROSSCLIMB' && match.words && match.myBoard && (
               <>
-                <RaceHud match={match} players={room.players} playerId={playerId} icon="🪜" total={Math.max(1, (match.len || match.words.length) - 1)} />
+                <RaceHud match={match} players={room.players} playerId={playerId} iconKey="crossclimb" total={Math.max(1, (match.len || match.words.length) - 1)} />
                 {watching ? (
                   <RaceWatch match={match} players={room.players} playerId={playerId} mode="CROSSCLIMB"
                     onHighlight={(targetId, i) => raceHighlight(roomId, targetId, i)} />
                 ) : (
                   <>
-                    <p className={styles.turnLabel}>{iSolved ? '✅ Solved!' : 'Reorder so each step changes exactly one letter'}</p>
+                    <p className={styles.turnLabel}>{iSolved ? <IL icon={CheckIcon}>Solved!</IL> : 'Reorder so each step changes exactly one letter'}</p>
                     <CrossclimbBoard
                       order={match.myBoard}
                       solved={iSolved}
@@ -873,7 +898,7 @@ export default function MatchRoom({ roomId, mode }) {
             {/* Give up — race only, while still playing. Done players are already watching. */}
             {isRaceMode && !iAmDone && (
               <button className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} onClick={() => setConfirmGiveUp(true)}>
-                🏳 Give up
+                <IL icon={FlagIcon} size={15}>Give up</IL>
               </button>
             )}
           </div>
@@ -891,24 +916,24 @@ export default function MatchRoom({ roomId, mode }) {
           (isParty || isRaceMode) && state.ranking ? (
             <div className={styles.rankCard}>
               <h2 className={styles.rankTitle}>Final standings</h2>
-              {state.draw && <p className={`${styles.resultBanner} anim-bounce-land`}>🤝 It's a tie!</p>}
+              {state.draw && <p className={`${styles.resultBanner} anim-bounce-land`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><HandshakeIcon size={20} /> It's a tie!</p>}
               <ol className={styles.rankList}>
                 {state.ranking.map(r => (
                   <li key={r.id} className={`${styles.rankItem} ${r.id === playerId ? styles.rankYou : ''}`}>
-                    <span className={styles.rankPos}>{r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `#${r.rank}`}</span>
+                    <span className={styles.rankPos}>{r.rank <= 3 ? <MedalIcon size={20} style={{ color: MEDAL_COLOR[r.rank] }} /> : `#${r.rank}`}</span>
                     <Avatar id={room.players.find(p => p.id === r.id)?.avatar} seed={r.id} name={r.name}
                       size={36} ring={r.rank === 1 ? 'gold' : false} />
                     <span className={styles.rankName}>{r.name}{r.id === playerId ? ' (you)' : ''}</span>
                     {/* Race modes (Queens/Tango): solve time, else DNF + progress. SPIN: roundWins/trophies. RMCS: point totals. */}
                     {isRaceMode ? (
-                      <span className={styles.rankWins}>{r.solved ? `⏱ ${fmtRaceTime(r.timeMs)}` : `DNF · ${r.correct ?? 0}`}</span>
+                      <span className={styles.rankWins}>{r.solved ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ClockIcon size={13} /> {fmtRaceTime(r.timeMs)}</span> : `DNF · ${r.correct ?? 0}`}</span>
                     ) : r.total != null ? (
                       <span className={styles.rankWins}>{r.total} pts</span>
                     ) : (
                       <>
                         <span className={styles.rankWins}>{r.roundWins}W</span>
-                        <span className={`${styles.rankTrophy} ${r.trophies >= 0 ? styles.trophyPos : styles.trophyNeg}`}>
-                          {r.trophies >= 0 ? `+${r.trophies}` : r.trophies}🏆
+                        <span className={`${styles.rankTrophy} ${r.trophies >= 0 ? styles.trophyPos : styles.trophyNeg}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {r.trophies >= 0 ? `+${r.trophies}` : r.trophies}<TrophyIcon size={14} />
                         </span>
                       </>
                     )}
@@ -918,7 +943,7 @@ export default function MatchRoom({ roomId, mode }) {
               {/* RMCS host can re-deal a fresh game with the same 4 players. */}
               {mode === 'RMCS' && isHost && room.players.length === 4 && (
                 <button className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={rematching} onClick={doRunItBack}>
-                  {rematching ? 'Dealing…' : '🔁 Run it back'}
+                  {rematching ? 'Dealing…' : <IL icon={RefreshIcon}>Run it back</IL>}
                 </button>
               )}
               {rematchErr && <p style={{ color: 'var(--color-pink)', textAlign: 'center', margin: 0 }}>{rematchErr}</p>}
@@ -928,7 +953,7 @@ export default function MatchRoom({ roomId, mode }) {
               {/* Race host can run a fresh puzzle for everyone still here. */}
               {isRaceMode && isHost && room.players.length >= 2 && (
                 <button className="btn btn-juice btn-lg" style={{ width: '100%' }} disabled={rematching} onClick={doRacePlayAgain}>
-                  {rematching ? 'Starting…' : '🔄 Play again'}
+                  {rematching ? 'Starting…' : <IL icon={RefreshIcon}>Play again</IL>}
                 </button>
               )}
               {isRaceMode && !isHost && room.players.length >= 2 && (
@@ -955,17 +980,17 @@ export default function MatchRoom({ roomId, mode }) {
               onHome={() => { leaveRoom(roomId); navigate('/home') }}
             />
             {state.won && state.overReason === 'opponent_left' && (
-              <p className={styles.seriesLine}>🚪 Opponent left — you win by forfeit.</p>
+              <p className={styles.seriesLine}><IL icon={ExitIcon} size={15}>Opponent left — you win by forfeit.</IL></p>
             )}
             {mode === 'SUDOKU' && match && (
               <>
                 {state.overReason === 'mistakes' && (
-                  <p className={styles.sudokuEndStats}>
-                    💥 {state.won ? 'Your opponent' : 'You'} hit the {match.mistakeLimit}-mistake limit.
+                  <p className={styles.sudokuEndStats} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <AlertIcon size={15} /> {state.won ? 'Your opponent' : 'You'} hit the {match.mistakeLimit}-mistake limit.
                   </p>
                 )}
-                <p className={styles.sudokuEndStats}>
-                  ✅ {match.correctCount}/{match.fillTarget} cells correct · ❌ {match.wrongCount} wrong attempts
+                <p className={styles.sudokuEndStats} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <CheckIcon size={14} /> {match.correctCount}/{match.fillTarget} cells correct · <CloseIcon size={14} /> {match.wrongCount} wrong attempts
                 </p>
               </>
             )}

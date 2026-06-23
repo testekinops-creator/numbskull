@@ -6,10 +6,18 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { GAME_ICON_KEY } from '../utils/gameIcons.js'
+import { BoltIcon, BotIcon, UserIcon, KeyIcon, HomeIcon, SwordsIcon } from '../components/icons/Icons.jsx'
+import { DIFFICULTY } from '../components/icons/difficulty.js'
 import styles from './LobbyPage.module.css'
 
+// Small inline icon+label for chrome buttons.
+function IconLabel({ icon: Icon, children }) {
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon size={16} />{children}</span>
+}
+
 const MODE_NAMES = { GTN: 'Guess The Number', BC: 'Bulls & Cows', XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb' }
-const MODE_ICONS = { GTN: '🎯', BC: '🐂', XOX: '⭕', MATH: '🧮', SUDOKU: '🔢', SPIN: '🎡', SOS: '🔠', RMCS: '👑', RUMMY: '🃏', QUEENS: '👑', TANGO: '☀️', ZIP: '🔢', PINPOINT: '📌', CROSSCLIMB: '🪜' }
 const KNOWN_MODES = new Set(['GTN', 'BC', 'XOX', 'MATH', 'SUDOKU', 'SPIN', 'SOS', 'RMCS', 'RUMMY', 'QUEENS', 'TANGO', 'ZIP', 'PINPOINT', 'CROSSCLIMB'])
 const SOLO_LABEL_MODES = new Set(['MATH', 'SPIN', 'SUDOKU', 'QUEENS', 'TANGO', 'ZIP'])  // "Solo" rather than "vs AI"
 
@@ -142,8 +150,8 @@ export default function LobbyPage() {
       <div className={styles.lobby}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <h1 className={styles.title}>
-            {MODE_ICONS[mode]} {MODE_NAMES[mode]}
+          <h1 className={styles.title} style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            <GameIcon icon={GAME_ICON_KEY[mode]} size={32} /> {MODE_NAMES[mode]}
           </h1>
         </div>
 
@@ -174,13 +182,15 @@ export default function LobbyPage() {
               className={`${styles.topTab} ${topTab === 'multi' ? styles.topTabActive : ''}`}
               onClick={() => setTopTab('multi')}
             >
-              ⚡ Multiplayer
+              <IconLabel icon={BoltIcon}>Multiplayer</IconLabel>
             </button>
             <button
               className={`${styles.topTab} ${topTab === 'ai' ? styles.topTabActive : ''}`}
               onClick={() => setTopTab('ai')}
             >
-              {SOLO_LABEL_MODES.has(mode) ? '🧠 Solo' : '🤖 vs AI'}
+              {SOLO_LABEL_MODES.has(mode)
+                ? <IconLabel icon={UserIcon}>Solo</IconLabel>
+                : <IconLabel icon={BotIcon}>vs AI</IconLabel>}
             </button>
           </div>
         )}
@@ -188,15 +198,18 @@ export default function LobbyPage() {
         {/* ── Difficulty selector (Sudoku/Queens/Tango MP — host picks puzzle complexity) ── */}
         {(isSudoku || isRace) && topTab === 'multi' && (
           <div className={styles.tabs}>
-            {[['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([id, label]) => (
-              <button
-                key={id}
-                className={`${styles.tab} ${difficulty === id ? styles.activeTab : ''}`}
-                onClick={() => setDifficulty(id)}
-              >
-                {label}
-              </button>
-            ))}
+            {[['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([id, label]) => {
+              const { Icon, color } = DIFFICULTY[id]
+              return (
+                <button
+                  key={id}
+                  className={`${styles.tab} ${difficulty === id ? styles.activeTab : ''}`}
+                  onClick={() => setDifficulty(id)}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon size={14} style={{ color }} /> {label}</span>
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -221,7 +234,9 @@ export default function LobbyPage() {
                 : 'Face the Numbskull AI solo. It holds a secret — you crack it. No waiting, no mercy.'}
             </p>
             <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={playVsAI}>
-              {SOLO_LABEL_MODES.has(mode) ? '🧠 Start Solo Practice' : '🤖 Play vs Computer'}
+              {SOLO_LABEL_MODES.has(mode)
+                ? <IconLabel icon={UserIcon}>Start Solo Practice</IconLabel>
+                : <IconLabel icon={BotIcon}>Play vs Computer</IconLabel>}
             </button>
           </div>
         )}
@@ -243,13 +258,13 @@ export default function LobbyPage() {
               </div>
             )}
             <div className={styles.tabs}>
-              {[['quick', '⚡ Quick Match'], ['create', '🏠 Create Room'], ['join', '🔑 Join Room']].map(([id, label]) => (
+              {[['quick', BoltIcon, 'Quick Match'], ['create', HomeIcon, 'Create Room'], ['join', KeyIcon, 'Join Room']].map(([id, Icon, text]) => (
                 <button
                   key={id}
                   className={`${styles.tab} ${mpTab === id ? styles.activeTab : ''}`}
                   onClick={() => setMpTab(id)}
                 >
-                  {label}
+                  <IconLabel icon={Icon}>{text}</IconLabel>
                 </button>
               ))}
             </div>
@@ -259,7 +274,7 @@ export default function LobbyPage() {
                 <div className={styles.quickPanel}>
                   {found ? (
                     <div className={styles.foundCard} role="status">
-                      <span className={styles.foundIcon}>⚔️</span>
+                      <span className={styles.foundIcon}><SwordsIcon size={26} /></span>
                       <span className={styles.foundText}>Opponent found!</span>
                     </div>
                   ) : state.matchmaking ? (
@@ -274,8 +289,8 @@ export default function LobbyPage() {
                     <>
                       <p className={styles.hint}>
                         {isRmcs
-                          ? '😴 Couldn’t find 4 players in time. Try again, or create a room and invite friends.'
-                          : '😴 No opponent showed up. Want to try again, or create a room and share the code?'}
+                          ? 'Couldn’t find 4 players in time. Try again, or create a room and invite friends.'
+                          : 'No opponent showed up. Want to try again, or create a room and share the code?'}
                       </p>
                       <button className={`btn btn-juice btn-lg ${styles.cta}`} style={{ width: '100%' }} onClick={handleQuickMatch} disabled={busy}>
                         Try Again

@@ -15,6 +15,9 @@ import TutorialOverlay from '../components/tutorial/TutorialOverlay.jsx'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { getModeRoast } from '../utils/roasts.js'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { BotIcon, AlertIcon, HandshakeIcon, TrophyIcon, SkullIcon } from '../components/icons/Icons.jsx'
+import { DIFFICULTY } from '../components/icons/difficulty.js'
 import styles from './XoxAiPage.module.css'
 
 const DIFFICULTIES = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']]
@@ -114,8 +117,8 @@ export default function XoxAiPage() {
         {/* Header */}
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <span className="badge badge-juice">⭕ Tic-Tac-Toe</span>
-          <span className={styles.vsTag}>vs 🤖</span>
+          <span className="badge badge-juice" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GameIcon icon="xox" size={15} /> Tic-Tac-Toe</span>
+          <span className={styles.vsTag} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>vs <BotIcon size={14} /></span>
         </div>
 
         {/* SETUP */}
@@ -141,18 +144,21 @@ export default function XoxAiPage() {
 
             <div className={styles.choiceLabel}>Difficulty</div>
             <div className={styles.diffRow}>
-              {DIFFICULTIES.map(([id, label]) => (
-                <button
-                  key={id}
-                  className={`${styles.diffBtn} ${difficulty === id ? styles.diffActive : ''}`}
-                  onClick={() => setDifficulty(id)}
-                >
-                  {label}
-                </button>
-              ))}
+              {DIFFICULTIES.map(([id, label]) => {
+                const { Icon, color } = DIFFICULTY[id]
+                return (
+                  <button
+                    key={id}
+                    className={`${styles.diffBtn} ${difficulty === id ? styles.diffActive : ''}`}
+                    onClick={() => setDifficulty(id)}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon size={14} style={{ color }} /> {label}</span>
+                  </button>
+                )
+              })}
             </div>
             {difficulty === 'hard' && (
-              <p className={styles.hardWarn}>⚠️ Hard is unbeatable. Best you'll get is a draw.</p>
+              <p className={styles.hardWarn} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertIcon size={15} /> Hard is unbeatable. Best you'll get is a draw.</p>
             )}
 
             <button className="btn btn-juice btn-lg" style={{ width: '100%', marginTop: 'var(--space-4, 16px)' }} onClick={startGame} disabled={busy}>
@@ -167,14 +173,14 @@ export default function XoxAiPage() {
           <div className={styles.play}>
             <div className={styles.statusRow}>
               <SkullMascot expression={myTurn ? 'annoyed' : 'grudging'} size={56} />
-              <span className={styles.status}>
-                {myTurn ? 'Your move' : '🤖 thinking…'}
+              <span className={styles.status} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {myTurn ? 'Your move' : <><BotIcon size={15} /> thinking…</>}
               </span>
               <span className={`badge ${symbol === 'X' ? 'badge-juice' : 'badge-pink'}`}>You are {symbol}</span>
             </div>
             {result
-              ? <div className={`${styles.resultBanner} anim-bounce-land`}>
-                  {result === 'draw' ? '🤝 Draw!' : result === 'win' ? '🎉 You win!' : '💀 You lose'}
+              ? <div className={`${styles.resultBanner} anim-bounce-land`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {result === 'draw' ? <><HandshakeIcon size={20} /> Draw!</> : result === 'win' ? <><TrophyIcon size={20} /> You win!</> : <><SkullIcon size={20} /> You lose</>}
                 </div>
               : roast && <p className={`${styles.roast} anim-slide-up`} key={roast}>"{roast}"</p>}
             <TurnGlow active={myTurn && !result} maxWidth={332}>

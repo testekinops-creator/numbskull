@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { api } from '../services/api.js'
+import { CloseIcon } from '../components/icons/Icons.jsx'
 import styles from './AdminPage.module.css'
 
 export default function AdminPage() {
@@ -109,7 +110,7 @@ export default function AdminPage() {
               <li key={a.id} className={styles.annItem}>
                 <span className={`badge ${a.type === 'warning' ? 'badge-pink' : 'badge-juice'}`}>{a.type}</span>
                 <span className={styles.annMsg}>{a.message}</span>
-                <button className="btn btn-ghost btn-sm" onClick={() => deleteAnnouncement(a.id)}>✕</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => deleteAnnouncement(a.id)}><CloseIcon size={14} /></button>
               </li>
             ))}
           </ul>

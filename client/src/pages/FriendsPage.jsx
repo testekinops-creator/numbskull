@@ -5,6 +5,7 @@ import { useSocket } from '../contexts/SocketContext.jsx'
 import { api } from '../services/api.js'
 import Avatar from '../components/avatar/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import { DotIcon, EyeIcon, CheckIcon, CloseIcon } from '../components/icons/Icons.jsx'
 import styles from './FriendsPage.module.css'
 
 export default function FriendsPage() {
@@ -147,13 +148,13 @@ export default function FriendsPage() {
                 <Avatar seed={f.id} name={f.username} size={42} online={(f.liveRoomId || f.online) ? true : undefined} />
                 <div className={styles.itemInfo}>
                   <span className={styles.itemName}>{f.username}</span>
-                  <span className={styles.itemStat}>
-                    {f.liveRoomId ? '🟢 in a game' : f.online ? '🟢 Online' : `${f.totalGames ?? 0} games`}
+                  <span className={styles.itemStat} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    {f.liveRoomId ? <><DotIcon size={8} color="#00E676" /> in a game</> : f.online ? <><DotIcon size={8} color="#00E676" /> Online</> : `${f.totalGames ?? 0} games`}
                   </span>
                 </div>
                 {f.liveRoomId && (
                   <button className="btn btn-juice btn-sm" onClick={() => navigate(`/spectate/${f.liveRoomId}`)} title="Watch their live game">
-                    👁 Watch
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><EyeIcon size={15} /> Watch</span>
                   </button>
                 )}
                 <button className="btn btn-ghost btn-sm" onClick={() => remove(f.id)}>Remove</button>
@@ -177,8 +178,8 @@ export default function FriendsPage() {
                 <Avatar seed={r.id} name={r.username} size={42} />
                 <span className={styles.itemName} style={{ flex: 1 }}>{r.username}</span>
                 <div className={styles.itemActions}>
-                  <button className="btn btn-juice btn-sm" onClick={() => accept(r.id)}>✓ Accept</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => decline(r.id)}>✗ Decline</button>
+                  <button className="btn btn-juice btn-sm" onClick={() => accept(r.id)}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CheckIcon size={14} /> Accept</span></button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => decline(r.id)}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CloseIcon size={14} /> Decline</span></button>
                 </div>
               </li>
             ))}
@@ -218,9 +219,9 @@ export default function FriendsPage() {
                     <span className={styles.itemStat}>{u.totalGames ?? 0} games</span>
                   </div>
                   {u.isFriend ? (
-                    <span className={`badge badge-juice`}>Friends ✓</span>
+                    <span className={`badge badge-juice`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Friends <CheckIcon size={12} /></span>
                   ) : sent.has(u.id) ? (
-                    <span className={`badge badge-pink`}>Sent ✓</span>
+                    <span className={`badge badge-pink`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Sent <CheckIcon size={12} /></span>
                   ) : (
                     <button className="btn btn-juice btn-sm" onClick={() => sendRequest(u.id)}>
                       + Add

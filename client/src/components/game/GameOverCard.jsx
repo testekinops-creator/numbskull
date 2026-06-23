@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import CountUp from 'react-countup'
 import styles from './GameOverCard.module.css'
 import SkullMascot from '../skull/SkullMascot.jsx'
+import { TrophyIcon, SkullIcon, HandshakeIcon, CrownIcon } from '../icons/Icons.jsx'
 import { celebrateWin } from '../../utils/celebrate.js'
 
 export default function GameOverCard({ won, draw, attempts, secret, optimalMoves, mode, onPlayAgain, onHome, multiplayer, scores, roast, stats }) {
@@ -39,17 +40,17 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
       <div className={styles.resultText}>
         {draw ? (
           <>
-            <span className={styles.loseEmoji}>🤝</span>
+            <span className={styles.loseEmoji}><HandshakeIcon size={42} /></span>
             <h2 className={styles.loseTitle}>It's a Draw!</h2>
           </>
         ) : isWin ? (
           <>
-            <span className={styles.winEmoji}>🎉</span>
+            <span className={styles.winEmoji}><TrophyIcon size={42} /></span>
             <h2 className={styles.winTitle}>You Won!</h2>
           </>
         ) : (
           <>
-            <span className={styles.loseEmoji}>💀</span>
+            <span className={styles.loseEmoji}><SkullIcon size={42} /></span>
             <h2 className={styles.loseTitle}>Game Over</h2>
           </>
         )}
@@ -87,9 +88,9 @@ export default function GameOverCard({ won, draw, attempts, secret, optimalMoves
             const isWinner = p.score === Math.max(...scores.map(s => s.score))
             return (
               <div key={p.id} className={styles.scoreItem}>
-                <span className={styles.scoreName}>
+                <span className={styles.scoreName} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   {p.isYou ? 'You' : p.name}
-                  {isWinner ? ' 👑' : ''}
+                  {isWinner && <CrownIcon size={15} style={{ color: '#FFD740' }} />}
                 </span>
                 <span
                   className={styles.scoreVal}

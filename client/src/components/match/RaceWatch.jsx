@@ -3,6 +3,7 @@ import QueensBoard from './QueensBoard.jsx'
 import TangoBoard from './TangoBoard.jsx'
 import ZipBoard from './ZipBoard.jsx'
 import CrossclimbBoard from './CrossclimbBoard.jsx'
+import { CheckIcon, FlagIcon, EyeIcon, BulbIcon } from '../icons/Icons.jsx'
 import styles from './RaceWatch.module.css'
 
 // Once you've finished (solved or gave up) a race, watch the other players' boards
@@ -27,7 +28,7 @@ export default function RaceWatch({ match, players = [], playerId, mode, onHighl
   }
 
   const board = match.boards?.[watchId] || []
-  const status = (id) => match.solved?.[id] ? '✅' : match.gaveUp?.[id] ? '🏳' : `${match.placed?.[id] ?? 0}/${total}`
+  const status = (id) => match.solved?.[id] ? <CheckIcon size={13} /> : match.gaveUp?.[id] ? <FlagIcon size={13} /> : `${match.placed?.[id] ?? 0}/${total}`
   // You can only point cells out to someone who's STILL solving (server enforces this too).
   const canPoint = !!onHighlight && !isDone(watchId)
   const point = canPoint ? (i) => onHighlight(watchId, i) : undefined
@@ -43,8 +44,8 @@ export default function RaceWatch({ match, players = [], playerId, mode, onHighl
 
   return (
     <div className={styles.wrap}>
-      <p className={styles.note}>👁 Watching <b>{watched.name}</b> · {status(watchId)}</p>
-      {canPoint && <p className={styles.hint}>💡 Tap a cell to point it out for {watched.name}.</p>}
+      <p className={styles.note} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><EyeIcon size={14} /> Watching <b>{watched.name}</b> · {status(watchId)}</p>
+      {canPoint && <p className={styles.hint} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><BulbIcon size={13} /> Tap a cell to point it out for {watched.name}.</p>}
       {ordered.length > 1 && (
         <div className={styles.tabs}>
           {ordered.map(p => (

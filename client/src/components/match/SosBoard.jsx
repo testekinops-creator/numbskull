@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import styles from './SosBoard.module.css'
 import { celebrateSos } from '../../utils/celebrate.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
+import { EditIcon } from '../icons/Icons.jsx'
 
 const COMBO_TEXT = (n) => (n === 2 ? '🔥 DOUBLE SOS!' : n === 3 ? '💥 TRIPLE SOS!' : `⚡ ${n}× MEGA SOS!`)
 const CLAIM_HINT_KEY = 'ns_sos_claim_hint'   // first-time coach-mark seen flag
@@ -211,14 +212,14 @@ export default function SosBoard({
         )}
 
         {/* First-time coach-mark for the draw-to-claim mechanic */}
-        {coach && <div className={styles.coach}>✏️ Drag across your S‑O‑S to claim it!</div>}
+        {coach && <div className={styles.coach} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><EditIcon size={14} /> Drag across your S‑O‑S to claim it!</div>}
 
         {/* Combo flash */}
         {combo && <div key={combo.key} className={styles.comboFlash}>{COMBO_TEXT(combo.n)}</div>}
       </div>
 
       <p className={`${styles.hint} ${claimMode ? styles.hintDraw : ''}`}>
-        {claimMode ? '✏️ Draw the line through your S‑O‑S to score!' : 'Tap a square, then pick S or O'}
+        {claimMode ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><EditIcon size={14} /> Draw the line through your S‑O‑S to score!</span> : 'Tap a square, then pick S or O'}
       </p>
     </div>
   )

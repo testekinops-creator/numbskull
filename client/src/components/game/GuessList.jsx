@@ -1,4 +1,5 @@
 import { useAutoAnimate } from '@formkit/auto-animate/react'
+import { CheckIcon } from '../icons/Icons.jsx'
 import styles from './GuessList.module.css'
 
 export default function GuessList({ guesses, mode }) {
@@ -68,7 +69,7 @@ function BCGuessRow({ entry }) {
 
       {/* Result text — never reveal how many cows there are */}
       <div className={styles.bcMeta}>
-        {correct && <span className={styles.correctText}>✓ Correct!</span>}
+        {correct && <span className={styles.correctText} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckIcon size={14} /> Correct!</span>}
         {!correct && cows > 0 && (
           <span className={styles.cowMsg}>Guessed digits are in wrong position</span>
         )}
@@ -93,7 +94,7 @@ function GTNGuessRow({ entry }) {
         {value}
       </span>
       {correct ? (
-        <span className={styles.correctText}>✓ Correct!</span>
+        <span className={styles.correctText} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckIcon size={14} /> Correct!</span>
       ) : direction ? (
         <span className={styles.gtnHint}>
           {direction === 'higher' ? '↑ Go higher' : '↓ Go lower'}

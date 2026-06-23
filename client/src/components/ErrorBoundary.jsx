@@ -89,7 +89,9 @@ export default class ErrorBoundary extends Component {
     return (
       <div style={S.screen}>
         <div style={S.card}>
-          <div style={S.badge} aria-hidden="true">⚡</div>
+          <div style={S.badge} aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" /></svg>
+          </div>
           <h1 style={S.title}>Well, that broke.</h1>
           <p style={S.text}>Something glitched on our end. A quick reload usually sorts it — we'll pretend this never happened.</p>
           <div style={S.actions}>

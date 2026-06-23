@@ -6,12 +6,15 @@ import { generateTango, tangoIsValidSolution, TANGO_SIZE } from '../utils/tango.
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { celebrateWin } from '../utils/celebrate.js'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { SproutIcon, FlameIcon, SkullIcon, ClockIcon, TrophyIcon, BulbIcon } from '../components/icons/Icons.jsx'
+import { DIFFICULTY } from '../components/icons/difficulty.js'
 import styles from './QueensSoloPage.module.css'   // shared solo-page styling
 
 const DIFFS = [
-  ['easy',   'Easy',   '🌱'],
-  ['medium', 'Medium', '🔥'],
-  ['hard',   'Hard',   '💀'],
+  ['easy',   'Easy',   SproutIcon],
+  ['medium', 'Medium', FlameIcon],
+  ['hard',   'Hard',   SkullIcon],
 ]
 const MAX_HINTS = 2
 const bestKey = (d) => `ns_tango_best_${d}`
@@ -105,14 +108,14 @@ export default function TangoSoloPage() {
         <AmbientOrbs />
         <div className={`panel ${styles.page}`}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <h1 className={styles.title}>☀️ Tango</h1>
+          <h1 className={styles.title} style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><GameIcon icon="tango" size={26} /> Tango</h1>
           <p className={styles.sub}>Fill ☀️/🌙 — 3 each per row &amp; column, no 3 in a row, obey =/×. Beat your best time.</p>
           <div className={styles.diffs}>
-            {DIFFS.map(([id, label, icon]) => {
+            {DIFFS.map(([id, label, Icon]) => {
               const b = Number(localStorage.getItem(bestKey(id))) || null
               return (
-                <button key={id} className={`card ${styles.diffCard}`} onClick={() => start(id)}>
-                  <span className={styles.diffIcon}>{icon}</span>
+                <button key={id} className={`card ${styles.diffCard}`} onClick={() => start(id)} style={{ borderLeft: `4px solid ${DIFFICULTY[id].color}` }}>
+                  <span className={styles.diffIcon}><Icon size={22} style={{ color: DIFFICULTY[id].color }} /></span>
                   <span className={styles.diffLabel}>{label}</span>
                   <span className={styles.diffMeta}>{TANGO_SIZE}×{TANGO_SIZE}</span>
                   <span className={styles.diffBest}>{b ? `Best ${fmtTime(b)}` : '—'}</span>
@@ -133,13 +136,13 @@ export default function TangoSoloPage() {
       <div className={`panel ${styles.page}`}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => setPhase('SETUP')}>← Menu</button>
-          <span className={styles.timer}>⏱ {fmtTime(elapsed)}</span>
-          <span className={styles.progress}>▦ {filled}/{puzzle.n * puzzle.n}</span>
+          <span className={styles.timer} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><ClockIcon size={15} /> {fmtTime(elapsed)}</span>
+          <span className={styles.progress} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><GameIcon icon="tango" size={15} /> {filled}/{puzzle.n * puzzle.n}</span>
         </div>
 
         {done && (
-          <div className={`${styles.resultBanner} anim-bounce-land`}>
-            🏆 Solved in {fmtTime(elapsed)}{best === elapsed ? ' · New best!' : ''}
+          <div className={`${styles.resultBanner} anim-bounce-land`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <TrophyIcon size={18} /> Solved in {fmtTime(elapsed)}{best === elapsed ? ' · New best!' : ''}
           </div>
         )}
 
@@ -157,7 +160,7 @@ export default function TangoSoloPage() {
           {!done ? (
             <>
               <button className="btn btn-ghost btn-sm" onClick={clearBoard}>Clear</button>
-              <button className="btn btn-ghost btn-sm" onClick={useHint} disabled={hintsLeft <= 0}>💡 Hint ({hintsLeft})</button>
+              <button className="btn btn-ghost btn-sm" onClick={useHint} disabled={hintsLeft <= 0}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><BulbIcon size={14} /> Hint ({hintsLeft})</span></button>
             </>
           ) : (
             <>

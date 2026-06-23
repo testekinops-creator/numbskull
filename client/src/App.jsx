@@ -9,7 +9,7 @@ import { AuthProvider }      from './contexts/AuthContext.jsx'
 import GDPRBanner            from './components/GDPRBanner.jsx'
 import PWAInstallBanner      from './components/PWAInstallBanner.jsx'
 import BadgeToast            from './components/BadgeToast.jsx'
-import LevelUpToast          from './components/LevelUpToast.jsx'
+import LevelUpCelebration    from './components/LevelUpCelebration.jsx'
 import SystemToast           from './components/SystemToast.jsx'
 import FriendNotifications   from './components/FriendNotifications.jsx'
 import ConnectionBanner      from './components/ConnectionBanner.jsx'
@@ -59,6 +59,13 @@ const QueensSoloPage      = lazyWithRetry(() => import('./pages/QueensSoloPage.j
 const TangoSoloPage       = lazyWithRetry(() => import('./pages/TangoSoloPage.jsx'))
 const ZipSoloPage         = lazyWithRetry(() => import('./pages/ZipSoloPage.jsx'))
 const NotFoundPage        = lazyWithRetry(() => import('./pages/NotFoundPage.jsx'))
+// Drop-in "feature" screens (Match History, Level-Up, Streak, Skull, Difficulty, MP Tutorial)
+const HistoryPage         = lazyWithRetry(() => import('./pages/FeatureScreens.jsx').then(m => ({ default: m.HistoryPage })))
+const LevelUpPage         = lazyWithRetry(() => import('./pages/FeatureScreens.jsx').then(m => ({ default: m.LevelUpPage })))
+const StreakPage          = lazyWithRetry(() => import('./pages/FeatureScreens.jsx').then(m => ({ default: m.StreakPage })))
+const SkullPage           = lazyWithRetry(() => import('./pages/FeatureScreens.jsx').then(m => ({ default: m.SkullPage })))
+const DifficultyPage      = lazyWithRetry(() => import('./pages/FeatureScreens.jsx').then(m => ({ default: m.DifficultyPage })))
+const MpTutorialPage      = lazyWithRetry(() => import('./pages/FeatureScreens.jsx').then(m => ({ default: m.MpTutorialPage })))
 
 function PageFallback() {
   // Never let a slow/stalled chunk leave the user staring at a spinner forever:
@@ -126,6 +133,13 @@ function AppInner() {
           <Route path="/chain"              element={<ProtectedRoute><NumberChainPage /></ProtectedRoute>} />
           <Route path="/towers"             element={<ProtectedRoute><NumberTowersPage /></ProtectedRoute>} />
           <Route path="/profile"            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          {/* Drop-in feature screens (design previews; data uses built-in defaults for now) */}
+          <Route path="/history"            element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+          <Route path="/levelup"            element={<ProtectedRoute><LevelUpPage /></ProtectedRoute>} />
+          <Route path="/streak"             element={<ProtectedRoute><StreakPage /></ProtectedRoute>} />
+          <Route path="/skull"              element={<ProtectedRoute><SkullPage /></ProtectedRoute>} />
+          <Route path="/difficulty"         element={<ProtectedRoute><DifficultyPage /></ProtectedRoute>} />
+          <Route path="/mp-tutorial"        element={<ProtectedRoute><MpTutorialPage /></ProtectedRoute>} />
           <Route path="/friends"            element={<FriendsPage />} />
           <Route path="/shop"               element={<ProtectedRoute><ShopPage /></ProtectedRoute>} />
           <Route path="/settings"           element={<SettingsPage />} />
@@ -141,7 +155,7 @@ function AppInner() {
       <GameMusic />
       <MusicToggle />
       <BadgeToast />
-      <LevelUpToast />
+      <LevelUpCelebration />
       <SystemToast />
       <FriendNotifications />
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}

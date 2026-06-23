@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useAutoAnimate } from '@formkit/auto-animate/react'
 import { api } from '../../services/api.js'
 import Avatar from '../avatar/Avatar.jsx'
+import { ChatIcon, CloseIcon, BotIcon } from '../icons/Icons.jsx'
 import styles from './ChatPanel.module.css'
 
 export default function ChatPanel({ open, onClose, messages, onSend, players = [] }) {
@@ -82,14 +83,14 @@ export default function ChatPanel({ open, onClose, messages, onSend, players = [
         <div className={styles.handle} />
 
         <div className={styles.header}>
-          <h3 className={styles.title}>💬 Trash Talk</h3>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <h3 className={styles.title} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><ChatIcon size={18} /> Trash Talk</h3>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close"><CloseIcon size={16} /></button>
         </div>
 
         {/* Message log */}
         <div className={styles.log} ref={logRef}>
           {messages.length === 0 && (
-            <p className={styles.empty}>No messages yet. Start the mind games. 😈</p>
+            <p className={styles.empty}>No messages yet. Start the mind games.</p>
           )}
           <div ref={listRef}>
             {messages.map(m => (
@@ -106,8 +107,8 @@ export default function ChatPanel({ open, onClose, messages, onSend, players = [
 
         {/* AI roast — generates and fires instantly */}
         <div className={styles.roastBox}>
-          <button className={styles.generateBtn} onClick={roastAndSend} disabled={generating}>
-            {generating ? '🤖 Roasting…' : '🤖 Roast them (instant AI)'}
+          <button className={styles.generateBtn} onClick={roastAndSend} disabled={generating} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            <BotIcon size={16} /> {generating ? 'Roasting…' : 'Roast them (instant AI)'}
           </button>
         </div>
 

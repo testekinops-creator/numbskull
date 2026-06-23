@@ -4,6 +4,7 @@ import Avatar from '../avatar/Avatar.jsx'
 import { useSound } from '../../hooks/useSound.js'
 import { useHaptic } from '../../hooks/useHaptic.js'
 import { celebrateWin, celebrateChit } from '../../utils/celebrate.js'
+import { RefreshIcon, FlagIcon, BotIcon, CrownIcon } from '../icons/Icons.jsx'
 import rajaCard   from '../../assets/rmcs/raja.jpg'
 import mantriCard from '../../assets/rmcs/mantri.jpg'
 import sipahiCard from '../../assets/rmcs/sipahi.jpg'
@@ -151,7 +152,7 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
         {players.map(p => (
           <div key={p.id} className={`${styles.rosterItem} ${p.id === you ? styles.rosterYou : ''}`}>
             <Avatar id={p.avatar} seed={p.id} name={p.name} size={30} ring={p.id === hostId ? 'gold' : false} />
-            <span className={styles.rosterName}>{p.id === hostId ? '⭐ ' : ''}{nameOf(p.id)}{p.isBot ? ' 🤖' : ''}</span>
+            <span className={styles.rosterName} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.id === hostId && <CrownIcon size={12} style={{ color: '#FFD740' }} />}{nameOf(p.id)}{p.isBot && <BotIcon size={12} />}</span>
             <span className={styles.rosterRole}>{roleChip(p.id)}</span>
             <span className={styles.rosterScore}>{match.totals?.[p.id] ?? 0}</span>
           </div>
@@ -288,16 +289,16 @@ export default function RmcsMatch({ match, you, players = [], hostId, onReveal, 
               <button className="btn btn-juice btn-lg" disabled={busy} onClick={async () => {
                 setBusy(true); const r = await onNext?.(); if (!r?.ok) setErr(r?.error || ''); setBusy(false)
               }}>
-                🔄 Next Round
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><RefreshIcon size={16} /> Next Round</span>
               </button>
               <button className="btn btn-ghost" disabled={busy} onClick={async () => {
                 setBusy(true); const r = await onEnd?.(); if (!r?.ok) { setErr(r?.error || ''); setBusy(false) }
               }}>
-                🏁 End Game
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><FlagIcon size={16} /> End Game</span>
               </button>
             </div>
           ) : (
-            <p className={styles.stageHint}>⭐ Waiting for {nameOf(hostId)} to deal the next round…</p>
+            <p className={styles.stageHint} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CrownIcon size={14} style={{ color: '#FFD740' }} /> Waiting for {nameOf(hostId)} to deal the next round…</p>
           )}
         </div>
       )}

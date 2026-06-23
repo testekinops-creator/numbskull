@@ -13,12 +13,15 @@ import { generate, peersOf } from '../utils/sudoku.js'
 import { useSound } from '../hooks/useSound.js'
 import { useHaptic } from '../hooks/useHaptic.js'
 import { celebrateWin, celebrateChit } from '../utils/celebrate.js'
+import GameIcon from '../components/icons/GameIcon.jsx'
+import { SproutIcon, FlameIcon, SkullIcon, ClockIcon, StarIcon, HeartIcon } from '../components/icons/Icons.jsx'
+import { DIFFICULTY } from '../components/icons/difficulty.js'
 import styles from './SudokuSoloPage.module.css'
 
 const DIFFS = [
-  ['easy',   'Easy',   '🌱'],
-  ['medium', 'Medium', '🔥'],
-  ['hard',   'Hard',   '💀'],
+  ['easy',   'Easy',   SproutIcon],
+  ['medium', 'Medium', FlameIcon],
+  ['hard',   'Hard',   SkullIcon],
 ]
 const MAX_LIVES = 3
 const MAX_HINTS = 3
@@ -277,7 +280,7 @@ export default function SudokuSoloPage() {
       <div className={`panel ${styles.page}`} style={{ paddingBottom: 88 }}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home')}>← Back</button>
-          <span className="badge badge-juice">🔢 Sudoku</span>
+          <span className="badge badge-juice" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GameIcon icon="sudoku" size={15} /> Sudoku</span>
           <span className={styles.soloTag}>Solo</span>
         </div>
 
@@ -289,17 +292,18 @@ export default function SudokuSoloPage() {
 
             <div className={styles.choiceLabel}>Difficulty</div>
             <div className={styles.diffRow}>
-              {DIFFS.map(([id, label, emoji]) => {
+              {DIFFS.map(([id, label, Icon]) => {
                 const b = Number(localStorage.getItem(bestKey(id))) || 0
                 return (
                   <button
                     key={id}
                     className={`${styles.diffCard} ${difficulty === id ? styles.diffActive : ''}`}
+                    style={{ borderLeft: `4px solid ${DIFFICULTY[id].color}` }}
                     onClick={() => setDifficulty(id)}
                   >
-                    <span className={styles.diffEmoji}>{emoji}</span>
+                    <span className={styles.diffEmoji}><Icon size={22} style={{ color: DIFFICULTY[id].color }} /></span>
                     <span className={styles.diffName}>{label}</span>
-                    <span className={styles.diffBest}>{b ? `★ ${fmtTime(b)}` : '—'}</span>
+                    <span className={styles.diffBest} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{b ? <><StarIcon size={12} /> {fmtTime(b)}</> : '—'}</span>
                   </button>
                 )
               })}
@@ -316,10 +320,10 @@ export default function SudokuSoloPage() {
             <div className={styles.hud}>
               <span className={styles.lives} aria-label={`${lives} lives left`}>
                 {Array.from({ length: MAX_LIVES }, (_, i) => (
-                  <span key={i} className={i < lives ? styles.heart : styles.heartLost}>{i < lives ? '❤️' : '🤍'}</span>
+                  <span key={i} className={i < lives ? styles.heart : styles.heartLost}><HeartIcon size={16} filled={i < lives} /></span>
                 ))}
               </span>
-              <span className={styles.timer}>⏱️ {fmtTime(elapsed)}</span>
+              <span className={styles.timer} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><ClockIcon size={15} /> {fmtTime(elapsed)}</span>
               <span className={styles.progress}>{solved}/{blanksRef.current}</span>
             </div>
 

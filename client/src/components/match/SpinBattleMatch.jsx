@@ -3,6 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react'
 import CountUp from 'react-countup'
 import SpinWheel, { SPIN_MS } from './SpinWheel.jsx'
 import PuzzleBoard from './PuzzleBoard.jsx'
+import { ClockIcon, RefreshIcon, BulbIcon, CloseIcon } from '../icons/Icons.jsx'
 import s from './SpinBattle.module.css'
 import m from './SpinBattleMatch.module.css'
 
@@ -166,7 +167,7 @@ export default function SpinBattleMatch({
       {turnSec > 0 && !roundOver && (
         <div className={m.turnTimer}>
           <div className={m.turnTimerHead}>
-            <span>{myTurn ? '⏱️ Your turn' : `⏱️ ${nameOf(match.turnId)}`}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><ClockIcon size={14} /> {myTurn ? 'Your turn' : nameOf(match.turnId)}</span>
             <span className={`${m.turnSecs} ${turnSec <= 10 ? m.turnSecsLow : ''}`}>{turnSec}s</span>
           </div>
           <div className={m.turnTrack}>
@@ -200,7 +201,7 @@ export default function SpinBattleMatch({
         onClick={onSpin}
         disabled={!canSpin}
       >
-        {spinning ? 'Spinning…' : myTurn ? '🎡 SPIN' : 'Opponent’s turn'}
+        {spinning ? 'Spinning…' : myTurn ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><RefreshIcon size={17} /> SPIN</span> : 'Opponent’s turn'}
       </button>
 
       <div className={s.keyboard}>
@@ -234,14 +235,14 @@ export default function SpinBattleMatch({
       </div>
 
       {!showSolve ? (
-        <button className={`btn btn-ghost ${s.solveToggle}`} onClick={() => setShowSolve(true)} disabled={!canSolve}>
-          💡 Solve the puzzle
+        <button className={`btn btn-ghost ${s.solveToggle}`} onClick={() => setShowSolve(true)} disabled={!canSolve} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          <BulbIcon size={16} /> Solve the puzzle
         </button>
       ) : (
         <form className={s.solveForm} onSubmit={submitSolve}>
           <input className="input" value={solveText} onChange={e => setSolveText(e.target.value)} placeholder="Type the full answer" autoFocus maxLength={60} />
           <button type="submit" className="btn btn-juice" disabled={!canSolve}>Solve</button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowSolve(false)}>✕</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowSolve(false)}><CloseIcon size={15} /></button>
         </form>
       )}
     </div>

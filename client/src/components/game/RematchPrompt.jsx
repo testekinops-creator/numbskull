@@ -1,4 +1,9 @@
+import { RefreshIcon, HomeIcon, GamepadIcon, CheckIcon, CloseIcon } from '../icons/Icons.jsx'
 import styles from './RematchPrompt.module.css'
+
+const IL = ({ icon: I, size = 16, children }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><I size={size} />{children}</span>
+)
 
 export default function RematchPrompt({
   rematchStatus,       // 'idle' | 'requesting' | 'incoming' | 'declined'
@@ -15,10 +20,10 @@ export default function RematchPrompt({
     return (
       <div className={`${styles.prompt} anim-slide-up`}>
         <button className={styles.playAgainBtn} onClick={onPlayAgain}>
-          🔄 Play Again
+          <IL icon={RefreshIcon}>Play Again</IL>
         </button>
         <button className={`btn btn-ghost ${styles.homeBtn}`} onClick={onHome}>
-          🏠 Home
+          <IL icon={HomeIcon}>Home</IL>
         </button>
       </div>
     )
@@ -44,17 +49,17 @@ export default function RematchPrompt({
     return (
       <div className={`${styles.prompt} ${styles.incomingPrompt} anim-bounce-land`}>
         <div className={styles.incomingHeader}>
-          <span className={styles.incomingIcon}>🎮</span>
+          <span className={styles.incomingIcon}><GamepadIcon size={24} /></span>
           <p className={styles.incomingMsg}>
             <strong>{requesterName || 'Opponent'}</strong> wants to play again!
           </p>
         </div>
         <div className={styles.btnRow}>
           <button className={styles.yesBtn} onClick={onAccept}>
-            ✓ Yes, let's go!
+            <IL icon={CheckIcon}>Yes, let's go!</IL>
           </button>
           <button className={styles.noBtn} onClick={onDecline}>
-            ✗ No thanks
+            <IL icon={CloseIcon}>No thanks</IL>
           </button>
         </div>
       </div>
@@ -65,7 +70,7 @@ export default function RematchPrompt({
   if (rematchStatus === 'declined') {
     return (
       <div className={`${styles.prompt} anim-slide-up`}>
-        <p className={styles.declinedMsg}>😔 They said no.</p>
+        <p className={styles.declinedMsg}>They said no.</p>
         <button className={`btn btn-ghost ${styles.homeBtn}`} onClick={onHome}>
           ← Back to Home
         </button>

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useFocusTrap } from '../hooks/useFocusTrap.js'
 import GameLogo from './GameLogo.jsx'
+import { CloseIcon, SparkleIcon, MailIcon } from './icons/Icons.jsx'
 import { VERSION_LINE, BUILD_DATE, COMMIT_MSG } from '../utils/buildInfo.js'
 import styles from './AboutModal.module.css'
 
@@ -26,7 +27,7 @@ export default function AboutModal({ open, onClose }) {
     <div className={styles.backdrop} onClick={onClose} role="presentation">
       <div ref={trapRef} className={`${styles.card} anim-bounce-land`} onClick={(e) => e.stopPropagation()}
         role="dialog" aria-modal="true" aria-label="About Numbskull">
-        <button className={styles.close} onClick={onClose} aria-label="Close">✕</button>
+        <button className={styles.close} onClick={onClose} aria-label="Close"><CloseIcon size={16} /></button>
 
         <GameLogo variant="static" size={72} />
         <h2 className={styles.title}>Numbskull</h2>
@@ -39,7 +40,7 @@ export default function AboutModal({ open, onClose }) {
 
         {COMMIT_MSG && (
           <div className={styles.whatsNew}>
-            <span className={styles.whatsNewLabel}>✨ What’s new</span>
+            <span className={styles.whatsNewLabel} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SparkleIcon size={13} /> What’s new</span>
             <span className={styles.whatsNewText}>{COMMIT_MSG}</span>
           </div>
         )}
@@ -49,7 +50,7 @@ export default function AboutModal({ open, onClose }) {
           (and a skull with a mean streak).
         </p>
 
-        <a className={`btn btn-ghost btn-sm ${styles.contact}`} href={`mailto:${SUPPORT_EMAIL}`}>✉️ Contact support</a>
+        <a className={`btn btn-ghost btn-sm ${styles.contact}`} href={`mailto:${SUPPORT_EMAIL}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><MailIcon size={15} /> Contact support</a>
       </div>
     </div>
   )

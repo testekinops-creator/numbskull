@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { isGuestMode } from '../pages/AuthGatePage.jsx'
 import { useFocusTrap } from '../hooks/useFocusTrap.js'
+import { CloseIcon } from './icons/Icons.jsx'
 import styles from './MoreDrawer.module.css'
 
 // Premium left-edge slide navigation drawer (glassmorphism). Closes on: Escape,
@@ -75,7 +76,7 @@ export default function MoreDrawer({ open, onClose }) {
       >
         <div className={styles.header}>
           <span className={styles.title}>Menu</span>
-          <button className={styles.close} onClick={onClose} aria-label="Close menu">✕</button>
+          <button className={styles.close} onClick={onClose} aria-label="Close menu"><CloseIcon size={16} /></button>
         </div>
 
         <nav className={styles.nav}>

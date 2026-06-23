@@ -1,4 +1,5 @@
 import SkullMascot from '../skull/SkullMascot.jsx'
+import { CheckIcon, ShareIcon } from '../icons/Icons.jsx'
 import styles from './RoastReportCard.module.css'
 
 const GRADE_EXPRESSIONS = { S: 'impressed', A: 'grudging', B: 'neutral', C: 'annoyed', D: 'evil' }
@@ -67,7 +68,7 @@ function ShareButton({ report, won }) {
 
   return (
     <button className="btn btn-ghost btn-sm" onClick={share}>
-      {copied ? '✓ Copied!' : '📤 Share'}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{copied ? <><CheckIcon size={14} /> Copied!</> : <><ShareIcon size={14} /> Share</>}</span>
     </button>
   )
 }

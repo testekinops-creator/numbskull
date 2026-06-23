@@ -26,7 +26,14 @@ import { useAwayTimeout } from '../hooks/useAwayTimeout.js'
 import { useLeaveOnExit } from '../hooks/useLeaveOnExit.js'
 import MatchRoom from '../components/match/MatchRoom.jsx'
 import Loader from '../components/Loader.jsx'
+import {
+  CloseIcon, ExitIcon, WifiOffIcon, AlertIcon, LockIcon, EyeIcon, TrophyIcon, CopyIcon, CheckIcon,
+} from '../components/icons/Icons.jsx'
 import styles from './RoomPage.module.css'
+
+const IL = ({ icon: I, size = 16, children }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><I size={size} />{children}</span>
+)
 
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
 
@@ -94,7 +101,7 @@ export default function RoomPage() {
         <div className={styles.loading}>
           {stuck ? (
             <>
-              <p style={{ fontWeight: 700 }}>😕 Couldn't reach the room</p>
+              <p style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertIcon size={16} /> Couldn't reach the room</p>
               <p style={{ color: 'var(--color-text-secondary)', textAlign: 'center', margin: 0 }}>
                 It may have ended, or your connection dropped.
               </p>
@@ -336,7 +343,7 @@ function GuessRoom() {
       <MultiplayerTutorial variant="guess" />
       <ConfirmDialog
         open={confirmLeave}
-        icon="🚪"
+        icon={<ExitIcon size={26} />}
         title="Leave the game?"
         message={phase === 'PLAYING' ? 'The match is in progress — leaving forfeits it to your opponent.' : 'You’ll leave this room and head back home.'}
         confirmLabel="Leave"
@@ -347,13 +354,13 @@ function GuessRoom() {
       {/* You are offline (your own socket dropped) — debounced */}
       {showOffline && (
         <div className={`${styles.connBanner} ${styles.connOffline}`}>
-          📡 You’re offline — reconnecting…
+          <IL icon={WifiOffIcon}>You’re offline — reconnecting…</IL>
         </div>
       )}
       {/* Opponent dropped (within grace) — debounced so a quick refresh is silent */}
       {showOppLost && (
         <div className={`${styles.connBanner} ${styles.connOppLost}`}>
-          ⚠️ {opponent?.name || 'Opponent'} lost connection — waiting for them to return…
+          <IL icon={AlertIcon}>{opponent?.name || 'Opponent'} lost connection — waiting for them to return…</IL>
         </div>
       )}
 
@@ -361,7 +368,7 @@ function GuessRoom() {
         {/* Header */}
         <div className={styles.header}>
           <button className={`${styles.hChip} ${styles.hLeave}`} onClick={() => setConfirmLeave(true)}>
-            ✕ Leave
+            <IL icon={CloseIcon} size={15}>Leave</IL>
           </button>
           <span className={`${styles.hChip} ${styles.hMode}`}>{mode === 'GTN' ? 'Guess The Number' : 'Bulls & Cows'}</span>
           <span className={`${styles.hChip} ${room.isPublic ? styles.hPublic : styles.hCode}`}>
@@ -454,7 +461,7 @@ function GuessRoom() {
             {mySecret && (
               <div className={styles.mySecretBanner}>
                 <div className={styles.mySecretTop}>
-                  <span className={styles.mySecretLabel}>🔒 Your secret {mode === 'GTN' ? 'number' : 'code'}</span>
+                  <span className={styles.mySecretLabel} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><LockIcon size={14} /> Your secret {mode === 'GTN' ? 'number' : 'code'}</span>
                   {mode === 'BC' ? (
                     <span className={styles.mySecretDigits}>
                       {mySecret.split('').map((d, i) => (
@@ -472,8 +479,8 @@ function GuessRoom() {
                 </div>
                 <span className={styles.mySecretHint}>
                   {mode === 'BC' && foundPositions.size > 0
-                    ? `⚠️ ${opponent?.name || 'Opponent'} has locked ${foundPositions.size} of your digits (red)!`
-                    : `👆 ${opponent?.name || 'Opponent'} is trying to guess this — don't reveal it!`}
+                    ? <IL icon={AlertIcon} size={14}>{opponent?.name || 'Opponent'} has locked {foundPositions.size} of your digits (red)!</IL>
+                    : <IL icon={EyeIcon} size={14}>{opponent?.name || 'Opponent'} is trying to guess this — don't reveal it!</IL>}
                 </span>
               </div>
             )}
@@ -545,8 +552,8 @@ function GuessRoom() {
             /* ── Best-of-3: a round ended but the series continues ── */
             <div className={styles.roundOver}>
               <SkullMascot expression={state.won ? 'impressed' : 'annoyed'} size={84} glow={state.won} />
-              <h2 key={state.won ? 'w' : 'l'} className="anim-msg" style={{ margin: '6px 0 0' }}>
-                {state.won ? '🎉 You won the round!' : 'Round lost'}
+              <h2 key={state.won ? 'w' : 'l'} className="anim-msg" style={{ margin: '6px 0 0', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                {state.won ? <><TrophyIcon size={20} /> You won the round!</> : 'Round lost'}
               </h2>
               <p className={styles.seriesScore}>
                 Series — <b>You {me?.score || 0}</b> · <b>{opponent ? (opponent.score || 0) : 0} {opponent?.name || 'Opp'}</b> · best of 3
@@ -684,11 +691,11 @@ function RoomCodeBox({ code }) {
           title="Copy room code"
           aria-label="Copy room code"
         >
-          {copied ? '✓' : '⎘'}
+          {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
         </button>
       </div>
       <p className={styles.codeHint}>
-        {copied ? '✓ Copied to clipboard!' : 'Share this code with a friend to invite them'}
+        {copied ? <IL icon={CheckIcon} size={14}>Copied to clipboard!</IL> : 'Share this code with a friend to invite them'}
       </p>
     </div>
   )

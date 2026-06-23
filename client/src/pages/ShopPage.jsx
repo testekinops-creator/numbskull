@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { api } from '../services/api.js'
 import Avatar from '../components/avatar/Avatar.jsx'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
+import { CoinIcon } from '../components/icons/Icons.jsx'
 import styles from './ShopPage.module.css'
 
 // Best-effort weekly-quest progress from the locally-tracked badge stats
@@ -34,7 +35,7 @@ export default function ShopPage() {
 
   async function buy(id) {
     setBusy(id); setMsg('')
-    try { const d = await api.post('/shop/buy', { id }); updateUser(d.user); await load(); setMsg('Purchased! 🎉') }
+    try { const d = await api.post('/shop/buy', { id }); updateUser(d.user); await load(); setMsg('Purchased!') }
     catch (e) { setMsg(e.message || 'Could not buy') } finally { setBusy('') }
   }
   async function equip(type, apiId, busyKey) {
@@ -46,7 +47,7 @@ export default function ShopPage() {
     setBusy(q.id); setMsg('')
     try {
       const d = await api.post('/quests/claim', { questId: q.id, progress: questProgress(q, loadStats()) })
-      if (d.claimed) { updateUser(d.user); setMsg(`Claimed +${d.xp} XP, +${d.coins} 🪙!`) }
+      if (d.claimed) { updateUser(d.user); setMsg(`Claimed +${d.xp} XP, +${d.coins} coins!`) }
       else if (d.already) setMsg('Already claimed this week.')
       else setMsg('Not done yet — keep playing!')
       await load()
@@ -76,7 +77,7 @@ export default function ShopPage() {
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>← Profile</button>
           <h1 className={styles.title}>Shop</h1>
-          <span className={styles.coins}>🪙 {shop?.coins ?? 0}</span>
+          <span className={styles.coins} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CoinIcon size={16} /> {shop?.coins ?? 0}</span>
         </div>
         {shop && <p className={styles.levelLine}>Level {shop.level}</p>}
         {msg && <div className={styles.msg}>{msg}</div>}
@@ -124,7 +125,7 @@ export default function ShopPage() {
                   <CosmeticCard key={c.id}
                     preview={<Avatar seed={user?.id} name={c.name} size={56} ring={c.value} />}
                     name={c.name}
-                    sub={equipped ? 'Equipped' : owned ? 'Owned' : locked ? `🔒 Lv ${c.minLevel}` : `🪙 ${c.cost}`}
+                    sub={equipped ? 'Equipped' : owned ? 'Owned' : locked ? `Locked · Lv ${c.minLevel}` : `${c.cost} coins`}
                     equipped={equipped} owned={owned}
                     disabled={busy === c.id || (!owned && (locked || (shop.coins < c.cost)))}
                     onAction={() => (owned ? equip('frame', c.id) : buy(c.id))}
@@ -154,7 +155,7 @@ export default function ShopPage() {
                   <CosmeticCard key={c.id}
                     preview={<span className={styles.titlePreview}>{c.value}</span>}
                     name={c.name}
-                    sub={equipped ? 'Equipped' : owned ? 'Owned' : locked ? `🔒 Lv ${c.minLevel}` : `🪙 ${c.cost}`}
+                    sub={equipped ? 'Equipped' : owned ? 'Owned' : locked ? `Locked · Lv ${c.minLevel}` : `${c.cost} coins`}
                     equipped={equipped} owned={owned}
                     disabled={busy === c.id || (!owned && (locked || (shop.coins < c.cost)))}
                     onAction={() => (owned ? equip('title', c.id) : buy(c.id))}
@@ -170,7 +171,7 @@ export default function ShopPage() {
 }
 
 function CosmeticCard({ preview, name, sub, equipped, owned, onAction, disabled }) {
-  const label = equipped ? '✓ Equipped' : owned ? 'Equip' : 'Buy'
+  const label = equipped ? 'Equipped' : owned ? 'Equip' : 'Buy'
   return (
     <div className={`${styles.card} ${equipped ? styles.cardEquipped : ''}`}>
       <div className={styles.preview}>{preview}</div>

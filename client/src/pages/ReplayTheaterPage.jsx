@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../services/api.js'
+import { FilmIcon, EyeIcon } from '../components/icons/Icons.jsx'
 import styles from './ReplayTheaterPage.module.css'
 
 export default function ReplayTheaterPage() {
@@ -53,7 +54,7 @@ export default function ReplayTheaterPage() {
       <div className={`panel ${styles.page}`}>
         <div className={styles.header}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
-          <h1 className={styles.title}>🎬 Replay Theater</h1>
+          <h1 className={styles.title} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><FilmIcon size={20} /> Replay Theater</h1>
         </div>
         <p className={styles.sub}>Today's best games. Curated by the skull.</p>
         {featured.length === 0 && <p className={styles.empty}>No highlights yet. Play some games!</p>}
@@ -62,7 +63,7 @@ export default function ReplayTheaterPage() {
             <button key={r.id} className={`${styles.card} card`} onClick={() => navigate(`/theater/${r.id}`)}>
               <div className={styles.cardTop}>
                 <span className={`badge badge-juice`}>{r.mode}</span>
-                <span className={styles.cardViews}>👁 {r.views}</span>
+                <span className={styles.cardViews} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><EyeIcon size={13} /> {r.views}</span>
               </div>
               <p className={styles.cardPlayer}>{r.playerName}</p>
               <div className={styles.cardStats}>

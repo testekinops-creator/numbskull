@@ -1,0 +1,19 @@
+/* Numbskull screens — shared keyframes & helpers */
+@keyframes sk-glow-pulse { 0%,100% { filter: drop-shadow(0 0 10px rgba(0,245,255,0.25)); } 50% { filter: drop-shadow(0 0 22px rgba(0,245,255,0.5)); } }
+@keyframes sk-win-glow  { 0%,100% { filter: drop-shadow(0 0 18px rgba(0,245,255,0.5)); } 50% { filter: drop-shadow(0 0 34px rgba(0,245,255,0.85)); } }
+.sk-glow { animation: sk-glow-pulse 3.4s ease-in-out infinite; }
+.sk-win  { animation: sk-win-glow 1.6s ease-in-out infinite; }
+
+@keyframes ns-float    { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes ns-flame    { 0%,100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.07) rotate(2deg); } }
+@keyframes ns-sheen    { 0% { transform: translateX(-130%); } 60%,100% { transform: translateX(130%); } }
+@keyframes ns-confetti { 0% { transform: translateY(-10px) rotate(0); opacity:0; } 20%{opacity:1;} 100% { transform: translateY(40px) rotate(180deg); opacity:0; } }
+
+.ns-float { animation: ns-float 4s ease-in-out infinite; }
+.ns-flame { animation: ns-flame 1.8s ease-in-out infinite; }
+.ns-xpbar { position: relative; overflow: hidden; }
+.ns-xpbar::after {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%);
+  animation: ns-sheen 2.4s ease-in-out infinite;
+}

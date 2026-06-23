@@ -1,4 +1,5 @@
 import SkullMascot from './skull/SkullMascot.jsx'
+import { InfoIcon } from './icons/Icons.jsx'
 import styles from './States.module.css'
 
 // Reusable error state — skull + message + optional retry.
@@ -13,7 +14,7 @@ export function ErrorState({ message = 'Something went wrong.', onRetry }) {
 }
 
 // Reusable empty state — icon + message + optional call-to-action.
-export function EmptyState({ icon = '🫥', message, actionLabel, onAction }) {
+export function EmptyState({ icon = <InfoIcon size={28} />, message, actionLabel, onAction }) {
   return (
     <div className={`${styles.block} anim-slide-up`}>
       <span className={styles.icon}>{icon}</span>

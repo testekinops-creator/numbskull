@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import GameLogo from '../components/GameLogo.jsx'
 import MoreDrawer from '../components/MoreDrawer.jsx'
 import AmbientOrbs from '../components/AmbientOrbs.jsx'
-import { HomeIcon, MenuIcon } from '../components/icons/Icons.jsx'
+import { HomeIcon, MenuIcon, EyeIcon, SkullIcon, CoinIcon } from '../components/icons/Icons.jsx'
+import GameIcon from '../components/icons/GameIcon.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { usePlayer } from '../contexts/PlayerContext.jsx'
 import { isGuestMode } from './AuthGatePage.jsx'
@@ -113,6 +114,13 @@ const GAMES = [
   },
 ]
 
+// Maps each game mode to its premium GameIcon glyph (RMCS/Rummy reuse close-fit icons).
+const ICON_KEY = {
+  GTN: 'gtn', BC: 'bc', XOX: 'xox', MATH: 'math', SUDOKU: 'sudoku', QUEENS: 'queens',
+  TANGO: 'tango', ZIP: 'zip', PINPOINT: 'pinpoint', CROSSCLIMB: 'crossclimb',
+  SPIN: 'spin', SOS: 'sos', RMCS: 'queens', RUMMY: 'chip',
+}
+
 export default function HomeListPage() {
   const navigate = useNavigate()
   const { isRegistered, user } = useAuth()
@@ -157,7 +165,7 @@ export default function HomeListPage() {
           </h1>
           <div className={styles.metaRow}>
             <span className={styles.tier}>{tier}</span>
-            {isRegistered && user && <span className={styles.levelChip}>LV {user.level ?? 1} · 🪙 {user.coins ?? 0}</span>}
+            {isRegistered && user && <span className={styles.levelChip} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>LV {user.level ?? 1} · <CoinIcon size={14} /> {user.coins ?? 0}</span>}
             {games > 0 && <span className={styles.gamesCount}>{games} games played</span>}
             {!isRegistered && <span className={styles.guestTag}>Guest</span>}
           </div>
@@ -174,7 +182,7 @@ export default function HomeListPage() {
             style={{ animationDelay: `${i * 70}ms`, '--accent': g.accent }}
             onClick={() => playGame(g.mode)}
           >
-            <span className={styles.gameIcon}>{g.icon}</span>
+            <span className={styles.gameIcon}><GameIcon icon={ICON_KEY[g.mode]} size={52} /></span>
             <div className={styles.gameText}>
               <span className={styles.gameName}>{g.name}</span>
               <span className={styles.gameDesc}>{g.desc}</span>
@@ -185,14 +193,14 @@ export default function HomeListPage() {
       </div>
 
       {/* Watch live games */}
-      <button className={styles.watchLive} onClick={() => navigate('/spectate')}>
-        👀 Watch Live Games →
+      <button className={styles.watchLive} onClick={() => navigate('/spectate')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <EyeIcon size={18} /> Watch Live Games →
       </button>
 
       {/* Guest upsell */}
       {!isRegistered && (
-        <button className={styles.upsell} onClick={() => navigate('/register')}>
-          💀 Create an account to save your stats & climb the leaderboard →
+        <button className={styles.upsell} onClick={() => navigate('/register')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <SkullIcon size={18} /> Create an account to save your stats & climb the leaderboard →
         </button>
       )}
 

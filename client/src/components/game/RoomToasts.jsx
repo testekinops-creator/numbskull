@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRoom } from '../../contexts/RoomContext.jsx'
 import { usePlayer } from '../../contexts/PlayerContext.jsx'
+import { UsersIcon, RefreshIcon, CheckIcon } from '../icons/Icons.jsx'
 import styles from './RoomToasts.module.css'
+
+const TIL = ({ icon: I, children }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><I size={15} />{children}</span>
+)
 
 // Portaled overlay for the room's social notifications:
 //  • opponent got ready          (#2)
@@ -47,7 +52,7 @@ export default function RoomToasts() {
     players.forEach(p => seenPlayers.current.add(p.id))
     if (fresh.length) {
       const p = fresh[fresh.length - 1]
-      setJoinToast(`${p.name || 'Someone'}${p.isBot ? ' 🤖' : ''} joined`)
+      setJoinToast(`${p.name || 'Someone'}${p.isBot ? ' (bot)' : ''} joined`)
       clearTimeout(joinTimer.current)
       joinTimer.current = setTimeout(() => setJoinToast(null), 2800)
     }
@@ -103,9 +108,9 @@ export default function RoomToasts() {
       {/* Top-center: status notices (joins / reconnects / opponent ready) */}
       {createPortal(
         <div className={styles.layer}>
-          {joinToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>👋 {joinToast}</div>}
-          {reconnectToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>🔄 {reconnectToast}</div>}
-          {readyToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}>✅ {readyToast}</div>}
+          {joinToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}><TIL icon={UsersIcon}>{joinToast}</TIL></div>}
+          {reconnectToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}><TIL icon={RefreshIcon}>{reconnectToast}</TIL></div>}
+          {readyToast && <div className={`${styles.toast} ${styles.ready} anim-toast`}><TIL icon={CheckIcon}>{readyToast}</TIL></div>}
         </div>,
         document.body,
       )}

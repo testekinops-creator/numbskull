@@ -20,7 +20,7 @@ export default function SystemToast() {
       clearTimeout(timer.current)
       timer.current = setTimeout(() => setMsg(null), 2500)
     }
-    const onRateLimited = () => show('Whoa — slow down a sec ⏳')
+    const onRateLimited = () => show('Whoa — slow down a sec')
     socket.on('error:rate_limited', onRateLimited)
     return () => {
       socket.off('error:rate_limited', onRateLimited)

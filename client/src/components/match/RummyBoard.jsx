@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { CloseIcon, BotIcon } from '../icons/Icons.jsx'
 import styles from './RummyBoard.module.css'
 
 const SUIT_SYMBOL = { S: '♠', H: '♥', D: '♦', C: '♣' }
@@ -119,7 +120,7 @@ export default function RummyBoard({ match, myTurn, playerId, players = [], onDr
       <div className={styles.opponents}>
         {opponents.map(o => (
           <div key={o.id} className={`${styles.opp} ${eliminated.includes(o.id) ? styles.oppOut : ''}`}>
-            <span className={styles.oppName}>{o.name}{o.isBot ? ' 🤖' : ''}</span>
+            <span className={styles.oppName} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{o.name}{o.isBot && <BotIcon size={13} />}</span>
             <CardBacks count={handCounts[o.id] ?? 0} label={`${o.name}'s hand`} />
           </div>
         ))}
@@ -160,7 +161,7 @@ export default function RummyBoard({ match, myTurn, playerId, players = [], onDr
                 const card = myHand.find(c => c.id === id)
                 return <Card key={id} card={card} wildRank={wildRank} small />
               })}
-              <button type="button" className={styles.groupX} onClick={() => removeGroup(i)} aria-label="Remove group">✕</button>
+              <button type="button" className={styles.groupX} onClick={() => removeGroup(i)} aria-label="Remove group"><CloseIcon size={13} /></button>
             </div>
           ))}
           {groups.length === 0 && <span className={styles.hint}>Select cards below, then “Add group”.</span>}

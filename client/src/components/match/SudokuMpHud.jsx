@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { CloseIcon, CheckIcon, FlameIcon } from '../icons/Icons.jsx'
 import styles from './SudokuMpHud.module.css'
 
 // Premium multiplayer Sudoku HUD: per-player score + mistake meter, a live lead
@@ -37,16 +38,16 @@ export default function SudokuMpHud({ match, playerId, opponent }) {
       <div className={styles.scoreRow}>
         <span className={`${styles.chip} ${styles.me}`}>
           You <b>{myScore}</b>
-          {limit != null && <span className={`${styles.miss} ${myMiss >= limit - 1 ? styles.missDanger : ''}`}>❌{myMiss}/{limit}</span>}
+          {limit != null && <span className={`${styles.miss} ${myMiss >= limit - 1 ? styles.missDanger : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}><CloseIcon size={11} />{myMiss}/{limit}</span>}
         </span>
 
-        <span className={`${styles.mid} ${tension ? styles.tension : ''}`}>
-          {tension ? `🔥 ${left} left!` : `✅ ${match.correctCount}/${match.fillTarget}`}
+        <span className={`${styles.mid} ${tension ? styles.tension : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          {tension ? <><FlameIcon size={14} /> {left} left!</> : <><CheckIcon size={14} /> {match.correctCount}/{match.fillTarget}</>}
         </span>
 
         <span className={styles.chip}>
           {opponent?.name || 'Opp'} <b>{oppScore}</b>
-          {limit != null && opponent && <span className={`${styles.miss} ${oppMiss >= limit - 1 ? styles.missDanger : ''}`}>❌{oppMiss}/{limit}</span>}
+          {limit != null && opponent && <span className={`${styles.miss} ${oppMiss >= limit - 1 ? styles.missDanger : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}><CloseIcon size={11} />{oppMiss}/{limit}</span>}
         </span>
       </div>
 
@@ -54,7 +55,7 @@ export default function SudokuMpHud({ match, playerId, opponent }) {
       <div className={styles.leadBar} role="img" aria-label={`You ${myScore}, ${opponent?.name || 'opponent'} ${oppScore}`}>
         <span className={styles.leadMine} style={{ width: `${myPct}%` }} />
         <span className={styles.leadTheirs} style={{ width: `${100 - myPct}%` }} />
-        {myCombo >= 2 && <span className={styles.comboFlame}>🔥×{myCombo}</span>}
+        {myCombo >= 2 && <span className={styles.comboFlame} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}><FlameIcon size={13} />×{myCombo}</span>}
       </div>
 
       {/* Points popup */}
@@ -64,7 +65,7 @@ export default function SudokuMpHud({ match, playerId, opponent }) {
           className={`${styles.pop} ${pop.mine ? styles.popMine : styles.popTheirs} ${pop.gained < 0 ? styles.popBad : ''}`}
         >
           {pop.gained > 0 ? `+${pop.gained}` : pop.gained}
-          {pop.gained > 1 && pop.combo >= 3 && ' 🔥'}
+          {pop.gained > 1 && pop.combo >= 3 && <FlameIcon size={12} style={{ marginLeft: 3, verticalAlign: '-1px' }} />}
         </span>
       )}
     </div>
