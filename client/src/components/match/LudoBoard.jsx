@@ -32,15 +32,15 @@ const HOME = {
   blue:   [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7]],
 }
 const BASE = {
-  red:    [[1.5, 1.5], [1.5, 3.5], [3.5, 1.5], [3.5, 3.5]],
-  green:  [[1.5, 10.5], [1.5, 12.5], [3.5, 10.5], [3.5, 12.5]],
-  yellow: [[10.5, 10.5], [10.5, 12.5], [12.5, 10.5], [12.5, 12.5]],
-  blue:   [[10.5, 1.5], [10.5, 3.5], [12.5, 1.5], [12.5, 3.5]],
+  red:    [[1, 1], [1, 4], [4, 1], [4, 4]],
+  green:  [[1, 10], [1, 13], [4, 10], [4, 13]],
+  yellow: [[10, 10], [10, 13], [13, 10], [13, 13]],
+  blue:   [[10, 1], [10, 4], [13, 1], [13, 4]],
 }
 const CENTER = [7, 7]
-const COLOR = { red: '#FF4D6D', green: '#22D466', yellow: '#FFC93C', blue: '#3AA0FF' }
-const COLOR_HI = { red: '#FF96AB', green: '#7BF0A6', yellow: '#FFE08A', blue: '#8FCBFF' }
-const COLOR_DK = { red: '#8E1E36', green: '#0F5E30', yellow: '#8A6411', blue: '#16466E' }
+const COLOR = { red: '#FF2E54', green: '#13C45A', yellow: '#FFBD0A', blue: '#2C86FF' }
+const COLOR_HI = { red: '#FF7E96', green: '#5FE894', yellow: '#FFD759', blue: '#73B0FF' }
+const COLOR_DK = { red: '#9E1734', green: '#097A38', yellow: '#B07A00', blue: '#134F92' }
 const BASE_AREA = { red: [1, 1], green: [1, 10], yellow: [10, 10], blue: [10, 1] }
 // Travel direction out of each start cell (the ➜ glyph points right at 0°).
 const START_ARROW = { red: 0, green: 90, yellow: 180, blue: 270 }

@@ -63,7 +63,7 @@ import styles from './MatchRoom.module.css'
 const QUICK_EMOJIS = ['😂', '😈', '🔥', '💀', '🤡', '👑', '😭', '🧠']
 const MODE_NAMES = { XOX: 'Tic-Tac-Toe', MATH: 'Math Battle', SUDOKU: 'Sudoku', SPIN: 'Spin Battle', SOS: 'SOS', RMCS: 'Raja Mantri', RUMMY: 'Rummy', QUEENS: 'Queens', TANGO: 'Tango', ZIP: 'Zip', PINPOINT: 'Pinpoint', CROSSCLIMB: 'Crossclimb', LUDO: 'Ludo' }
 const LUDO_COLORS = ['red', 'green', 'yellow', 'blue']
-const LUDO_HEX = { red: '#FF4D6D', green: '#22D466', yellow: '#FFC93C', blue: '#3AA0FF' }
+const LUDO_HEX = { red: '#FF2E54', green: '#13C45A', yellow: '#FFBD0A', blue: '#2C86FF' }
 
 // Queens race time (ms → m:ss) for the standings card.
 function fmtRaceTime(ms) {

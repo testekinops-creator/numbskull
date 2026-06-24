@@ -4,10 +4,10 @@ import { useId } from 'react'
 // shadow). Drawn in an SVG so it stays crisp at any size. Anchored at its base in
 // LudoBoard so it "stands" on the square. `color` ∈ red/green/yellow/blue.
 const STOPS = {
-  red:    { hi: '#FFAFBE', mid: '#FF4D6D', lo: '#9E2240', rim: '#FFE0E6' },
-  green:  { hi: '#85F2B2', mid: '#22D466', lo: '#0D7338', rim: '#D2FFE4' },
-  yellow: { hi: '#FFE8A6', mid: '#FFC93C', lo: '#B5840E', rim: '#FFF5D4' },
-  blue:   { hi: '#A6D8FF', mid: '#3AA0FF', lo: '#13569E', rim: '#DCEEFF' },
+  red:    { hi: '#FF93A8', mid: '#FF2E54', lo: '#8E1530', rim: '#FFE0E6' },
+  green:  { hi: '#73EC9D', mid: '#13C45A', lo: '#0A6E33', rim: '#D2FFE4' },
+  yellow: { hi: '#FFDD7C', mid: '#FFBD0A', lo: '#9E6E00', rim: '#FFF3CE' },
+  blue:   { hi: '#8DBFFF', mid: '#2C86FF', lo: '#124A88', rim: '#DCEEFF' },
 }
 
 export default function LudoToken({ color = 'red' }) {
