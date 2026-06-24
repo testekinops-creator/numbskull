@@ -125,7 +125,7 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
 
   const [selectedDie, setSelectedDie] = useState(0)             // index into dicePool (MOVE phase)
   const [rolling, setRolling] = useState(false)
-  const [cube, setCube] = useState(() => faceTransform(lastRoll || 6, 0))
+  const [spinKey, setSpinKey] = useState(0)                     // bumps each roll → re-triggers the cube tumble
   const [toast, setToast] = useState(null)
   const [pressed, setPressed] = useState(false)
   const [disp, setDisp] = useState(() => cloneTokens(tokens))   // animated render positions
@@ -139,7 +139,6 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
   const [reform, setReform] = useState(() => new Set())         // token keys popping back together at base
   const [hoverTok, setHoverTok] = useState(null)                // token whose move preview is emphasised
   const [now, setNow] = useState(() => Date.now())              // ticks the turn countdown
-  const spins = useRef(0)
   const settleT = useRef(null)
   const toastT = useRef(null)
   const prevSeq = useRef(seq)
@@ -223,8 +222,7 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
     if (lastEvent === 'roll' || lastEvent === 'pass' || lastEvent === 'bust') {
       sound.playDice(620)
       setRolling(true)
-      spins.current += 2
-      setCube(faceTransform(lastRoll || 1, spins.current))   // 3D tumble, land on value
+      setSpinKey(k => k + 1)               // re-trigger the cube tumble (every roll, even same face)
       clearTimeout(settleT.current)
       settleT.current = setTimeout(() => {
         setRolling(false)
@@ -261,6 +259,7 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
   }, [phase, seq]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const dieVal = dicePool[selectedDie] ?? lastRoll ?? 6
+  const [cubeFx, cubeFy] = FACE_ROT[lastRoll || 6] || [0, 0]   // resting orientation the tumble lands on
 
   // Move preview: where each movable token would land + the outcome there.
   // Deduped per destination cell, so e.g. a 6 with several tokens in base shows
@@ -493,8 +492,9 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
             : `${nameOf(turnId) || turnColor}'s turn`}
         </span>
         <div className={styles.dieWrap}>
-          {/* Dice tray — the rolled dice waiting to be placed. Selectable in MOVE. */}
-          {dicePool.length > 0 && (
+          {/* Dice tray — the rolled dice waiting to be placed (MOVE phase only, after
+              the roll has settled, so the cube and tray never show the same die at once). */}
+          {phase === 'MOVE' && !rolling && dicePool.length > 0 && (
             <div className={styles.tray}>
               {dicePool.map((d, i) => {
                 const playable = (movableByDie[i] || []).length > 0
@@ -520,9 +520,11 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
             </div>
           )}
 
-          {/* 3D cube — the roll button (also shown while a roll settles). */}
+          {/* 3D cube — the roll button (also shown while a roll settles). Hint sits
+              to its LEFT so the die's 3D pop never overlaps the text. */}
           {(phase === 'ROLL' || rolling) && (
             <>
+              {canRoll && !rolling && <span className={styles.rollHint}>Tap the die</span>}
               <button
                 type="button"
                 className={`${styles.dieBtn} ${pressed ? styles.diePressed : ''} ${canRoll && !rolling ? styles.dieReady : ''}`}
@@ -532,7 +534,7 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
                 aria-label="Roll the die"
               >
                 <span className={styles.scene}>
-                  <span className={`${styles.cube} ${rolling ? styles.cubeRolling : ''}`} style={{ transform: cube }}>
+                  <span key={spinKey} className={`${styles.cube} ${rolling ? styles.cubeRolling : ''}`} style={{ '--fx': `${cubeFx}deg`, '--fy': `${cubeFy}deg` }}>
                     {[1, 2, 3, 4, 5, 6].map(v => (
                       <span key={v} className={`${styles.face} ${styles['face' + v]}`}>
                         {Array.from({ length: 9 }).map((_, i) => (
@@ -543,7 +545,6 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onPla
                   </span>
                 </span>
               </button>
-              {canRoll && !rolling && <span className={styles.rollHint}>Tap the die</span>}
             </>
           )}
         </div>

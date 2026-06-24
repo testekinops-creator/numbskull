@@ -419,7 +419,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 16px;                /* room so the die's 3D pop never overlaps the hint/tray */
   flex-shrink: 0;
   margin-top: -16px;        /* lift the die up a little */
 }
@@ -479,9 +479,17 @@
   position: absolute;
   width: 56px; height: 56px;
   transform-style: preserve-3d;
-  transition: transform .72s cubic-bezier(.2, .8, .3, 1);
+  transform: rotateX(var(--fx, 0deg)) rotateY(var(--fy, 0deg));   /* resting = current face */
 }
-.cubeRolling { transition: transform .72s cubic-bezier(.34, .8, .3, 1); }
+/* Tumble ONLY while actually rolling (not on mount/entrance). Re-triggered by a
+   changing React key so every roll spins — even landing on the same face twice. */
+.cubeRolling {
+  animation: cubeTumble .62s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes cubeTumble {
+  0%   { transform: rotateX(calc(var(--fx, 0deg) - 720deg)) rotateY(calc(var(--fy, 0deg) - 900deg)); }
+  100% { transform: rotateX(var(--fx, 0deg)) rotateY(var(--fy, 0deg)); }
+}
 .face {
   position: absolute;
   width: 56px; height: 56px;
@@ -547,7 +555,7 @@
 .trayPip { width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #6a3f93, #16112f); }
 
 @media (prefers-reduced-motion: reduce) {
-  .token, .token svg, .token::after, .hopping, .slam svg, .reform svg, .shatter, .shard, .impact, .spawnBurst, .start, .cube, .dieReady .scene, .dieReady::after, .movable, .movable svg, .chipTurn, .ghostActive {
+  .token, .token svg, .token::after, .hopping, .slam svg, .reform svg, .shatter, .shard, .impact, .spawnBurst, .start, .cubeRolling, .dieReady .scene, .dieReady::after, .movable, .movable svg, .chipTurn, .ghostActive {
     animation: none !important; transition: none !important;
   }
 }
