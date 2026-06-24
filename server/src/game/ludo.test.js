@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  colorsFor, initTokens, absCell, legalMoves, applyMove, isWin, progress, blockedCells,
+  colorsFor, initTokens, absCell, legalMoves, applyMove, isWin, progress,
   START_OFFSET, SAFE_CELLS, HOME,
 } from './ludo.js'
 
@@ -87,39 +87,5 @@ describe('Ludo — moves & captures', () => {
     expect(progress(t, 'red')).toBe(1)
     t.red = [HOME, HOME, HOME, HOME]
     expect(progress(t, 'red')).toBe((HOME + 1) * 4)
-  })
-})
-
-describe('Ludo — blocks / barricades', () => {
-  it('detects an opponent block (2+ of one colour on a loop cell)', () => {
-    const t = initTokens(['red', 'yellow'])
-    t.yellow[0] = 31; t.yellow[1] = 31           // two yellow on abs cell 5
-    expect(absCell('yellow', 31)).toBe(5)
-    expect(blockedCells(t, 'red').has(5)).toBe(true)
-    expect(blockedCells(t, 'yellow').has(5)).toBe(false)  // your own pair never blocks you
-  })
-  it('cannot pass over OR land on an opponent block', () => {
-    const t = initTokens(['red', 'yellow'])
-    t.yellow[0] = 31; t.yellow[1] = 31           // block on abs cell 5
-    t.red[0] = 3                                  // red 2 short of the block
-    expect(legalMoves(t, 'red', 2)).not.toContain(0)  // landing on the block — illegal
-    expect(legalMoves(t, 'red', 3)).not.toContain(0)  // passing over the block — illegal
-    expect(legalMoves(t, 'red', 1)).toContain(0)      // stops before it — fine
-  })
-  it('a single opponent is not a block (still capturable)', () => {
-    const t = initTokens(['red', 'yellow'])
-    t.yellow[0] = 31                              // one yellow on abs cell 5
-    t.red[0] = 4
-    expect(legalMoves(t, 'red', 1)).toContain(0)  // may land
-    const r = applyMove(t, 'red', 0, 1)
-    expect(t.yellow[0]).toBe(-1)                  // captured
-    expect(r.captured).toEqual([{ color: 'yellow', i: 0 }])
-  })
-  it('cannot release onto a blocked start cell', () => {
-    const t = initTokens(['red', 'yellow'])
-    // green/blue not in play; put two yellow on red's start (abs 0)
-    t.yellow[0] = (0 - 26 + 52) % 52; t.yellow[1] = (0 - 26 + 52) % 52
-    expect(absCell('yellow', t.yellow[0])).toBe(0)
-    expect(legalMoves(t, 'red', 6)).toEqual([])   // can't come out onto the block
   })
 })

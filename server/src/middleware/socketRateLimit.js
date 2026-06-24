@@ -19,7 +19,7 @@ const EVENT_LIMITS = {
   'math:answer':           { max: 60, windowMs: 30_000 },
   'pinpoint:answer':       { max: 40, windowMs: 30_000 },
   'ludo:roll':             { max: 120, windowMs: 30_000 },
-  'ludo:move':             { max: 120, windowMs: 30_000 },
+  'ludo:place':            { max: 200, windowMs: 30_000 },
   'ludo:rematch':          { max: 15,  windowMs: 30_000 },
   'ludo:pick_color':       { max: 40,  windowMs: 30_000 },
   'sudoku:fill':           { max: 200, windowMs: 30_000 },

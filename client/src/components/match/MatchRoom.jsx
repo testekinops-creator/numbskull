@@ -81,7 +81,7 @@ export default function MatchRoom({ roomId, mode }) {
     rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
     rummyDraw, rummyDiscard, rummyDeclare,
     queensPlace, tangoPlace, zipPath, crossclimbOrder, raceGiveUp, raceRematch, raceHighlight,
-    ludoRoll, ludoMove, ludoRematch, ludoPickColor,
+    ludoRoll, ludoPlace, ludoRematch, ludoPickColor,
     requestRematch, acceptRematch, declineRematch, leaveRoom, clearRoom, reconnectRoom,
     sendChat, sendEmoji, clearUnreadChat,
   } = useRoom()
@@ -943,7 +943,7 @@ export default function MatchRoom({ roomId, mode }) {
                 players={room.players}
                 playerId={playerId}
                 onRoll={() => { unlock(); ludoRoll(roomId) }}
-                onMove={(token) => { unlock(); ludoMove(roomId, token) }}
+                onPlace={(token, dieIndex) => { unlock(); ludoPlace(roomId, token, dieIndex) }}
               />
             )}
 

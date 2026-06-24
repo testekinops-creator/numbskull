@@ -517,6 +517,35 @@
   opacity: .85;
 }
 
+/* Dice tray — the rolled dice waiting to be placed (selectable in MOVE). */
+.tray { display: flex; align-items: center; gap: 8px; }
+.trayDie {
+  width: 36px; height: 36px;
+  padding: 5px;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(150deg, #ffffff, #e4def4 78%, #cec6e6);
+  box-shadow: 0 3px 8px #0006, inset 0 1px 2px #fff;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+.trayDie:disabled { cursor: default; }
+.trayDieSel {
+  box-shadow: 0 0 0 2px #fff, 0 0 12px var(--turn), 0 3px 8px #0006;
+  transform: translateY(-2px) scale(1.08);
+}
+.trayDieDim { opacity: .38; filter: grayscale(.35); }
+.trayFace {
+  width: 100%; height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+}
+.trayPip { width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #6a3f93, #16112f); }
+
 @media (prefers-reduced-motion: reduce) {
   .token, .token svg, .token::after, .hopping, .slam svg, .reform svg, .shatter, .shard, .impact, .spawnBurst, .start, .cube, .dieReady .scene, .dieReady::after, .movable, .movable svg, .chipTurn, .ghostActive {
     animation: none !important; transition: none !important;

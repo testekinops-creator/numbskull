@@ -613,8 +613,8 @@ export function registerMatchHandlers(io, socket) {
     _ludoDoRoll(io, roomId, playerId).catch(err => logger.error({ err }, 'ludo:roll error'))
     ack?.({ ok: true })
   })
-  socket.on('ludo:move', ({ roomId, token } = {}, ack) => {
-    _ludoDoMove(io, roomId, playerId, token).catch(err => logger.error({ err }, 'ludo:move error'))
+  socket.on('ludo:place', ({ roomId, token, dieIndex } = {}, ack) => {
+    _ludoDoPlace(io, roomId, playerId, token, dieIndex).catch(err => logger.error({ err }, 'ludo:place error'))
     ack?.({ ok: true })
   })
   // Pick a colour in the lobby before the game starts (each colour unique).
@@ -1436,9 +1436,11 @@ async function _startMatch(io, roomId) {
         order:   ids,                    // turn order (seat order)
         tokens:  ludo.initTokens(cols),  // colour → [pos×4]
         turnId:  ids[0],
-        dice:    null,                   // null = awaiting a roll; 1–6 = awaiting a move
-        movable: [],                     // token indices the current player may move
-        sixes:   0,                      // consecutive 6s this turn
+        phase:   'ROLL',                 // 'ROLL' = roll (6 → roll again) · 'MOVE' = place the rolled dice
+        dicePool: [],                    // dice rolled this sequence, waiting to be placed
+        movableByDie: [],                // parallel to dicePool: token indices movable with each die
+        sixes:   0,                      // consecutive 6s this sequence (3 → bust)
+        bonusEarned: false,              // captured / sent home this turn → another roll sequence after placing
         lastRoll: null,
         lastEvent: null,                 // 'roll'|'move'|'capture'|'pass'|'bust' — light client feedback
         lastBy:   null,                  // who just acted (drives the client animation)
@@ -1973,10 +1975,20 @@ function _ludoRanking(room) {
 }
 
 const _ludoDeadline = () => Date.now() + LUDO_TURN_MS
+const _ludoMovable = (tokens, color, pool) => pool.map(d => ludo.legalMoves(tokens, color, d))
+const _ludoAnyPlayable = (movableByDie) => movableByDie.some(list => list.length > 0)
+
+// Reset for the next player's turn (or a fresh bonus sequence for the same player).
+function _ludoEndTurn(r, { pass }) {
+  r.match.dicePool = []; r.match.movableByDie = []; r.match.sixes = 0; r.match.bonusEarned = false
+  r.match.phase = 'ROLL'
+  if (pass) r.match.turnId = _ludoNext(r.match)
+  r.match.turnEndsAt = _ludoDeadline()
+}
 
 // Arm the per-room scheduler: drive the bot's action, or auto-act for an idle
-// human after LUDO_TURN_MS so a game never stalls. One timer per room. The human
-// timeout passes auto=true so the client can flag the turn as auto-played.
+// human after LUDO_TURN_MS so a game never stalls. One timer per room. Human
+// timeouts pass auto=true so the client can flag the action as auto-played.
 async function _ludoSchedule(io, roomId) {
   _clearLudoTimer(roomId)
   const room = await roomManager.get(roomId)
@@ -1985,81 +1997,97 @@ async function _ludoSchedule(io, roomId) {
   const pid = m.turnId
   const bot = isBotId(pid)
   const delay = bot ? LUDO_BOT_MS : LUDO_TURN_MS
-  if (m.dice == null) {
+  if (m.phase === 'ROLL') {
     ludoTimers.set(roomId, setTimeout(() => _ludoDoRoll(io, roomId, pid, !bot).catch(err => logger.error({ err }, 'ludo auto-roll')), delay))
   } else {
-    const pick = bot ? chooseLudoMove(m.tokens, m.colors[pid], m.dice, m.movable) : m.movable[0]
-    ludoTimers.set(roomId, setTimeout(() => _ludoDoMove(io, roomId, pid, pick, !bot).catch(err => logger.error({ err }, 'ludo auto-move')), delay))
+    // MOVE: pick the first die with a legal move (bot picks the best token for it).
+    let pick = null
+    for (let di = 0; di < m.dicePool.length; di++) {
+      const legal = ludo.legalMoves(m.tokens, m.colors[pid], m.dicePool[di])
+      if (legal.length) { pick = { token: bot ? chooseLudoMove(m.tokens, m.colors[pid], m.dicePool[di], legal) : legal[0], dieIndex: di }; break }
+    }
+    if (pick) ludoTimers.set(roomId, setTimeout(() => _ludoDoPlace(io, roomId, pid, pick.token, pick.dieIndex, !bot).catch(err => logger.error({ err }, 'ludo auto-place')), delay))
   }
 }
 
-// Roll for `pid` (no-op unless it's their turn and they haven't rolled yet).
+// Roll a die for `pid` (only in the ROLL phase). A 6 lets you roll again BEFORE
+// moving (rolls accumulate); three 6s in a row busts the whole turn — no moves.
+// A non-6 ends the roll phase → MOVE (place the accumulated dice).
 async function _ludoDoRoll(io, roomId, pid, auto = false) {
   const room = await roomManager.get(roomId)
   if (!room || room.mode !== 'LUDO' || room.phase !== 'PLAYING') return
   const m = room.match
-  if (m.turnId !== pid || m.dice != null) return
+  if (m.turnId !== pid || m.phase !== 'ROLL') return
   _clearLudoTimer(roomId)
 
   const roll = 1 + Math.floor(Math.random() * 6)
   const color = m.colors[pid]
   const newSixes = roll === 6 ? m.sixes + 1 : 0
 
-  // Three 6s in a row → turn forfeited.
-  if (newSixes === 3) {
-    await roomManager.update(roomId, r => {
-      r.match.lastRoll = 6; r.match.dice = null; r.match.movable = []; r.match.sixes = 0
-      r.match.lastEvent = 'bust'; r.match.lastBy = pid; r.match.lastAuto = auto
-      r.match.seq = (r.match.seq || 0) + 1
-      r.match.turnId = _ludoNext(r.match); r.match.turnEndsAt = _ludoDeadline()
-    })
-  } else {
-    const legal = ludo.legalMoves(m.tokens, color, roll)
-    if (legal.length === 0) {
-      // nothing to move → pass (a 6 with no legal move grants no extra turn)
-      await roomManager.update(roomId, r => {
-        r.match.lastRoll = roll; r.match.dice = null; r.match.movable = []; r.match.sixes = 0
-        r.match.lastEvent = 'pass'; r.match.lastBy = pid; r.match.lastAuto = auto
-        r.match.seq = (r.match.seq || 0) + 1
-        r.match.turnId = _ludoNext(r.match); r.match.turnEndsAt = _ludoDeadline()
-      })
-    } else {
-      await roomManager.update(roomId, r => {
-        r.match.lastRoll = roll; r.match.dice = roll; r.match.movable = legal; r.match.sixes = newSixes
-        r.match.lastEvent = 'roll'; r.match.lastBy = pid; r.match.lastAuto = auto
-        r.match.seq = (r.match.seq || 0) + 1; r.match.turnEndsAt = _ludoDeadline()
-      })
+  await roomManager.update(roomId, r => {
+    r.match.lastRoll = roll; r.match.lastBy = pid; r.match.lastAuto = auto
+    r.match.seq = (r.match.seq || 0) + 1
+
+    if (newSixes === 3) {
+      // three consecutive 6s → forfeit: discard the pool, no tokens move at all
+      r.match.lastEvent = 'bust'
+      _ludoEndTurn(r, { pass: true })
+      return
     }
-  }
+    const pool = [...r.match.dicePool, roll]
+    if (roll === 6) {
+      // roll again before moving
+      r.match.dicePool = pool; r.match.sixes = newSixes
+      r.match.lastEvent = 'roll'; r.match.phase = 'ROLL'; r.match.turnEndsAt = _ludoDeadline()
+      return
+    }
+    // non-6 → roll phase ends; move phase if anything is playable, else pass
+    const movable = _ludoMovable(r.match.tokens, color, pool)
+    if (!_ludoAnyPlayable(movable)) {
+      r.match.lastEvent = 'pass'
+      _ludoEndTurn(r, { pass: true })
+    } else {
+      r.match.dicePool = pool; r.match.movableByDie = movable; r.match.sixes = newSixes
+      r.match.lastEvent = 'roll'; r.match.phase = 'MOVE'; r.match.turnEndsAt = _ludoDeadline()
+    }
+  })
+
   const updated = await roomManager.get(roomId)
   _ludoEmit(io, updated)
   _ludoSchedule(io, roomId)
 }
 
-// Move token `token` for `pid` (no-op unless legal for the current roll).
-async function _ludoDoMove(io, roomId, pid, token, auto = false) {
+// Place one die from the pool on `token` (only in the MOVE phase). Consumes the
+// die; capture / sending a token home flags a bonus roll sequence after the pool
+// is emptied. Turn ends (or bonus) once no dice remain / are playable.
+async function _ludoDoPlace(io, roomId, pid, token, dieIndex, auto = false) {
   const room = await roomManager.get(roomId)
   if (!room || room.mode !== 'LUDO' || room.phase !== 'PLAYING') return
   const m = room.match
-  if (m.turnId !== pid || m.dice == null) return
-  if (!Number.isInteger(token) || !m.movable.includes(token)) return
+  if (m.turnId !== pid || m.phase !== 'MOVE') return
+  if (!Number.isInteger(dieIndex) || dieIndex < 0 || dieIndex >= m.dicePool.length) return
+  const dieVal = m.dicePool[dieIndex]
+  const color = m.colors[pid]
+  if (!Number.isInteger(token) || !ludo.legalMoves(m.tokens, color, dieVal).includes(token)) return
   _clearLudoTimer(roomId)
 
-  const roll = m.dice
-  const color = m.colors[pid]
   let won = false
   await roomManager.update(roomId, r => {
-    const res = ludo.applyMove(r.match.tokens, color, token, roll)
+    const res = ludo.applyMove(r.match.tokens, color, token, dieVal)
     won = ludo.isWin(r.match.tokens, color)
-    // A 6, a capture, OR landing a token home all earn another roll.
-    const bonus = roll === 6 || res.captured.length > 0 || res.finished
-    r.match.dice = null
-    r.match.movable = []
+    if (res.captured.length || res.finished) r.match.bonusEarned = true
     r.match.lastEvent = res.captured.length ? 'capture' : 'move'
     r.match.lastBy = pid; r.match.lastAuto = auto; r.match.seq = (r.match.seq || 0) + 1
-    if (!won) {
-      if (bonus) { r.match.turnEndsAt = _ludoDeadline() }   // same player rolls again
-      else { r.match.sixes = 0; r.match.turnId = _ludoNext(r.match); r.match.turnEndsAt = _ludoDeadline() }
+    r.match.dicePool = r.match.dicePool.filter((_, i) => i !== dieIndex)   // consume the die
+    if (won) return
+
+    const movable = _ludoMovable(r.match.tokens, color, r.match.dicePool)
+    if (r.match.dicePool.length === 0 || !_ludoAnyPlayable(movable)) {
+      // pool finished (or stuck) → keep the turn if a bonus was earned, else pass
+      const keep = r.match.bonusEarned
+      _ludoEndTurn(r, { pass: !keep })
+    } else {
+      r.match.movableByDie = movable; r.match.turnEndsAt = _ludoDeadline()
     }
   })
 
@@ -2695,8 +2723,9 @@ function _publicMatch(match) {
       order:   match.order,
       tokens:  match.tokens,
       turnId:  match.turnId,
-      dice:    match.dice,
-      movable: match.movable,
+      phase:   match.phase,
+      dicePool: match.dicePool,
+      movableByDie: match.movableByDie,
       sixes:   match.sixes,
       lastRoll: match.lastRoll,
       lastEvent: match.lastEvent,

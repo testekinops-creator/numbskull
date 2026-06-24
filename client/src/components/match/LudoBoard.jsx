@@ -113,16 +113,17 @@ function computeJob(prev, next, moverColor) {
   return { moverColor, idx, oldPos, newPos, captured }
 }
 
-export default function LudoBoard({ match, players = [], playerId, onRoll, onMove }) {
-  const { tokens = {}, colors = {}, order = [], turnId, dice, movable = [], lastRoll, lastEvent, lastAuto, seq = 0, turnEndsAt } = match || {}
+export default function LudoBoard({ match, players = [], playerId, onRoll, onPlace }) {
+  const { tokens = {}, colors = {}, order = [], turnId, phase = 'ROLL', dicePool = [], movableByDie = [], lastRoll, lastEvent, lastAuto, seq = 0, turnEndsAt } = match || {}
   const sound = useSound()
   const myColor = colors[playerId] || null
   const turnColor = colors[turnId] || null
   const myTurn = turnId === playerId
-  const canRoll = myTurn && dice == null
-  const canMove = myTurn && dice != null
+  const canRoll = myTurn && phase === 'ROLL'
+  const canMove = myTurn && phase === 'MOVE'
   const turnIsBot = !!players.find(p => p.id === turnId)?.isBot
 
+  const [selectedDie, setSelectedDie] = useState(0)             // index into dicePool (MOVE phase)
   const [rolling, setRolling] = useState(false)
   const [cube, setCube] = useState(() => faceTransform(lastRoll || 6, 0))
   const [toast, setToast] = useState(null)
@@ -146,6 +147,8 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onMov
   const queue = useRef([])
   const running = useRef(false)
 
+  // Tokens movable with the currently-selected die.
+  const movable = movableByDie[selectedDie] || []
   const nameOf = (id) => players.find(p => p.id === id)?.name || ''
 
   function flashToast(text, kind) {
@@ -249,15 +252,25 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onMov
     return () => clearInterval(id)
   }, [turnEndsAt, turnIsBot])
 
+  // When the dice pool changes (after a roll or a placement), default the
+  // selection to the first die that actually has a legal move.
+  useEffect(() => {
+    if (phase !== 'MOVE') { setSelectedDie(0); return }
+    const first = movableByDie.findIndex(list => (list || []).length > 0)
+    setSelectedDie(first >= 0 ? first : 0)
+  }, [phase, seq]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dieVal = dicePool[selectedDie] ?? lastRoll ?? 6
+
   // Move preview: where each movable token would land + the outcome there.
   // Deduped per destination cell, so e.g. a 6 with several tokens in base shows
   // ONE marker on the start cell instead of a stack.
   const previews = useMemo(() => {
-    if (!canMove || dice == null || !myColor) return []
+    if (!canMove || dieVal == null || !myColor) return []
     const byCell = new Map()
     for (const idx of movable) {
       const pos = (tokens[myColor] || [])[idx]
-      const newPos = pos === -1 ? 0 : pos + dice
+      const newPos = pos === -1 ? 0 : pos + dieVal
       const cell = cellOf(myColor, newPos)
       if (!cell) continue
       const abs = newPos >= 0 && newPos <= 50 ? (START_OFFSET[myColor] + newPos) % 52 : null
@@ -276,7 +289,7 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onMov
       else byCell.set(key, { cell, outcome, idxs: [idx] })
     }
     return [...byCell.values()]
-  }, [canMove, dice, movable, tokens, myColor])
+  }, [canMove, dieVal, movable, tokens, myColor])
 
   const remainMs = turnEndsAt ? Math.max(0, turnEndsAt - now) : 0
 
@@ -429,7 +442,7 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onMov
                 type="button"
                 className={`${styles.token} ${liftable ? styles.movable : ''} ${finished ? styles.tokenHome : ''} ${hopping ? styles.hopping : ''} ${isSlam ? styles.slam : ''} ${isReform ? styles.reform : ''}`}
                 disabled={!liftable}
-                onClick={() => { if (liftable) { sound.unlock(); onMove?.(t.idx) } }}
+                onClick={() => { if (liftable) { sound.unlock(); onPlace?.(t.idx, selectedDie) } }}
                 onPointerEnter={() => liftable && setHoverTok(t.idx)}
                 onPointerLeave={() => liftable && setHoverTok(h => (h === t.idx ? null : h))}
                 onFocus={() => liftable && setHoverTok(t.idx)}
@@ -471,34 +484,68 @@ export default function LudoBoard({ match, players = [], playerId, onRoll, onMov
         )}
       </div>
 
-      {/* Control bar — turn message on the left, die on the right. */}
+      {/* Control bar — turn message on the left, dice on the right. */}
       <div className={styles.hud}>
         <span className={styles.turnText} style={{ '--turn': COLOR[turnColor] || '#7c74c0' }}>
           <span className={styles.turnDot} />
-          {myTurn ? (canMove ? 'Tap a glowing token' : 'Your turn — roll!') : `${nameOf(turnId) || turnColor}'s turn`}
+          {myTurn
+            ? (canMove ? (dicePool.length > 1 ? 'Tap a die, then a token' : 'Tap a glowing token') : 'Your turn — roll!')
+            : `${nameOf(turnId) || turnColor}'s turn`}
         </span>
         <div className={styles.dieWrap}>
-          {canRoll && !rolling && <span className={styles.rollHint}>Tap the die</span>}
-          <button
-            type="button"
-            className={`${styles.dieBtn} ${pressed ? styles.diePressed : ''} ${canRoll && !rolling ? styles.dieReady : ''}`}
-            onClick={handleRoll}
-            disabled={!canRoll || rolling}
-            style={{ '--turn': COLOR[turnColor] || '#7c74c0' }}
-            aria-label="Roll the die"
-          >
-            <span className={styles.scene}>
-              <span className={`${styles.cube} ${rolling ? styles.cubeRolling : ''}`} style={{ transform: cube }}>
-                {[1, 2, 3, 4, 5, 6].map(v => (
-                  <span key={v} className={`${styles.face} ${styles['face' + v]}`}>
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <span key={i} className={styles.diePip} style={{ opacity: (PIPS[v] || []).includes(i) ? 1 : 0 }} />
+          {/* Dice tray — the rolled dice waiting to be placed. Selectable in MOVE. */}
+          {dicePool.length > 0 && (
+            <div className={styles.tray}>
+              {dicePool.map((d, i) => {
+                const playable = (movableByDie[i] || []).length > 0
+                const selected = canMove && i === selectedDie
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`${styles.trayDie} ${selected ? styles.trayDieSel : ''} ${canMove && !playable ? styles.trayDieDim : ''}`}
+                    style={{ '--turn': COLOR[turnColor] || '#7c74c0' }}
+                    disabled={!canMove || !playable}
+                    onClick={() => { if (canMove && playable) { sound.unlock(); setSelectedDie(i) } }}
+                    aria-label={`Die showing ${d}`}
+                  >
+                    <span className={styles.trayFace}>
+                      {Array.from({ length: 9 }).map((_, k) => (
+                        <span key={k} className={styles.trayPip} style={{ opacity: (PIPS[d] || []).includes(k) ? 1 : 0 }} />
+                      ))}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* 3D cube — the roll button (also shown while a roll settles). */}
+          {(phase === 'ROLL' || rolling) && (
+            <>
+              <button
+                type="button"
+                className={`${styles.dieBtn} ${pressed ? styles.diePressed : ''} ${canRoll && !rolling ? styles.dieReady : ''}`}
+                onClick={handleRoll}
+                disabled={!canRoll || rolling}
+                style={{ '--turn': COLOR[turnColor] || '#7c74c0' }}
+                aria-label="Roll the die"
+              >
+                <span className={styles.scene}>
+                  <span className={`${styles.cube} ${rolling ? styles.cubeRolling : ''}`} style={{ transform: cube }}>
+                    {[1, 2, 3, 4, 5, 6].map(v => (
+                      <span key={v} className={`${styles.face} ${styles['face' + v]}`}>
+                        {Array.from({ length: 9 }).map((_, i) => (
+                          <span key={i} className={styles.diePip} style={{ opacity: (PIPS[v] || []).includes(i) ? 1 : 0 }} />
+                        ))}
+                      </span>
                     ))}
                   </span>
-                ))}
-              </span>
-            </span>
-          </button>
+                </span>
+              </button>
+              {canRoll && !rolling && <span className={styles.rollHint}>Tap the die</span>}
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -1016,8 +1016,8 @@ export function RoomProvider({ children }) {
   // Finished watcher points a cell out (toggle) on a still-solving opponent's board — live for both.
   const raceHighlight = useCallback((roomId, targetId, index) => emitAck(socket, 'race:highlight', { roomId, targetId, index }), [socket])
 
-  const ludoRoll = useCallback((roomId)        => emitAck(socket, 'ludo:roll', { roomId }),        [socket])
-  const ludoMove = useCallback((roomId, token) => emitAck(socket, 'ludo:move', { roomId, token }), [socket])
+  const ludoRoll  = useCallback((roomId)                  => emitAck(socket, 'ludo:roll',  { roomId }),                  [socket])
+  const ludoPlace = useCallback((roomId, token, dieIndex) => emitAck(socket, 'ludo:place', { roomId, token, dieIndex }), [socket])
   const ludoRematch = useCallback((roomId)     => emitAck(socket, 'ludo:rematch', { roomId }),     [socket])
   const ludoPickColor = useCallback((roomId, color) => emitAck(socket, 'ludo:pick_color', { roomId, color }), [socket])
 
@@ -1124,7 +1124,7 @@ export function RoomProvider({ children }) {
       rmcsReveal, rmcsGuess, rmcsNext, rmcsEnd, rmcsRematch, addBot, removeBot,
       rummyDraw, rummyDiscard, rummyDeclare,
       queensPlace, tangoPlace, zipPath, crossclimbOrder, raceGiveUp, raceRematch, raceHighlight,
-      ludoRoll, ludoMove, ludoRematch, ludoPickColor,
+      ludoRoll, ludoPlace, ludoRematch, ludoPickColor,
     }}>
       {children}
     </RoomContext.Provider>

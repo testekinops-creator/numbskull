@@ -39,43 +39,14 @@ export function absCell(color, pos) {
   return (START_OFFSET[color] + pos) % TRACK_LEN
 }
 
-// Absolute loop cells holding an OPPONENT block (2+ tokens of one other colour).
-// `color` may neither pass over nor land on these. A pair on a cell can't be
-// captured either (you can't land on it). Your own pairs never block you.
-export function blockedCells(tokens, color) {
-  const blocks = new Set()
-  for (const c of Object.keys(tokens)) {
-    if (c === color) continue
-    const counts = {}
-    tokens[c].forEach(p => {
-      const abs = absCell(c, p)
-      if (abs != null) counts[abs] = (counts[abs] || 0) + 1
-    })
-    for (const abs in counts) if (counts[abs] >= 2) blocks.add(Number(abs))
-  }
-  return blocks
-}
-
 // Which of a colour's tokens (indices 0..3) may legally move with this roll.
-// A move is illegal if its path passes over OR lands on an opponent block.
 export function legalMoves(tokens, color, roll) {
   const mine = tokens[color] || []
-  const blocks = blockedCells(tokens, color)
   const res = []
   mine.forEach((pos, i) => {
-    if (pos === HOME) return                          // already home
-    if (pos === -1) {                                 // release needs a 6…
-      if (roll === 6 && !blocks.has(START_OFFSET[color])) res.push(i)  // …onto a free start
-      return
-    }
-    const newPos = pos + roll
-    if (newPos > HOME) return                         // would overshoot home
-    // every loop cell stepped through (incl. the landing cell) must be block-free
-    let clear = true
-    for (let p = pos + 1; p <= Math.min(newPos, 50); p++) {
-      if (blocks.has((START_OFFSET[color] + p) % TRACK_LEN)) { clear = false; break }
-    }
-    if (clear) res.push(i)
+    if (pos === HOME) return                 // already home
+    if (pos === -1) { if (roll === 6) res.push(i); return }  // release needs a 6
+    if (pos + roll <= HOME) res.push(i)      // exact-or-under to finish
   })
   return res
 }
