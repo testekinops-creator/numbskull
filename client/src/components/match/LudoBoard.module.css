@@ -440,22 +440,23 @@
 }
 .dieReady { cursor: pointer; }
 .diePressed { transform: scale(.9); }
-/* Square pulsing turn-glow behind the die, centred on it — clear on mobile. */
+/* Soft, smoothly-fading turn-glow bloom behind the die (premium, not a blob). */
 .dieReady::after {
   content: '';
   position: absolute;
-  inset: -24%;
-  border-radius: 26%;                       /* rounded SQUARE, matches the die */
-  background: var(--turn);
-  opacity: .6;
-  filter: blur(9px);
+  inset: -55%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--turn) 50%, transparent) 0%,
+    color-mix(in srgb, var(--turn) 16%, transparent) 50%,
+    transparent 76%);
   z-index: -1;
   pointer-events: none;
-  animation: dieHalo 1.1s ease-in-out infinite;
+  animation: dieHalo 1.3s ease-in-out infinite;
 }
 @keyframes dieHalo {
-  0%, 100% { opacity: .42; transform: scale(.9); }
-  50%      { opacity: .85; transform: scale(1.1); }
+  0%, 100% { opacity: .4; transform: scale(.88); }
+  50%      { opacity: .75; transform: scale(1.06); }
 }
 .scene {
   position: relative;
@@ -464,15 +465,15 @@
   transform-style: preserve-3d;
   filter: drop-shadow(0 6px 7px #0007);
 }
-/* On your turn: glow denser AND zoom in/out. */
-.dieReady .scene { animation: dieGlow 1.1s ease-in-out infinite, dieZoom 1.1s ease-in-out infinite; }
+/* On your turn: a crisp glow that hugs the die's shape + a gentle zoom. */
+.dieReady .scene { animation: dieGlow 1.3s ease-in-out infinite, dieZoom 1.3s ease-in-out infinite; }
 @keyframes dieGlow {
-  0%, 100% { filter: drop-shadow(0 4px 6px #0007) drop-shadow(0 0 10px var(--turn)); }
-  50%      { filter: drop-shadow(0 4px 6px #0007) drop-shadow(0 0 20px var(--turn)) drop-shadow(0 0 28px var(--turn)); }
+  0%, 100% { filter: drop-shadow(0 4px 6px #0007) drop-shadow(0 0 8px color-mix(in srgb, var(--turn) 80%, transparent)); }
+  50%      { filter: drop-shadow(0 4px 6px #0007) drop-shadow(0 0 16px var(--turn)); }
 }
 @keyframes dieZoom {
   0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.14); }
+  50%      { transform: scale(1.08); }
 }
 .cube {
   position: absolute;
