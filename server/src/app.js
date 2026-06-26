@@ -18,6 +18,11 @@ import { logger } from './utils/logger.js'
 
 const app = express()
 
+// Behind Render/Vercel's proxy: trust the first proxy hop so req.ip is the real
+// client IP (correct per-IP rate limiting) — but no more (so a client can't spoof
+// X-Forwarded-For to dodge limits).
+app.set('trust proxy', 1)
+
 app.use(helmet())
 const allowedOrigins = [
   process.env.CLIENT_URL,
@@ -25,12 +30,14 @@ const allowedOrigins = [
   'http://localhost:5173',
 ].filter(Boolean)
 
+// Only this project's own Vercel deploys (prod + preview), not *any* vercel.app site.
+const VERCEL_ORIGIN = /^https:\/\/numbskull[a-z0-9-]*\.vercel\.app$/i
+
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true)
-      // Also allow any vercel.app subdomain
-      if (origin.endsWith('.vercel.app')) return cb(null, true)
+      // Exact match only — `startsWith` would let `https://allowed.com.evil.com` in.
+      if (!origin || allowedOrigins.includes(origin) || VERCEL_ORIGIN.test(origin)) return cb(null, true)
       cb(new Error(`CORS: ${origin} not allowed`))
     },
     credentials: true,

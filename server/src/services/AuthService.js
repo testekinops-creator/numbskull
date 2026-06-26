@@ -7,6 +7,7 @@ import { levelForXp } from '../game/progression.js'
 const SALT_ROUNDS = 12
 const ACCESS_EXPIRES  = process.env.JWT_ACCESS_EXPIRES_IN  || '15m'
 const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES_IN || '30d'
+const JWT_ALGS = ['HS256']            // pin the algorithm — never accept "none"/alg-confusion
 
 // Refresh tokens stay in memory — they expire and rotate on use
 const refreshTokens = new Map()
@@ -14,8 +15,26 @@ const lockouts      = new Map()
 const MAX_FAILED    = 10
 const LOCKOUT_MS    = 15 * 60 * 1000
 
-function accessSecret()  { return process.env.JWT_ACCESS_SECRET  || 'dev_access_secret_change_me' }
-function refreshSecret() { return process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret_change_me' }
+// Resolve the signing secrets ONCE at startup. In production we refuse to run
+// with the public dev defaults (or no secret) — that would let anyone forge a
+// token for any account. Set JWT_ACCESS_SECRET / JWT_REFRESH_SECRET (32+ random
+// chars) in the host env.
+const IS_PROD = process.env.NODE_ENV === 'production'
+const DEV_ACCESS_DEFAULT  = 'dev_access_secret_change_me'
+const DEV_REFRESH_DEFAULT = 'dev_refresh_secret_change_me'
+function resolveSecret(name, devDefault) {
+  const v = process.env[name]
+  if (IS_PROD && (!v || v === devDefault)) {
+    throw new Error(`[SECURITY] ${name} must be set to a strong secret in production — refusing to start with the public dev default.`)
+  }
+  return v || devDefault
+}
+const ACCESS_SECRET  = resolveSecret('JWT_ACCESS_SECRET',  DEV_ACCESS_DEFAULT)
+const REFRESH_SECRET = resolveSecret('JWT_REFRESH_SECRET', DEV_REFRESH_DEFAULT)
+
+// A throwaway hash compared against when no user is found, so the "no such user"
+// and "wrong password" paths take the same time (no timing-based user enumeration).
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password-placeholder', SALT_ROUNDS)
 
 export const AuthService = {
 
@@ -90,7 +109,7 @@ export const AuthService = {
     }
 
     if (!user || !user.passwordHash) {
-      await bcrypt.hash('dummy', 8)
+      await bcrypt.compare(password, DUMMY_HASH)   // equal-time path → no user enumeration
       const err = new Error('Invalid credentials'); err.code = 'INVALID_CREDENTIALS'; err.status = 401; throw err
     }
 
@@ -109,7 +128,7 @@ export const AuthService = {
 
   async refresh(token) {
     let payload
-    try { payload = jwt.verify(token, refreshSecret()) }
+    try { payload = jwt.verify(token, REFRESH_SECRET, { algorithms: JWT_ALGS }) }
     catch { const err = new Error('Invalid refresh token'); err.code = 'INVALID_TOKEN'; err.status = 401; throw err }
 
     const stored = refreshTokens.get(payload.jti)
@@ -131,7 +150,7 @@ export const AuthService = {
   },
 
   verifyAccess(token) {
-    return jwt.verify(token, accessSecret())
+    return jwt.verify(token, ACCESS_SECRET, { algorithms: JWT_ALGS })
   },
 
   async getUser(id) {
@@ -237,8 +256,8 @@ export const AuthService = {
 
   _tokenPair(user) {
     const jti = uuidv4()
-    const accessToken  = jwt.sign({ sub: user.id, role: user.role }, accessSecret(),  { expiresIn: ACCESS_EXPIRES })
-    const refreshToken = jwt.sign({ sub: user.id, jti },             refreshSecret(), { expiresIn: REFRESH_EXPIRES })
+    const accessToken  = jwt.sign({ sub: user.id, role: user.role }, ACCESS_SECRET,  { expiresIn: ACCESS_EXPIRES,  algorithm: 'HS256' })
+    const refreshToken = jwt.sign({ sub: user.id, jti },             REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES, algorithm: 'HS256' })
     refreshTokens.set(jti, refreshToken)
     return { accessToken, refreshToken, user: this.publicProfile(user) }
   },

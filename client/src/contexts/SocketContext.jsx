@@ -26,7 +26,9 @@ export function SocketProvider({ children }) {
         playerId,
         playerName: displayName,
         avatar: avatar || null,   // chosen emoji-avatar id (null → playerId fallback)
-        userId: isRegistered && user?.id ? user.id : null,  // DB id for friend requests
+        // The server derives the trusted account id ONLY from this access token
+        // (a client-supplied userId would be ignored), so identity can't be spoofed.
+        token: localStorage.getItem('ns_access_token') || null,
         allowWatch: localStorage.getItem('ns_allow_watch') !== 'false',  // can friends watch me? (default yes)
       },
       reconnection: true,
@@ -40,7 +42,11 @@ export function SocketProvider({ children }) {
 
     socket.on('connect', () => { setConnected(true); setReconnecting(false); everConnectedRef.current = true })
     socket.on('disconnect', () => { setConnected(false); if (everConnectedRef.current) setReconnecting(true) })
-    socket.io.on('reconnect_attempt', () => { if (everConnectedRef.current) setReconnecting(true) })
+    socket.io.on('reconnect_attempt', () => {
+      // Re-read the (possibly refreshed) access token so reconnects stay authenticated.
+      socket.auth.token = localStorage.getItem('ns_access_token') || null
+      if (everConnectedRef.current) setReconnecting(true)
+    })
     socket.io.on('reconnect', () => setReconnecting(false))
     // Another tab/window opened with the same player → the server hands the live
     // connection to the newest socket and drops this one. We do NOT permanently

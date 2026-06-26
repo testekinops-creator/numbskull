@@ -11,6 +11,7 @@ import { registerFriendHandlers } from './friendHandlers.js'
 import { socketRateLimit } from '../middleware/socketRateLimit.js'
 import { roomManager } from '../game/RoomManager.js'
 import { SocialService } from '../services/SocialService.js'
+import { AuthService } from '../services/AuthService.js'
 
 const socketPlayerMap = new Map()
 
@@ -93,6 +94,23 @@ export function setupSocket(httpServer) {
       logger.warn({ err: e.message }, 'Failed to enable Redis adapter — continuing single-instance')
     }
   }
+
+  // ── Handshake auth ──────────────────────────────────────────────────────────
+  // The account identity (userId) MUST come from a verified access token — never
+  // trust a client-supplied userId (a client could put any victim's id there and
+  // receive their private events / record results to their account). Guests have
+  // no token → userId stays null. An invalid/expired token is downgraded to guest
+  // rather than hard-rejected, so a stale token never bricks the connection.
+  io.use((socket, next) => {
+    const auth = socket.handshake.auth || {}
+    let verifiedUserId = null
+    if (auth.token) {
+      try { verifiedUserId = AuthService.verifyAccess(auth.token)?.sub || null } catch { verifiedUserId = null }
+    }
+    auth.userId = verifiedUserId            // overwrite whatever the client claimed
+    socket.handshake.auth = auth
+    next()
+  })
 
   io.on('connection', (socket) => {
     logger.debug({ socketId: socket.id }, 'Client connected')
