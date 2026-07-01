@@ -643,7 +643,7 @@ function GuessRoom() {
         onOpenChat={openChat}
       />
 
-      <RoomToasts roomId={roomId} />
+      <RoomToasts roomId={roomId} chatOpen={chatOpen} />
 
       {/* ── Chat panel (bottom sheet) ── */}
       <ChatPanel

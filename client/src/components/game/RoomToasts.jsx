@@ -18,7 +18,7 @@ const TIL = ({ icon: I, children }) => (
 const MAX_BUBBLES = 3      // never let the stack push the UI off-screen
 const BUBBLE_MS   = 5000   // each message lingers this long, then fades
 
-export default function RoomToasts() {
+export default function RoomToasts({ chatOpen = false }) {
   const { state } = useRoom()
   const { playerId } = usePlayer()
   const opponent = state.room?.players?.find(p => p.id !== playerId)
@@ -91,6 +91,9 @@ export default function RoomToasts() {
     const fresh = msgs.filter(m => !m.mine && !seenRef.current.has(m.id))
     if (fresh.length === 0) return
     fresh.forEach(m => seenRef.current.add(m.id))
+    // Chat panel already open → the message is visible there; skip the floating
+    // bubble (it's marked seen above, so it won't pop later when the chat closes).
+    if (chatOpen) return
     setBubbles(prev => [
       ...prev,
       ...fresh.map(m => ({ id: m.id, fromName: m.fromName, text: m.text })),
@@ -99,8 +102,10 @@ export default function RoomToasts() {
       const t = setTimeout(() => setBubbles(prev => prev.filter(b => b.id !== m.id)), BUBBLE_MS)
       timersRef.current.push(t)
     })
-  }, [state.chatMessages])
+  }, [state.chatMessages, chatOpen])
   useEffect(() => () => { timersRef.current.forEach(clearTimeout) }, [])
+  // Opening the chat clears any bubbles already floating (you're now reading them).
+  useEffect(() => { if (chatOpen) setBubbles([]) }, [chatOpen])
   const dismissBubble = (id) => setBubbles(prev => prev.filter(b => b.id !== id))
 
   return (

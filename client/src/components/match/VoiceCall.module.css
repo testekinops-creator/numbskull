@@ -41,7 +41,10 @@
   margin: 0 auto;
   width: max-content;
   bottom: calc(var(--safe-bottom, 0px) + 14px);
-  z-index: 1150;
+  /* Below the overlay tier (chat 100, rules-modal 200, emoji picker 1100) so those
+     panels always cover the call bar instead of it floating over their bottom row /
+     input / action button. Still above the game board + action dock. */
+  z-index: calc(var(--z-overlay, 100) - 5);
   display: flex;
   align-items: center;
   gap: var(--space-3, 12px);
@@ -62,7 +65,10 @@
   right: 0;
   margin: 0 auto;
   bottom: calc(var(--safe-bottom, 0px) + 14px);
-  z-index: 1150;
+  /* Below the overlay tier (chat 100, rules-modal 200, emoji picker 1100) so those
+     panels always cover the call bar instead of it floating over their bottom row /
+     input / action button. Still above the game board + action dock. */
+  z-index: calc(var(--z-overlay, 100) - 5);
   width: max-content;
   max-width: 70vw;
   display: inline-flex;

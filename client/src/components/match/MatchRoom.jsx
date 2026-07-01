@@ -1107,7 +1107,7 @@ export default function MatchRoom({ roomId, mode }) {
         onOpenChat={openChat}
       />
 
-      <RoomToasts roomId={roomId} />
+      <RoomToasts roomId={roomId} chatOpen={chatOpen} />
 
       <ChatPanel
         open={chatOpen}
