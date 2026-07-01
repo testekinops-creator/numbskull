@@ -56,6 +56,13 @@ export default function SocialLoginButtons({ label = 'or continue with', onDone,
         client_id: GOOGLE_ID,
         scope: 'openid email profile',
         callback: (resp) => resp?.access_token ? finish('google', { accessToken: resp.access_token }) : setBusy(''),
+        // Surface popup failures (blocked pop-up, user closed it) instead of hanging.
+        error_callback: (err) => {
+          setBusy('')
+          setErr(err?.type === 'popup_closed'
+            ? 'Google sign-in was closed before it finished.'
+            : 'Couldn’t open Google sign-in — allow pop-ups for this site, or use email login.')
+        },
       })
     }).catch(() => {})
     return () => { cancelled = true }
@@ -68,13 +75,18 @@ export default function SocialLoginButtons({ label = 'or continue with', onDone,
     loadScript('fb-jssdk', 'https://connect.facebook.net/en_US/sdk.js').catch(() => {})
   }, [])
 
+  // Common message when the provider SDK never loaded — almost always an ad/tracker
+  // blocker, Brave shields, or strict privacy settings blocking the external script
+  // (the classic "works on phone, dead on laptop" case). Don't fail silently.
+  const BLOCKED = (who) => `${who} sign-in couldn’t load — an ad/tracker blocker or strict privacy setting may be blocking it. Allow this site (or disable the blocker), or just use email login.`
+
   function googleClick() {
-    if (!tokenClientRef.current) return
+    if (!tokenClientRef.current) { setErr(BLOCKED('Google')); return }
     setBusy('google'); setErr('')
     tokenClientRef.current.requestAccessToken()
   }
   function facebookClick() {
-    if (!window.FB) return
+    if (!window.FB) { setErr(BLOCKED('Facebook')); return }
     setBusy('facebook'); setErr('')
     window.FB.login(
       (resp) => resp?.authResponse?.accessToken ? finish('facebook', { accessToken: resp.authResponse.accessToken }) : setBusy(''),

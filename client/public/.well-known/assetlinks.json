@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.numbskull.twa",
+      "sha256_cert_fingerprints": [
+        "D1:3F:D3:6A:7F:62:A2:60:F9:9F:90:50:FE:B9:09:6A:C4:2C:64:8B:8C:FD:29:F2:47:67:23:28:D6:8B:F0:6C"
+      ]
+    }
+  }
+]

@@ -66,11 +66,14 @@ export function setupSocket(httpServer) {
     'http://localhost:3000',
     'http://127.0.0.1:3000',
   ]
+  // Mirror the REST CORS policy (app.js) so this project's Vercel deploys — prod
+  // AND preview/branch — can open a socket, but not *any* vercel.app site.
+  const VERCEL_ORIGIN = /^https:\/\/numbskull[a-z0-9-]*\.vercel\.app$/i
 
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, cb) => {
-        if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
+        if (!origin || allowedOrigins.includes(origin) || VERCEL_ORIGIN.test(origin)) return cb(null, true)
         cb(new Error(`CORS: origin ${origin} not allowed`))
       },
       methods: ['GET', 'POST'],

@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '../config/prisma.js'
+import { getRedis } from '../config/redis.js'
 import { levelForXp } from '../game/progression.js'
 
 const SALT_ROUNDS = 12
@@ -9,8 +10,38 @@ const ACCESS_EXPIRES  = process.env.JWT_ACCESS_EXPIRES_IN  || '15m'
 const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES_IN || '30d'
 const JWT_ALGS = ['HS256']            // pin the algorithm — never accept "none"/alg-confusion
 
-// Refresh tokens stay in memory — they expire and rotate on use
-const refreshTokens = new Map()
+// ── Refresh-token store ──────────────────────────────────────────────────────
+// Backed by Redis when REDIS_URL is set: refresh tokens then SURVIVE server
+// restarts (so a Render/Neon restart no longer force-logs-out everyone once their
+// 15-min access token expires) and AUTO-EXPIRE via TTL (no unbounded memory
+// growth). Without Redis — or if a Redis op throws — it transparently falls back
+// to an in-memory Map (original single-instance behaviour). Reuse-detection and
+// rotation semantics are identical either way.
+function ttlSeconds(exp, fallback) {
+  const m = /^(\d+)\s*([smhd])$/.exec(String(exp || '').trim())
+  if (!m) return fallback
+  return Number(m[1]) * ({ s: 1, m: 60, h: 3600, d: 86400 })[m[2]]
+}
+const REFRESH_TTL_S = ttlSeconds(REFRESH_EXPIRES, 30 * 86400)
+const memRefresh = new Map()
+const rkey = (jti) => `refresh:${jti}`
+
+async function storeRefresh(jti, token) {
+  const r = getRedis()
+  if (r) { try { await r.set(rkey(jti), token, 'EX', REFRESH_TTL_S); return } catch { /* fall back */ } }
+  memRefresh.set(jti, token)
+}
+async function getRefresh(jti) {
+  const r = getRedis()
+  if (r) { try { return await r.get(rkey(jti)) } catch { /* fall back */ } }
+  return memRefresh.get(jti) ?? null
+}
+async function dropRefresh(jti) {
+  const r = getRedis()
+  if (r) { try { await r.del(rkey(jti)); return } catch { /* fall back */ } }
+  memRefresh.delete(jti)
+}
+
 const lockouts      = new Map()
 const MAX_FAILED    = 10
 const LOCKOUT_MS    = 15 * 60 * 1000
@@ -131,11 +162,11 @@ export const AuthService = {
     try { payload = jwt.verify(token, REFRESH_SECRET, { algorithms: JWT_ALGS }) }
     catch { const err = new Error('Invalid refresh token'); err.code = 'INVALID_TOKEN'; err.status = 401; throw err }
 
-    const stored = refreshTokens.get(payload.jti)
+    const stored = await getRefresh(payload.jti)
     if (!stored || stored !== token) {
       const err = new Error('Refresh token reuse detected'); err.code = 'TOKEN_REUSE'; err.status = 401; throw err
     }
-    refreshTokens.delete(payload.jti)
+    await dropRefresh(payload.jti)
 
     const user = await prisma.user.findUnique({ where: { id: payload.sub } })
     if (!user) { const err = new Error('User not found'); err.code = 'NOT_FOUND'; err.status = 404; throw err }
@@ -145,7 +176,7 @@ export const AuthService = {
   async logout(token) {
     try {
       const payload = jwt.decode(token)
-      if (payload?.jti) refreshTokens.delete(payload.jti)
+      if (payload?.jti) await dropRefresh(payload.jti)
     } catch {}
   },
 
@@ -254,11 +285,11 @@ export const AuthService = {
     }
   },
 
-  _tokenPair(user) {
+  async _tokenPair(user) {
     const jti = uuidv4()
     const accessToken  = jwt.sign({ sub: user.id, role: user.role }, ACCESS_SECRET,  { expiresIn: ACCESS_EXPIRES,  algorithm: 'HS256' })
     const refreshToken = jwt.sign({ sub: user.id, jti },             REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES, algorithm: 'HS256' })
-    refreshTokens.set(jti, refreshToken)
+    await storeRefresh(jti, refreshToken)
     return { accessToken, refreshToken, user: this.publicProfile(user) }
   },
 }
