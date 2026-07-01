@@ -152,7 +152,9 @@ export const AuthService = {
       const err = new Error('Invalid credentials'); err.code = 'INVALID_CREDENTIALS'; err.status = 401; throw err
     }
 
-    await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0 } })
+    // Only write when there's actually something to reset — saves a second DB
+    // round-trip (and a Neon op) on the common "clean login" path.
+    if (user.failedLogins) await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0 } })
     lockouts.delete(lockKey)
     return this._tokenPair(user)
   },
